@@ -537,33 +537,31 @@ async function cloudLoad() {
         // Local có khách nhưng cloud trống → đẩy local lên cloud
         setTimeout(() => cloudSaveAll(), 1500);
       }
-      // Services: cloud là master (đồng bộ giá, tên về điện thoại)
-      // Trừ khi _svcsDirty=true (user vừa sửa, chờ sync lên cloud xong)
+      // Services: MERGE - giữ local + thêm dịch vụ mới từ cloud (không bao giờ xóa local)
       const localSvcs = JSON.parse(localStorage.getItem('spa_services') || '[]');
       const cloudSvcs = Array.isArray(d.services) ? d.services : [];
-      if (cloudSvcs.length > 0) {
-        if (!_svcsDirty) {
-          // Cloud là bản mới nhất → ghi đè local (để đồng bộ giá/tên sang điện thoại)
-          localStorage.setItem('spa_services', JSON.stringify(cloudSvcs));
-        } else {
-          // Đang có thay đổi local chưa lên cloud → chỉ thêm dịch vụ mới, không ghi đè
-          const localSvcIds = new Set(localSvcs.map(s => s.id));
-          const mergedSvcs = [...localSvcs, ...cloudSvcs.filter(s => !localSvcIds.has(s.id))];
-          localStorage.setItem('spa_services', JSON.stringify(mergedSvcs));
+      if (cloudSvcs.length > 0 || localSvcs.length > 0) {
+        const localSvcIds = new Set(localSvcs.map(s => s.id));
+        // Thêm dịch vụ từ cloud mà local chưa có (local wins on conflict)
+        const mergedSvcs = [...localSvcs, ...cloudSvcs.filter(s => !localSvcIds.has(s.id))];
+        localStorage.setItem('spa_services', JSON.stringify(mergedSvcs));
+        // Nếu local có nhiều hơn cloud → đẩy lên cloud
+        if (mergedSvcs.length > cloudSvcs.length) {
+          setTimeout(() => cloudSave('services', mergedSvcs), 1500);
         }
       }
-      // Staff: cloud là master (để đồng bộ nhân viên sang điện thoại)
+      // Staff: MERGE - giữ local + thêm nhân viên mới từ cloud
       const localStaff = JSON.parse(localStorage.getItem('spa_staff_list') || '[]');
       const cloudStaff = Array.isArray(d.staff_list) ? d.staff_list : [];
-      if (cloudStaff.length > 0) {
-        if (!_staffDirty) {
-          // Cloud là bản mới nhất → ghi đè local
-          localStorage.setItem('spa_staff_list', JSON.stringify(cloudStaff));
-        } else {
-          // Đang có thay đổi local chưa lên cloud → merge
-          const localStaffSet = new Set(localStaff);
-          const mergedStaff = [...localStaff, ...cloudStaff.filter(s => !localStaffSet.has(s))];
-          localStorage.setItem('spa_staff_list', JSON.stringify(mergedStaff));
+      if (cloudStaff.length > 0 || localStaff.length > 0) {
+        const localStaffNames = new Set(localStaff.map(s => typeof s === 'string' ? s : s.id || s.name));
+        const mergedStaff = [...localStaff, ...cloudStaff.filter(s => {
+          const key = typeof s === 'string' ? s : s.id || s.name;
+          return !localStaffNames.has(key);
+        })];
+        localStorage.setItem('spa_staff_list', JSON.stringify(mergedStaff));
+        if (mergedStaff.length > cloudStaff.length) {
+          setTimeout(() => cloudSave('staff_list', mergedStaff), 2000);
         }
       }
 
