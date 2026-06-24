@@ -521,7 +521,7 @@ async function cloudLoad() {
         const mergedCusts = rawMergedCusts.filter(c => {
           const key = c.phone || c.id;
           if (seenPhones.has(key)) return false;
-          seenPhones.set(key, true);
+          seenPhones.add(key);
           return true;
         });
         // Cloud visits không có ảnh (bị strip) → dọn sạch photos trước khi merge
