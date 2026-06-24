@@ -386,7 +386,12 @@ tfoot td{background:#006064!important;color:#fff;font-weight:700;}
 <script>
 // ══ CLOUD SYNC ══
 // KHÔNG đặt URL mặc định – chỉ dùng URL do chị tự kết nối trong Cài Đặt
-let CLOUD_URL = localStorage.getItem('spa_cloud_url') || '';
+const _HARDCODED_CLOUD = 'https://script.google.com/macros/s/AKfycbz30mA1SaGmecxrmWLFONhg9OIUE9E78EYKAKonbFv8gBbuEXLIlCXuAtQsG8FRxg1REQ/exec';
+// Tự động set cloud URL nếu chưa có (hard-coded cho deployment này)
+if (!localStorage.getItem('spa_cloud_url')) {
+  localStorage.setItem('spa_cloud_url', _HARDCODED_CLOUD);
+}
+let CLOUD_URL = localStorage.getItem('spa_cloud_url') || _HARDCODED_CLOUD;
 
 // ── Tự động cấu hình cloud từ link setup (khi mở trên thiết bị mới) ──
 (function(){
@@ -802,7 +807,9 @@ const DB={
 };
 
 function seed(){
-  // Chỉ seed dịch vụ và nhân viên mặc định — KHÔNG tạo khách hàng demo
+  // CHỈ seed khi KHÔNG có cloud (để tránh ghi đè dữ liệu thật từ cloud)
+  // Nếu có cloud URL → cloudLoad sẽ tự kéo dữ liệu về, không cần seed
+  if(CLOUD_URL) return;
   if(!DB.get('services').length){
     DB.set('services',[
       {id:'s1',name:'Phun mày Ombre',cat:'dv',price:2000000,remindDays:30},
