@@ -1,0 +1,1591 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>🌸 Spa CRM – Quản Lý Khách Hàng</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#006064">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Spa CRM">
+<link rel="apple-touch-icon" href="icon.svg">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#212121;font-size:13px;}
+#topbar{background:linear-gradient(90deg,#006064,#00838f);color:#fff;padding:0 16px;display:flex;align-items:center;gap:12px;height:54px;box-shadow:0 2px 10px rgba(0,0,0,.2);position:sticky;top:0;z-index:100;}
+.logo{font-size:17px;font-weight:700;white-space:nowrap;}
+.search-wrap{flex:1;max-width:400px;position:relative;}
+.search-wrap input{width:100%;padding:8px 14px 8px 38px;border:none;border-radius:24px;font-size:13px;font-family:inherit;background:rgba(255,255,255,.15);color:#fff;outline:none;}
+.search-wrap input::placeholder{color:rgba(255,255,255,.6);}
+.search-wrap input:focus{background:rgba(255,255,255,.25);}
+.search-wrap .si{position:absolute;left:13px;top:50%;transform:translateY(-50%);font-size:14px;}
+#search-dropdown{display:none;position:absolute;top:calc(100% + 6px);left:0;right:0;background:#fff;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.18);z-index:200;overflow:hidden;max-height:300px;overflow-y:auto;}
+#search-dropdown.show{display:block;}
+.sd-item{padding:10px 15px;display:flex;align-items:center;gap:11px;cursor:pointer;border-bottom:1px solid #f5f5f5;}
+.sd-item:hover{background:#e0f7fa;}
+.sd-avatar{width:34px;height:34px;border-radius:50%;background:#00838f;display:flex;align-items:center;justify-content:center;font-size:15px;color:#fff;flex-shrink:0;}
+.sd-name{font-weight:700;color:#006064;font-size:13px;}
+.sd-meta{font-size:11px;color:#90a4ae;}
+nav{display:flex;gap:1px;margin-left:6px;}
+nav a{color:rgba(255,255,255,.85);text-decoration:none;font-size:12px;padding:6px 10px;border-radius:6px;cursor:pointer;white-space:nowrap;position:relative;}
+nav a:hover,nav a.active{background:rgba(255,255,255,.2);color:#fff;}
+.nav-badge{position:absolute;top:-2px;right:-2px;background:#f44336;color:#fff;border-radius:50%;width:16px;height:16px;font-size:9px;display:flex;align-items:center;justify-content:center;font-weight:700;}
+.right-btns{margin-left:auto;display:flex;gap:5px;align-items:center;flex-shrink:0;}
+.btn{padding:7px 13px;border:none;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;font-family:inherit;transition:.15s;display:inline-flex;align-items:center;gap:4px;}
+.btn-teal{background:#00838f;color:#fff;}.btn-teal:hover{background:#006064;}
+.btn-green{background:#2e7d32;color:#fff;}.btn-green:hover{background:#1b5e20;}
+.btn-gray{background:#eceff1;color:#546e7a;}.btn-gray:hover{background:#cfd8dc;}
+.btn-pink{background:#c2185b;color:#fff;}.btn-pink:hover{background:#880e4f;}
+.btn-orange{background:#e65100;color:#fff;}.btn-orange:hover{background:#bf360c;}
+.btn-sm{padding:5px 11px;font-size:11.5px;}
+.btn-xs{padding:3px 8px;font-size:11px;}
+#main{padding:16px 18px;max-width:1400px;margin:0 auto;}
+/* HOME */
+.hero-search{text-align:center;padding:28px 20px 18px;}
+.hero-search h1{font-size:22px;font-weight:700;color:#006064;margin-bottom:5px;}
+.hero-search p{color:#546e7a;font-size:13px;margin-bottom:20px;}
+.hero-search-box{position:relative;max-width:520px;margin:0 auto;}
+.hero-search-box input{width:100%;padding:12px 18px 12px 46px;border:2px solid #b2ebf2;border-radius:28px;font-size:15px;font-family:inherit;outline:none;box-shadow:0 4px 18px rgba(0,131,143,.1);}
+.hero-search-box input:focus{border-color:#00838f;}
+.hero-search-box .si{position:absolute;left:16px;top:50%;transform:translateY(-50%);font-size:18px;}
+#hero-results{margin-top:16px;max-width:520px;margin-left:auto;margin-right:auto;}
+/* ALERT STRIP */
+.alert-strip{background:linear-gradient(90deg,#fff3e0,#fff8e1);border:1px solid #ffcc02;border-radius:12px;padding:14px 18px;margin-bottom:16px;}
+.alert-strip-title{font-size:13px;font-weight:700;color:#e65100;margin-bottom:10px;display:flex;align-items:center;gap:7px;}
+.alert-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #ffe082;cursor:pointer;}
+.alert-row:last-child{border-bottom:none;}
+.alert-row:hover .al-name{text-decoration:underline;}
+.al-icon{font-size:18px;flex-shrink:0;}
+.al-name{font-weight:700;color:#006064;font-size:13px;}
+.al-info{font-size:11px;color:#546e7a;}
+.al-days{margin-left:auto;font-size:12px;font-weight:700;padding:3px 9px;border-radius:8px;white-space:nowrap;}
+.al-overdue{background:#ffebee;color:#c62828;}
+.al-urgent{background:#fff3e0;color:#e65100;}
+.al-soon{background:#e8f5e9;color:#2e7d32;}
+/* CARDS */
+.cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:12px;margin-bottom:16px;}
+.cust-card{background:#fff;border-radius:12px;padding:14px;box-shadow:0 2px 9px rgba(0,0,0,.07);cursor:pointer;transition:.18s;border:2px solid transparent;}
+.cust-card:hover{border-color:#00838f;transform:translateY(-2px);}
+.cust-card-top{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.cust-avatar{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#006064,#00acc1);display:flex;align-items:center;justify-content:center;font-size:18px;color:#fff;flex-shrink:0;}
+.cust-card-name{font-size:13px;font-weight:700;color:#006064;}
+.cust-card-phone{font-size:11.5px;color:#546e7a;margin-top:1px;}
+.tier-badge{display:inline-block;padding:2px 7px;border-radius:9px;font-size:10px;font-weight:700;}
+.tier-vip{background:#fff9c4;color:#f57f17;}
+.tier-loyal{background:#e3f2fd;color:#1565c0;}
+.tier-new{background:#e0f7fa;color:#006064;}
+.cust-card-stats{display:flex;gap:10px;font-size:11px;color:#90a4ae;}
+.cust-card-stats b{color:#212121;}
+/* PANEL */
+#detail-panel{display:none;position:fixed;right:0;top:0;bottom:0;width:700px;max-width:100vw;background:#fff;z-index:500;box-shadow:-8px 0 40px rgba(0,0,0,.15);overflow-y:auto;flex-direction:column;}
+#detail-panel.open{display:flex;}
+#panel-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:499;}
+#panel-overlay.open{display:block;}
+.panel-header{background:linear-gradient(135deg,#006064,#00acc1);color:#fff;padding:18px 20px;flex-shrink:0;}
+.panel-header h2{font-size:18px;font-weight:700;margin-bottom:3px;}
+.ph-stats{display:flex;gap:16px;margin-top:10px;flex-wrap:wrap;}
+.ph-stat{text-align:center;}
+.ph-stat .val{font-size:16px;font-weight:700;display:block;}
+.ph-stat .lbl{font-size:10px;opacity:.8;}
+.panel-body{padding:16px 20px;flex:1;}
+.panel-actions{display:flex;gap:7px;margin-bottom:14px;flex-wrap:wrap;}
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:14px;}
+.info-item{background:#f9fdfd;border-radius:9px;padding:9px 13px;}
+.info-item .il{font-size:10px;color:#90a4ae;margin-bottom:2px;}
+.info-item .iv{font-size:13px;font-weight:600;}
+.info-item.warn{background:#fff3e0;}.info-item.warn .iv{color:#e65100;}
+.info-full{grid-column:1/-1;}
+.timeline{margin-top:4px;}
+.visit-item{border:1px solid #e0f7fa;border-radius:11px;margin-bottom:10px;overflow:hidden;}
+.visit-header{background:#e0f7fa;padding:9px 14px;display:flex;align-items:center;gap:8px;cursor:pointer;}
+.visit-header .vd{font-weight:700;color:#006064;font-size:13px;}
+.visit-header .vs{font-size:11px;color:#546e7a;margin-left:auto;}
+.visit-body{padding:13px 14px;display:none;}
+.visit-body.open{display:block;}
+.vt{width:100%;border-collapse:collapse;margin-bottom:10px;}
+.vt th{background:#e0f7fa;padding:6px 9px;font-size:11px;font-weight:700;color:#006064;text-align:left;}
+.vt td{padding:7px 9px;border-bottom:1px solid #f0f0f0;font-size:12px;}
+.vt tfoot td{background:#006064;color:#fff;font-weight:700;}
+.cat-badge{padding:2px 7px;border-radius:7px;font-size:10px;font-weight:700;}
+.cat-dv{background:#e8f5e9;color:#2e7d32;}
+.cat-mp{background:#fff8e1;color:#e65100;}
+.photos-row{display:flex;gap:7px;flex-wrap:wrap;margin-top:7px;}
+.photo-pair{background:#f9fdfd;border-radius:9px;padding:9px;border:1px solid #e0f7fa;}
+.pp-label{font-size:10px;color:#90a4ae;margin-bottom:5px;font-weight:700;}
+.photos-pair-imgs{display:flex;gap:5px;}
+.photo-thumb{width:105px;height:86px;object-fit:cover;border-radius:7px;cursor:pointer;border:2px solid #e0f7fa;}
+.photo-thumb:hover{border-color:#00838f;}
+.photo-slot{width:105px;height:86px;border:2px dashed #b2ebf2;border-radius:7px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#90a4ae;font-size:10px;gap:3px;}
+.visit-note{background:#fff8e1;border-radius:7px;padding:7px 11px;font-size:12px;color:#546e7a;margin-top:7px;}
+/* MODAL */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;align-items:center;justify-content:center;}
+.modal-bg.show{display:flex;}
+.modal{background:#fff;border-radius:15px;padding:22px;width:720px;max-width:97vw;max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25);}
+.modal h3{font-size:14px;font-weight:700;color:#006064;margin-bottom:14px;padding-bottom:9px;border-bottom:2px solid #e0f7fa;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:9px;}
+.form-grid.full{grid-template-columns:1fr;}
+label{font-size:11.5px;color:#546e7a;font-weight:600;display:block;margin-bottom:3px;}
+.fi{width:100%;border:1.5px solid #cfd8dc;border-radius:7px;padding:7px 10px;font-size:13px;font-family:inherit;}
+.fi:focus{outline:none;border-color:#00838f;}
+textarea.fi{resize:vertical;min-height:55px;}
+.btn-group{display:flex;gap:7px;justify-content:flex-end;margin-top:16px;}
+.modal-sticky-top{position:sticky;top:-22px;z-index:10;background:#fff;padding:10px 0 10px;margin:-6px 0 10px;border-bottom:2px solid #e0f7fa;display:flex;gap:7px;align-items:center;}
+.modal-sticky-bot{position:sticky;bottom:-22px;z-index:10;background:#fff;padding:12px 0 6px;margin-top:14px;border-top:2px solid #e0f7fa;display:flex;gap:7px;justify-content:flex-end;}
+/* VISIT ITEM ROWS */
+.vi-row{display:flex;gap:6px;align-items:center;margin-bottom:7px;background:#f0f9fa;border-radius:8px;padding:8px 10px;flex-wrap:wrap;}
+.vi-row input,.vi-row select{border:1.5px solid #cfd8dc;border-radius:6px;padding:6px 9px;font-size:12px;font-family:inherit;}
+.vi-row input:focus,.vi-row select:focus{outline:none;border-color:#00838f;}
+.vi-catalog-select{width:100%;border:1.5px solid #b2ebf2;border-radius:6px;padding:6px 9px;font-size:12px;font-family:inherit;background:#fff;color:#006064;font-weight:600;margin-bottom:5px;}
+.vi-catalog-select:focus{outline:none;border-color:#00838f;}
+/* DISCOUNT */
+.disc-row{display:flex;align-items:center;gap:5px;margin-top:4px;}
+.disc-row input{width:80px;border:1.5px solid #ffcc02;border-radius:6px;padding:5px 7px;font-size:12px;font-family:inherit;background:#fffde7;}
+.disc-row input:focus{outline:none;border-color:#e65100;}
+.disc-row select{border:1.5px solid #ffcc02;border-radius:6px;padding:5px 7px;font-size:12px;font-family:inherit;background:#fffde7;}
+.price-orig{text-decoration:line-through;color:#90a4ae;font-size:11px;}
+.price-disc{color:#c62828;font-weight:700;}
+.disc-tag{background:#ffebee;color:#c62828;border-radius:6px;font-size:10px;font-weight:700;padding:1px 6px;}
+/* PHOTO UPLOAD */
+.pu-pair{background:#f9fdfd;border-radius:9px;padding:10px;border:1px solid #e0f7fa;margin-bottom:9px;}
+.pu-btn{width:96px;height:78px;border:2px dashed #b2ebf2;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;color:#90a4ae;font-size:10px;gap:3px;background:#fff;}
+.pu-btn:hover{border-color:#00838f;color:#00838f;}
+.add-photo-pair{border:2px dashed #b2ebf2;border-radius:9px;padding:13px;display:flex;align-items:center;gap:7px;cursor:pointer;color:#90a4ae;font-size:12px;background:#fff;}
+.add-photo-pair:hover{border-color:#00838f;color:#00838f;}
+/* REVENUE */
+.rev-controls{background:#fff;border-radius:11px;padding:11px 16px;margin-bottom:13px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;box-shadow:0 2px 8px rgba(0,0,0,.07);}
+.rev-controls h2{font-size:14px;font-weight:700;color:#006064;}
+.stat-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:11px;margin-bottom:15px;}
+.stat-card{background:#fff;border-radius:11px;padding:14px 16px;box-shadow:0 2px 8px rgba(0,0,0,.07);border-left:4px solid #00838f;}
+.stat-card.dv{border-left-color:#2e7d32;}
+.stat-card.mp{border-left-color:#e65100;}
+.stat-card .sc-lbl{font-size:11px;color:#90a4ae;margin-bottom:5px;}
+.stat-card .sc-val{font-size:20px;font-weight:700;color:#006064;}
+.stat-card.dv .sc-val{color:#2e7d32;}
+.stat-card.mp .sc-val{color:#e65100;}
+.rev-table{background:#fff;border-radius:11px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.07);margin-bottom:13px;}
+.rev-table-header{padding:10px 15px;border-bottom:1px solid #e0f7fa;display:flex;align-items:center;gap:8px;}
+.rev-table-header h3{font-size:13px;font-weight:700;color:#006064;}
+table{width:100%;border-collapse:collapse;}
+thead tr{background:#e0f7fa;}
+th{padding:8px 10px;text-align:center;font-size:11px;font-weight:700;color:#006064;border-bottom:2px solid #b2ebf2;white-space:nowrap;}
+th.left{text-align:left;}
+td{padding:7px 10px;border-bottom:1px solid #f0f0f0;text-align:center;vertical-align:middle;}
+td.left{text-align:left;}
+tr:hover td{background:#e0f7fa!important;}
+tr:nth-child(even) td{background:#f9fdfd;}
+tfoot td{background:#006064!important;color:#fff;font-weight:700;}
+/* REMINDERS PAGE */
+.rem-filter{background:#fff;border-radius:11px;padding:11px 16px;margin-bottom:13px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;box-shadow:0 2px 8px rgba(0,0,0,.07);}
+.rem-filter h2{font-size:14px;font-weight:700;color:#006064;}
+.rem-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;margin-bottom:16px;}
+.rem-card{background:#fff;border-radius:12px;padding:14px 16px;box-shadow:0 2px 9px rgba(0,0,0,.07);border-left:5px solid #ccc;cursor:pointer;transition:.18s;}
+.rem-card:hover{transform:translateY(-2px);box-shadow:0 5px 18px rgba(0,0,0,.12);}
+.rem-card.overdue{border-left-color:#c62828;background:#fff5f5;}
+.rem-card.urgent{border-left-color:#e65100;background:#fffbf0;}
+.rem-card.soon{border-left-color:#2e7d32;background:#f9fff9;}
+.rem-card.birthday{border-left-color:#7b1fa2;background:#fdf5ff;}
+.rem-card-top{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.rem-icon{font-size:24px;flex-shrink:0;}
+.rem-name{font-size:14px;font-weight:700;color:#006064;}
+.rem-phone{font-size:11.5px;color:#546e7a;}
+.rem-badge{display:inline-block;padding:3px 10px;border-radius:9px;font-size:11px;font-weight:700;margin-left:auto;white-space:nowrap;}
+.rem-badge.overdue{background:#ffebee;color:#c62828;}
+.rem-badge.urgent{background:#fff3e0;color:#e65100;}
+.rem-badge.soon{background:#e8f5e9;color:#2e7d32;}
+.rem-badge.birthday{background:#f3e5f5;color:#7b1fa2;}
+.rem-detail{font-size:12px;color:#546e7a;line-height:1.7;}
+.rem-detail b{color:#212121;}
+.rem-empty{text-align:center;padding:50px 20px;color:#90a4ae;}
+.rem-empty .re-icon{font-size:48px;margin-bottom:14px;}
+/* SETTINGS */
+.settings-grid{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:15px;}
+.settings-card{background:#fff;border-radius:12px;padding:18px;box-shadow:0 2px 9px rgba(0,0,0,.07);}
+.settings-card h3{font-size:14px;font-weight:700;color:#006064;margin-bottom:11px;padding-bottom:7px;border-bottom:2px solid #e0f7fa;}
+/* CLOUD SYNC */
+#sync-pill{display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;cursor:default;transition:.3s;white-space:nowrap;}
+#sync-pill.st-offline{background:rgba(255,255,255,.12);color:rgba(255,255,255,.6);}
+#sync-pill.st-loading{background:#fff3e0;color:#e65100;}
+#sync-pill.st-saving{background:#e3f2fd;color:#1565c0;}
+#sync-pill.st-ok{background:#e8f5e9;color:#2e7d32;}
+#sync-pill.st-error{background:#ffebee;color:#c62828;}
+.svc-row{display:flex;align-items:center;gap:7px;padding:7px 9px;border-radius:8px;border:1px solid #e0f7fa;margin-bottom:6px;background:#f9fdfd;}
+.svc-row .sn{font-weight:700;flex:1;font-size:12px;}
+.svc-row .sp{color:#2e7d32;font-weight:700;font-size:12px;min-width:85px;text-align:right;}
+.svc-row .sr{color:#7b1fa2;font-size:11px;min-width:80px;text-align:right;}
+.controls{background:#fff;border-radius:11px;padding:11px 16px;margin-bottom:12px;display:flex;align-items:center;gap:9px;flex-wrap:wrap;box-shadow:0 2px 8px rgba(0,0,0,.07);}
+.controls h2{font-size:14px;font-weight:700;color:#006064;}
+#toast{position:fixed;bottom:18px;right:18px;padding:11px 18px;border-radius:9px;font-size:13px;color:#fff;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none;}
+#toast.show{opacity:1;}
+#lightbox{display:none;position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:2000;align-items:center;justify-content:center;cursor:zoom-out;}
+#lightbox.show{display:flex;}
+#lightbox img{max-width:92vw;max-height:92vh;border-radius:7px;}
+@media(max-width:680px){.stat-cards{grid-template-columns:1fr 1fr;}.settings-grid{grid-template-columns:1fr;}}
+::-webkit-scrollbar{width:5px;height:5px;}::-webkit-scrollbar-track{background:#f0f0f0;}::-webkit-scrollbar-thumb{background:#b2ebf2;border-radius:3px;}
+</style>
+</head>
+<body>
+<div id="topbar">
+  <div class="logo">🌸 Spa CRM</div>
+  <div class="search-wrap">
+    <span class="si">🔍</span>
+    <input id="top-search" type="text" placeholder="Tìm tên hoặc số điện thoại..." autocomplete="off"
+      oninput="topSearch(this.value)" onfocus="topSearch(this.value)" onblur="setTimeout(()=>hideTopSearch(),200)">
+    <div id="search-dropdown"></div>
+  </div>
+  <nav>
+    <a onclick="showPage('home')" id="nav-home" class="active">🏠 Trang Chủ</a>
+    <a onclick="showPage('customers')" id="nav-customers">👥 Khách Hàng</a>
+    <a onclick="showPage('reminders')" id="nav-reminders">🔔 Lịch Nhắc<span class="nav-badge" id="rem-badge" style="display:none"></span></a>
+    <a onclick="showPage('revenue')" id="nav-revenue">📊 Doanh Thu</a>
+    <a onclick="showPage('settings')" id="nav-settings">⚙️ Cài Đặt</a>
+  </nav>
+  <div class="right-btns">
+    <span id="clock" style="font-size:11px;opacity:.8"></span>
+    <span id="sync-pill" class="st-offline" title="Nhấn để đồng bộ ngay" onclick="syncNow()" style="cursor:pointer">☁️ Offline</span>
+    <button class="btn btn-green btn-sm" onclick="showAddCust()">+ Thêm KH</button>
+    <button class="btn btn-gray btn-sm" onclick="exportData()">💾 Backup</button>
+    <label class="btn btn-gray btn-sm" style="cursor:pointer">📂 Restore<input type="file" accept=".json" style="display:none" onchange="importData(this)"></label>
+  </div>
+</div>
+
+<div id="main">
+  <!-- HOME -->
+  <div id="page-home">
+    <div class="hero-search">
+      <h1>🌸 Quản Lý Khách Hàng Spa</h1>
+      <p>Nhập tên hoặc số điện thoại để tìm hồ sơ khách hàng ngay</p>
+      <div class="hero-search-box">
+        <span class="si">🔍</span>
+        <input id="hero-search" type="text" placeholder="Tên khách hoặc số điện thoại..."
+          oninput="heroSearch(this.value)" autocomplete="off">
+      </div>
+      <div id="hero-results"></div>
+    </div>
+    <div id="home-alerts"></div>
+    <div id="home-recent"></div>
+  </div>
+
+  <!-- CUSTOMERS -->
+  <div id="page-customers" style="display:none">
+    <div class="controls">
+      <h2>👥 Danh Sách Khách Hàng</h2>
+      <input type="text" id="cust-search" class="fi" placeholder="Tìm theo tên hoặc SĐT..." oninput="renderCustomers()" style="width:220px">
+      <button class="btn btn-teal" onclick="showAddCust()">+ Thêm Khách Hàng</button>
+      <span id="cust-count" style="color:#546e7a;font-size:12px"></span>
+    </div>
+    <div id="cust-cards"></div>
+  </div>
+
+  <!-- REMINDERS -->
+  <div id="page-reminders" style="display:none">
+    <div class="rem-filter">
+      <h2>🔔 Lịch Nhắc & Hẹn Lại</h2>
+      <select id="rem-filter-sel" class="fi" onchange="renderReminders()" style="width:180px">
+        <option value="all">Tất cả nhắc nhở</option>
+        <option value="overdue">⚠️ Đã quá hạn</option>
+        <option value="7">🔥 Trong 7 ngày</option>
+        <option value="30">📅 Trong 30 ngày</option>
+        <option value="birthday">🎂 Sinh nhật</option>
+      </select>
+      <span id="rem-count" style="color:#546e7a;font-size:12px;margin-left:4px"></span>
+      <button class="btn btn-gray btn-sm" style="margin-left:auto" onclick="renderReminders()">↺ Làm Mới</button>
+    </div>
+    <div id="rem-cards"></div>
+  </div>
+
+  <!-- REVENUE -->
+  <div id="page-revenue" style="display:none">
+    <div class="rev-controls">
+      <h2>📊 Doanh Thu</h2>
+      <label style="font-size:12px">Từ: <input type="date" id="rev-from" oninput="renderRevenue()" style="margin-left:4px"></label>
+      <label style="font-size:12px">Đến: <input type="date" id="rev-to" oninput="renderRevenue()" style="margin-left:4px"></label>
+      <button class="btn btn-gray btn-sm" onclick="setRevToday()">Hôm nay</button>
+      <button class="btn btn-gray btn-sm" onclick="setRevMonth()">Tháng này</button>
+      <button class="btn btn-gray btn-sm" onclick="setRevLastMonth()">Tháng trước</button>
+      <button class="btn btn-gray btn-sm" style="margin-left:auto" onclick="window.print()">🖨️ In</button>
+    </div>
+    <div id="rev-content"></div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div id="page-settings" style="display:none">
+    <div class="controls"><h2>⚙️ Cài Đặt</h2></div>
+    <div class="settings-grid">
+      <div class="settings-card" style="grid-column:1/-1">
+        <h3>💼 Danh Mục Dịch Vụ & Mỹ Phẩm</h3>
+        <div style="font-size:12px;color:#546e7a;margin-bottom:11px">Thiết lập tên, giá và <b>số ngày nhắc lịch hẹn</b>. Khi nhập cho khách chỉ cần chọn từ danh mục.</div>
+        <div style="display:flex;gap:8px;margin-bottom:13px;flex-wrap:wrap">
+          <button class="btn btn-teal" onclick="showAddService('dv')">✨ + Thêm Dịch Vụ</button>
+          <button class="btn btn-green" onclick="showAddService('mp')">💄 + Thêm Mỹ Phẩm</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:13px" id="service-lists">
+          <div>
+            <div style="font-size:12px;font-weight:700;color:#2e7d32;margin-bottom:7px;padding:5px 9px;background:#e8f5e9;border-radius:7px">✨ DỊCH VỤ CHÍNH</div>
+            <div id="svc-dv-list"></div>
+          </div>
+          <div>
+            <div style="font-size:12px;font-weight:700;color:#e65100;margin-bottom:7px;padding:5px 9px;background:#fff8e1;border-radius:7px">💄 MỸ PHẨM / SẢN PHẨM</div>
+            <div id="svc-mp-list"></div>
+          </div>
+        </div>
+      </div>
+      <div class="settings-card">
+        <h3>👤 Danh Sách Nhân Viên</h3>
+        <div style="font-size:12px;color:#546e7a;margin-bottom:9px">Mỗi người một dòng.</div>
+        <textarea id="staff-list-input" class="fi" rows="7" placeholder="VD:&#10;Nguyễn Thị Lan&#10;Trần Thị Mai"></textarea>
+        <div style="margin-top:9px;display:flex;gap:7px">
+          <button class="btn btn-teal btn-sm" onclick="saveStaffList()">💾 Lưu</button>
+          <button class="btn btn-gray btn-sm" onclick="loadStaffSettings()">↺ Làm Mới</button>
+        </div>
+      </div>
+      <div class="settings-card">
+        <h3>💡 Hướng Dẫn Nhắc Lịch</h3>
+        <div style="font-size:12px;color:#546e7a;line-height:1.9">
+          <div>🔔 <b>Nhắc tự động:</b> Khi thêm dịch vụ, đặt "Nhắc sau X ngày". Hệ thống sẽ tự tính ngày nhắc lịch hẹn cho từng khách.</div>
+          <div style="margin-top:7px">🎂 <b>Sinh nhật:</b> Nhắc tự động 7 ngày trước sinh nhật khách.</div>
+          <div style="margin-top:7px">⚠️ <b>Quá hạn:</b> Nhắc màu đỏ nếu đã qua ngày hẹn.</div>
+          <div style="margin-top:7px">📋 Gợi ý: Dặm mày = 30 ngày, Dặm môi = 60 ngày, Xoá mày cũ = 21 ngày.</div>
+        </div>
+      </div>
+      <!-- CLOUD CARD -->
+      <div class="settings-card" style="grid-column:1/-1;border:2px solid #b2ebf2;" id="cloud-settings-card">
+        <h3>☁️ Lưu Dữ Liệu Cloud – Dùng Trên Mọi Máy</h3>
+        <div id="cloud-status-area"></div>
+        <div style="font-size:12px;color:#546e7a;margin-bottom:13px;line-height:1.8">
+          Sau khi thiết lập, dữ liệu sẽ <b>tự động lưu lên Google Sheets</b> của chị — mở trên điện thoại, máy tính nào cũng được, không bao giờ mất.
+        </div>
+        <div style="margin-bottom:11px">
+          <label>URL Google Apps Script (dán vào đây sau khi deploy)</label>
+          <div style="display:flex;gap:7px;margin-top:5px">
+            <input id="cloud-url-input" class="fi" type="url" placeholder="https://script.google.com/macros/s/..." style="flex:1">
+            <button class="btn btn-teal" onclick="connectCloud()">🔌 Kết Nối</button>
+            <button class="btn btn-gray btn-sm" onclick="disconnectCloud()">✖ Ngắt</button>
+          </div>
+        </div>
+        <div style="background:#e0f7fa;border-radius:9px;padding:12px 15px;font-size:12px;color:#006064;line-height:1.8">
+          <b>📋 Hướng dẫn thiết lập (làm 1 lần duy nhất):</b><br>
+          1. Mở <b>sheets.google.com</b> → tạo bảng tính mới, đặt tên <b>"Spa CRM Data"</b><br>
+          2. Click menu <b>Tiện ích mở rộng → Apps Script</b><br>
+          3. Xoá hết code cũ, dán code từ file <b>SpaCRM_CloudScript.gs</b> vào<br>
+          4. Click <b>Triển khai → Triển khai mới → Ứng dụng web</b><br>
+          5. Đặt: <b>Thực thi là "Tôi"</b>, <b>Ai có quyền truy cập "Bất kỳ ai"</b><br>
+          6. Click <b>Triển khai</b> → Sao chép URL → Dán vào ô trên → Kết Nối ✅
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="panel-overlay" onclick="closePanel()"></div>
+<div id="detail-panel"><div id="panel-inner"></div></div>
+<div class="modal-bg" id="modal"><div class="modal" id="modal-body"></div></div>
+<div id="lightbox" onclick="closeLightbox()"><img id="lb-img" src=""></div>
+<div id="toast"></div>
+
+<script>
+// ══ CLOUD SYNC ══
+// KHÔNG đặt URL mặc định – chỉ dùng URL do chị tự kết nối trong Cài Đặt
+let CLOUD_URL = localStorage.getItem('spa_cloud_url') || '';
+
+// ── Tự động cấu hình cloud từ link setup (khi mở trên thiết bị mới) ──
+(function(){
+  try {
+    const p = new URLSearchParams(location.search).get('setup');
+    if (p) {
+      const decoded = atob(p);
+      if (decoded.startsWith('https://')) {
+        CLOUD_URL = decoded;
+        localStorage.setItem('spa_cloud_url', decoded);
+        sessionStorage.setItem('_just_setup', '1');
+        history.replaceState({}, '', location.pathname);
+      }
+    }
+  } catch(e) {}
+})();
+
+// ══ THÔNG BÁO & AUTO-POLLING ══
+let _pollCustCount = -1, _pollVisitCount = -1, _pollTimer = null;
+// Dirty flags: true = user vừa sửa local, chờ sync lên cloud (cloudLoad không được ghi đè)
+let _svcsDirty = false, _staffDirty = false;
+
+async function requestNotifPermission() {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'default') await Notification.requestPermission();
+}
+
+function sendNotif(title, body) {
+  if ('Notification' in window && Notification.permission === 'granted') {
+    try { new Notification(title, { body, icon: '/icon.svg' }); } catch(e) {}
+  }
+}
+
+async function checkCloudUpdates() {
+  if (!CLOUD_URL) return;
+  try {
+    const res = await fetch(CLOUD_URL + '?action=getAll', {cache:'no-cache'});
+    const json = await res.json();
+    if (!json.ok || !json.data) return;
+    const cc = (json.data.customers||[]).length;
+    const cv = (json.data.visits||[]).length;
+    if (_pollCustCount === -1) { _pollCustCount = cc; _pollVisitCount = cv; return; }
+    const newC = cc - _pollCustCount;
+    const newV = cv - _pollVisitCount;
+    if (newC > 0 || newV > 0) {
+      _pollCustCount = cc; _pollVisitCount = cv;
+      await cloudLoad();
+      const parts = [];
+      if (newC > 0) parts.push(newC + ' khách hàng mới');
+      if (newV > 0) parts.push(newV + ' lượt dịch vụ mới');
+      const msg = parts.join(', ') + ' vừa được cập nhật!';
+      toast('🔔 ' + msg);
+      sendNotif('🌸 Spa CRM', msg);
+    }
+  } catch(e) {}
+}
+
+function startPolling() {
+  stopPolling();
+  if (!CLOUD_URL) return;
+  _pollCustCount = -1; _pollVisitCount = -1;
+  checkCloudUpdates();
+  _pollTimer = setInterval(checkCloudUpdates, 30000);
+}
+
+function stopPolling() {
+  if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
+}
+
+// Auto-sync khi quay lại app
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && CLOUD_URL) cloudLoad();
+});
+
+function setSyncStatus(state, msg) {
+  const el = document.getElementById('sync-pill');
+  if (!el) return;
+  const map = {
+    offline: {icon:'☁️', label:'Offline', cls:'st-offline'},
+    loading: {icon:'🔄', label:'Đang tải...', cls:'st-loading'},
+    saving:  {icon:'💾', label:'Đang lưu...', cls:'st-saving'},
+    ok:      {icon:'✅', label:'Đã lưu cloud', cls:'st-ok'},
+    error:   {icon:'⚠️', label: msg||'Lỗi kết nối', cls:'st-error'}
+  };
+  const m = map[state] || map.offline;
+  el.textContent = m.icon + ' ' + m.label;
+  el.className = m.cls;
+  el.title = msg || m.label;
+}
+
+function cloudSave(key, value) {
+  if (!CLOUD_URL) return;
+  setSyncStatus('saving');
+  // Nếu key là visits → strip ảnh trước khi lưu cloud
+  const safeValue = (key === 'visits') ? stripPhotosForCloud(value) : value;
+  const body = 'data=' + encodeURIComponent(JSON.stringify({key, value: safeValue}));
+  fetch(CLOUD_URL, {
+    method: 'POST',
+    headers: {'Content-Type':'application/x-www-form-urlencoded'},
+    body
+  }).then(r => r.json()).then(j => {
+    setSyncStatus(j.ok ? 'ok' : 'error');
+    // Sau khi lưu cloud thành công → xóa dirty flag → cloudLoad có thể sync về
+    if (j.ok) {
+      if (key === 'services') _svcsDirty = false;
+      if (key === 'staff_list') _staffDirty = false;
+    }
+  }).catch(() => setSyncStatus('error', 'Mất kết nối mạng'));
+}
+
+async function cloudLoad() {
+  if (!CLOUD_URL) { setSyncStatus('offline'); return false; }
+  setSyncStatus('loading');
+  try {
+    const res = await fetch(CLOUD_URL + '?action=getAll', {cache:'no-cache'});
+    const json = await res.json();
+    if (json.ok && json.data) {
+      const d = json.data;
+      const localCusts = JSON.parse(localStorage.getItem('spa_customers') || '[]');
+      const localVisits = JSON.parse(localStorage.getItem('spa_visits') || '[]');
+      const cloudCusts = Array.isArray(d.customers) ? d.customers : [];
+      const cloudVisits = Array.isArray(d.visits) ? d.visits : [];
+
+      if (cloudCusts.length > 0 || localCusts.length > 0) {
+        // MERGE: gộp dữ liệu local + cloud, ưu tiên giữ bản local (không bao giờ xóa)
+        const localCustIds = new Set(localCusts.map(c => c.id));
+        const localVisitIds = new Set(localVisits.map(v => v.id));
+        // Thêm vào local những khách/lượt chỉ có trên cloud (chưa có local)
+        const rawMergedCusts = [...localCusts, ...cloudCusts.filter(c => !localCustIds.has(c.id))];
+        // Dedup theo phone (loại bỏ trùng SĐT — giữ bản đầu tiên)
+        const seenPhones = new Set();
+        const mergedCusts = rawMergedCusts.filter(c => {
+          const key = c.phone || c.id;
+          if (seenPhones.has(key)) return false;
+          seenPhones.set(key, true);
+          return true;
+        });
+        // Cloud visits không có ảnh (bị strip) → dọn sạch photos trước khi merge
+      const cloudVisitsClean = cloudVisits.map(v => ({...v, photos: []}));
+      const mergedVisits = [...localVisits, ...cloudVisitsClean.filter(v => !localVisitIds.has(v.id))];
+        localStorage.setItem('spa_customers', JSON.stringify(mergedCusts));
+        localStorage.setItem('spa_visits', JSON.stringify(mergedVisits));
+        // Nếu có dữ liệu mới từ local chưa có trên cloud → đẩy lên
+        if (mergedCusts.length !== cloudCusts.length || mergedVisits.length !== cloudVisits.length) {
+          setTimeout(() => cloudSaveAll(), 2000);
+        }
+      } else if (localCusts.length > 0) {
+        // Local có khách nhưng cloud trống → đẩy local lên cloud
+        setTimeout(() => cloudSaveAll(), 1500);
+      }
+      // Services: cloud là master (đồng bộ giá, tên về điện thoại)
+      // Trừ khi _svcsDirty=true (user vừa sửa, chờ sync lên cloud xong)
+      const localSvcs = JSON.parse(localStorage.getItem('spa_services') || '[]');
+      const cloudSvcs = Array.isArray(d.services) ? d.services : [];
+      if (cloudSvcs.length > 0) {
+        if (!_svcsDirty) {
+          // Cloud là bản mới nhất → ghi đè local (để đồng bộ giá/tên sang điện thoại)
+          localStorage.setItem('spa_services', JSON.stringify(cloudSvcs));
+        } else {
+          // Đang có thay đổi local chưa lên cloud → chỉ thêm dịch vụ mới, không ghi đè
+          const localSvcIds = new Set(localSvcs.map(s => s.id));
+          const mergedSvcs = [...localSvcs, ...cloudSvcs.filter(s => !localSvcIds.has(s.id))];
+          localStorage.setItem('spa_services', JSON.stringify(mergedSvcs));
+        }
+      }
+      // Staff: cloud là master (để đồng bộ nhân viên sang điện thoại)
+      const localStaff = JSON.parse(localStorage.getItem('spa_staff_list') || '[]');
+      const cloudStaff = Array.isArray(d.staff_list) ? d.staff_list : [];
+      if (cloudStaff.length > 0) {
+        if (!_staffDirty) {
+          // Cloud là bản mới nhất → ghi đè local
+          localStorage.setItem('spa_staff_list', JSON.stringify(cloudStaff));
+        } else {
+          // Đang có thay đổi local chưa lên cloud → merge
+          const localStaffSet = new Set(localStaff);
+          const mergedStaff = [...localStaff, ...cloudStaff.filter(s => !localStaffSet.has(s))];
+          localStorage.setItem('spa_staff_list', JSON.stringify(mergedStaff));
+        }
+      }
+
+      setSyncStatus('ok');
+      // Refresh UI sau khi load dữ liệu từ cloud
+      try {
+        if(typeof renderHomeRecent==='function') renderHomeRecent();
+        if(typeof renderCustomers==='function') renderCustomers();
+        if(typeof updateRemBadge==='function') updateRemBadge();
+      } catch(_){}
+      return true;
+    }
+    setSyncStatus('error', 'Cloud trả về lỗi');
+    return false;
+  } catch(e) {
+    setSyncStatus('error', 'Không kết nối được cloud');
+    return false;
+  }
+}
+
+// Loại ảnh base64 trước khi đẩy lên cloud (ảnh quá lớn vượt giới hạn Google Sheets)
+function stripPhotosForCloud(visits) {
+  // Xóa hoàn toàn dữ liệu ảnh (base64) - chỉ giữ metadata của visit
+  return visits.map(v => ({...v, photos: []}));
+}
+
+async function cloudSaveAll() {
+  if (!CLOUD_URL) return;
+  setSyncStatus('saving');
+  try {
+    const allData = {
+      customers: DB.get('customers'),
+      visits: stripPhotosForCloud(DB.get('visits')),
+      services: DB.get('services'),
+      staff_list: DB.get('staff_list')
+    };
+    const body = 'data=' + encodeURIComponent(JSON.stringify({allData}));
+    const r = await fetch(CLOUD_URL, {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body});
+    const j = await r.json();
+    setSyncStatus(j.ok ? 'ok' : 'error', j.error||'');
+  } catch(e) {
+    setSyncStatus('error', 'Mất kết nối mạng');
+  }
+}
+
+// Đồng bộ thủ công + refresh UI
+async function syncNow() {
+  if (!CLOUD_URL) { toast('⚠️ Chưa kết nối cloud. Vào Cài Đặt để thiết lập.', false); return; }
+  toast('🔄 Đang đồng bộ...');
+  const ok = await cloudLoad();
+  if (ok) toast('✅ Đồng bộ xong!');
+  else toast('❌ Không kết nối được cloud', false);
+}
+
+// visibilitychange đã khai báo ở trên
+
+async function connectCloud() {
+  const input = document.getElementById('cloud-url-input');
+  const url = (input ? input.value : '').trim();
+  if (!url) { toast('⚠️ Vui lòng dán URL vào!', false); return; }
+  CLOUD_URL = url;
+  localStorage.setItem('spa_cloud_url', url);
+  setSyncStatus('loading');
+  try {
+    const res = await fetch(url + '?action=getAll', {cache:'no-cache'});
+    const json = await res.json();
+    if (!json.ok) throw new Error('bad');
+    const hasData = json.data && Array.isArray(json.data.customers) && json.data.customers.length > 0;
+    if (hasData) {
+      // Cloud đã có khách hàng → tải về máy này
+      const d = json.data;
+      const cloudCusts = Array.isArray(d.customers) ? d.customers : [];
+      const cloudVisits = Array.isArray(d.visits) ? d.visits : [];
+      if (cloudCusts.length > 0) {
+        localStorage.setItem('spa_customers', JSON.stringify(cloudCusts));
+        // Dọn sạch photos từ cloud (không có dữ liệu ảnh thực) trước khi lưu local
+        localStorage.setItem('spa_visits', JSON.stringify(cloudVisits.map(v=>({...v,photos:[]}))));
+      }
+      if (Array.isArray(d.services) && d.services.length > 0)
+        localStorage.setItem('spa_services', JSON.stringify(d.services));
+      if (Array.isArray(d.staff_list) && d.staff_list.length > 0)
+        localStorage.setItem('spa_staff_list', JSON.stringify(d.staff_list));
+      setSyncStatus('ok');
+      toast('✅ Kết nối thành công! Đã tải dữ liệu từ cloud về máy này.');
+    } else {
+      // Cloud trống → đẩy dữ liệu local lên
+      const allData = {
+        customers: DB.get('customers'), visits: DB.get('visits'),
+        services:  DB.get('services'),  staff_list: DB.get('staff_list')
+      };
+      const body = 'data=' + encodeURIComponent(JSON.stringify({allData}));
+      const pr = await fetch(url, {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body});
+      const pj = await pr.json();
+      if (!pj.ok) throw new Error('upload fail');
+      setSyncStatus('ok');
+      toast('✅ Kết nối thành công! Đã đưa toàn bộ dữ liệu lên cloud.');
+    }
+    renderSettings();
+    renderHomeRecent(); renderCustomers(); updateRemBadge();
+    startPolling(); requestNotifPermission();
+  } catch(e) {
+    CLOUD_URL = '';
+    localStorage.removeItem('spa_cloud_url');
+    setSyncStatus('offline');
+    toast('❌ Không kết nối được! Kiểm tra lại URL hoặc quyền triển khai.', false);
+  }
+}
+
+function disconnectCloud() {
+  if (!confirm('Ngắt kết nối cloud? Dữ liệu vẫn còn trên máy này.')) return;
+  CLOUD_URL = '';
+  localStorage.removeItem('spa_cloud_url');
+  setSyncStatus('offline');
+  renderSettings();
+  toast('☁️ Đã ngắt kết nối cloud.');
+}
+
+function getSetupLink() {
+  if (!CLOUD_URL) return '';
+  return location.origin + location.pathname + '?setup=' + btoa(CLOUD_URL);
+}
+function copySetupLink() {
+  const link = getSetupLink();
+  if (!link) return;
+  navigator.clipboard.writeText(link).then(() => toast('✅ Đã copy link! Gửi cho điện thoại và mở lên là xong.')).catch(()=>{const t=document.createElement('textarea');t.value=link;document.body.appendChild(t);t.select();document.execCommand('copy');t.remove();toast('✅ Đã copy link!');});
+}
+function copyCloudUrl() {
+  if (!CLOUD_URL) return;
+  navigator.clipboard.writeText(CLOUD_URL).then(() => toast('✅ Đã copy URL cloud! Dán vào Cài Đặt trên điện thoại.')).catch(()=>{const t=document.createElement('textarea');t.value=CLOUD_URL;document.body.appendChild(t);t.select();document.execCommand('copy');t.remove();toast('✅ Đã copy URL cloud!');});
+}
+function shareSetupLink() {
+  const link = getSetupLink();
+  if (!link) return;
+  if (navigator.share) {
+    navigator.share({ title: 'Kết nối Spa CRM', url: link });
+  } else {
+    navigator.clipboard.writeText(link).then(() => toast('✅ Đã copy link! Dán vào tin nhắn gửi cho điện thoại.'));
+  }
+}
+
+function renderCloudSettings() {
+  const area = document.getElementById('cloud-status-area');
+  const inp  = document.getElementById('cloud-url-input');
+  if (!area) return;
+  if (CLOUD_URL) {
+    const setupLink = getSetupLink();
+    // QR code dùng qrcodejs (cdnjs) - render sau khi innerHTML gán
+    area.innerHTML = `
+    <div style="background:#e8f5e9;border-radius:8px;padding:9px 13px;margin-bottom:11px;font-size:12px;display:flex;align-items:center;gap:9px">
+      <span style="font-size:18px">✅</span>
+      <div><b style="color:#2e7d32">Đã kết nối cloud!</b><br>
+      <span style="color:#546e7a;font-size:11px;word-break:break-all">${CLOUD_URL.slice(0,60)}...</span></div>
+    </div>
+
+    <!-- BƯỚC 1: Kết nối lần đầu (trình duyệt Safari/Chrome) -->
+    <div style="background:#e3f2fd;border-radius:10px;padding:13px 15px;margin-bottom:11px;border:1.5px solid #90caf9;">
+      <b style="color:#1565c0;font-size:13px">📱 BƯỚC 1 – Kết Nối Điện Thoại Lần Đầu (dùng trình duyệt Safari/Chrome)</b>
+      <div style="background:#fff3e0;border-radius:7px;padding:8px 11px;margin:7px 0 10px;font-size:11.5px;color:#e65100;line-height:1.7">
+        ⚠️ Mở <b>Camera iPhone</b> quét QR bên dưới (KHÔNG dùng Zalo). Camera tự mở Safari → tự kết nối ✅
+      </div>
+      <div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap">
+        <div id="qr-container" style="width:160px;height:160px;border-radius:8px;border:2px solid #90caf9;overflow:hidden;background:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <span style="color:#90a4ae;font-size:11px">Đang tải QR...</span>
+        </div>
+        <div style="flex:1;min-width:180px">
+          <p style="font-size:11px;color:#546e7a;line-height:1.8">① Mở <b>Camera</b> iPhone/Android (không dùng Zalo)<br>② Quét QR bên trái → Safari tự mở → kết nối ✅<br><br>
+          <b style="color:#e65100">⚠️ Lưu ý iOS:</b> Nếu điện thoại đã có <b>icon app trên màn hình</b>, quét QR sẽ mở trong <i>Safari</i> chứ không phải icon app. Khi đó dùng <b>Bước 2</b> bên dưới.</p>
+          <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:8px">
+            <button onclick="copySetupLink()" class="btn btn-teal btn-sm">📋 Copy Link Setup</button>
+            <button onclick="shareSetupLink()" class="btn btn-green btn-sm">📤 Gửi Link</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BƯỚC 2: Nếu đã cài icon app (PWA) trên điện thoại -->
+    <div style="background:#fce4ec;border-radius:10px;padding:13px 15px;margin-bottom:11px;border:1.5px solid #f48fb1;">
+      <b style="color:#c62828;font-size:13px">📲 BƯỚC 2 – Nếu Đã Có Icon Spa CRM Trên Màn Hình Điện Thoại</b>
+      <div style="font-size:11.5px;color:#546e7a;margin:8px 0;line-height:1.8">
+        Icon app (PWA) lưu dữ liệu riêng — cần dán URL trực tiếp vào app:<br>
+        ① Nhấn <b>"Copy URL Cloud"</b> bên dưới<br>
+        ② Mở <b>icon Spa CRM</b> trên điện thoại<br>
+        ③ Vào <b>Cài Đặt</b> → dán URL → nhấn <b>Kết Nối</b> ✅
+      </div>
+      <div style="background:#fff;border-radius:7px;padding:8px 10px;word-break:break-all;font-size:11px;color:#1565c0;border:1px solid #f48fb1;margin-bottom:10px;line-height:1.5;user-select:all">${CLOUD_URL}</div>
+      <button onclick="copyCloudUrl()" class="btn btn-pink btn-sm">📋 Copy URL Cloud</button>
+    </div>`;
+
+    if (inp) inp.value = CLOUD_URL;
+
+    // Render QR code bằng qrcodejs
+    setTimeout(() => {
+      const qrEl = document.getElementById('qr-container');
+      if (!qrEl) return;
+      if (typeof QRCode !== 'undefined') {
+        qrEl.innerHTML = '';
+        new QRCode(qrEl, {text: setupLink, width: 156, height: 156, correctLevel: QRCode.CorrectLevel.M});
+      } else {
+        // Fallback nếu thư viện chưa load
+        qrEl.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=156x156&data=${encodeURIComponent(setupLink)}" style="width:156px;height:156px">`;
+      }
+    }, 100);
+
+  } else {
+    area.innerHTML = `<div style="background:#fff3e0;border-radius:8px;padding:9px 13px;margin-bottom:11px;font-size:12px;display:flex;align-items:center;gap:9px">
+      <span style="font-size:18px">⚠️</span>
+      <div><b style="color:#e65100">Chưa kết nối cloud</b><br>
+      <span style="color:#546e7a">Dữ liệu đang lưu trên máy này. Hãy thiết lập để lưu vĩnh viễn.</span></div>
+    </div>`;
+    if (inp) inp.value = '';
+  }
+}
+
+const DB={
+  get(k){try{return JSON.parse(localStorage.getItem('spa_'+k))||[];}catch{return[];}},
+  set(k,v){
+    try {
+      localStorage.setItem('spa_'+k,JSON.stringify(v));
+      // Đánh dấu dirty flag ngay khi user sửa services/staff local
+      if(k==='services') _svcsDirty=true;
+      if(k==='staff_list') _staffDirty=true;
+      cloudSave(k,v);
+    } catch(e) {
+      if(e.name==='QuotaExceededError'||e.name==='NS_ERROR_DOM_QUOTA_REACHED'||e.code===22) {
+        toast('⚠️ Bộ nhớ máy đầy! Không lưu được. Hãy xóa bớt ảnh cũ để có thêm dung lượng.',false);
+      }
+    }
+  },
+  id(){return Date.now().toString(36)+Math.random().toString(36).slice(2,5);}
+};
+
+function seed(){
+  // Chỉ seed dịch vụ và nhân viên mặc định — KHÔNG tạo khách hàng demo
+  if(!DB.get('services').length){
+    DB.set('services',[
+      {id:'s1',name:'Phun mày Ombre',cat:'dv',price:2000000,remindDays:30},
+      {id:'s2',name:'Điêu khắc chân mày',cat:'dv',price:1200000,remindDays:30},
+      {id:'s3',name:'Xoá chân mày cũ',cat:'dv',price:500000,remindDays:21},
+      {id:'s4',name:'Phun môi',cat:'dv',price:1800000,remindDays:60},
+      {id:'s5',name:'Trị nám laser',cat:'dv',price:1500000,remindDays:30},
+      {id:'s6',name:'Trị mụn chuyên sâu',cat:'dv',price:800000,remindDays:14},
+      {id:'s7',name:'Chăm sóc da cơ bản',cat:'dv',price:600000,remindDays:30},
+      {id:'s8',name:'Kem dưỡng SPF50',cat:'mp',price:350000,remindDays:0},
+      {id:'s9',name:'Serum vitamin C',cat:'mp',price:450000,remindDays:0},
+      {id:'s10',name:'Toner làm dịu',cat:'mp',price:280000,remindDays:0},
+      {id:'s11',name:'Son dưỡng',cat:'mp',price:150000,remindDays:0},
+    ]);
+  }
+  if(!DB.get('staff_list').length){
+    DB.set('staff_list',['Nhân viên 1','Nhân viên 2']);
+  }
+}
+
+// ══ HELPERS ══
+const fmt=n=>Number(n||0).toLocaleString('vi-VN')+'đ';
+const today=()=>new Date().toISOString().slice(0,10);
+const daysAgo=n=>{const d=new Date();d.setDate(d.getDate()-n);return d.toISOString().slice(0,10);};
+const addDays=(dateStr,n)=>{const d=new Date(dateStr+'T00:00:00');d.setDate(d.getDate()+n);return d.toISOString().slice(0,10);};
+const firstOfMonth=()=>{const d=new Date();return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;};
+const lastOfMonth=()=>{const d=new Date();return new Date(d.getFullYear(),d.getMonth()+1,0).toISOString().slice(0,10);};
+const ABG=['#006064','#00838f','#00897b','#0097a7','#2e7d32','#1565c0','#6a1b9a','#c62828'];
+const getABG=id=>ABG[Math.abs((id.charCodeAt(2)||0))%ABG.length];
+const getIni=name=>name.trim().split(' ').slice(-1)[0][0].toUpperCase();
+const getTier=t=>t>=20000000?{label:'💎 VIP',cls:'tier-vip'}:t>=5000000?{label:'⭐ Thân Thiết',cls:'tier-loyal'}:{label:'🌸 Mới',cls:'tier-new'};
+const WD=['Chủ Nhật','Thứ 2','Thứ 3','Thứ 4','Thứ 5','Thứ 6','Thứ 7'];
+function finalPrice(item){
+  const p=Number(item.price)||0;const d=Number(item.discount)||0;
+  if(!d)return p;
+  if(item.discountType==='pct')return Math.max(0,p-Math.round(p*d/100));
+  return Math.max(0,p-d);
+}
+function discLabel(item){
+  const d=Number(item.discount)||0;if(!d)return'';
+  return item.discountType==='pct'?`-${d}%`:'-'+fmt(d);
+}
+function bdNextWeek(){const d=new Date();d.setDate(d.getDate()+5);return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+function daysDiff(dateStr){return Math.floor((new Date(dateStr+'T00:00:00')-new Date())/(864e5));}
+function toast(msg,ok=true){const t=document.getElementById('toast');t.style.background=ok?'#2e7d32':'#c62828';t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2600);}
+function closeModal(){document.getElementById('modal').classList.remove('show');}
+function showModal(html){document.getElementById('modal-body').innerHTML=html;document.getElementById('modal').classList.add('show');}
+function openLightbox(src){document.getElementById('lb-img').src=src;document.getElementById('lightbox').classList.add('show');}
+function closeLightbox(){document.getElementById('lightbox').classList.remove('show');}
+document.getElementById('modal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal();});
+setInterval(()=>{const d=new Date(),el=document.getElementById('clock');if(el)el.textContent=`${WD[d.getDay()]} ${d.toLocaleDateString('vi-VN')} ${d.toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'})}`;},1000);
+
+// ══ PAGES ══
+function showPage(page){
+  ['home','customers','reminders','revenue','settings'].forEach(p=>{
+    document.getElementById('page-'+p).style.display=p===page?'':'none';
+    const n=document.getElementById('nav-'+p);if(n)n.classList.toggle('active',p===page);
+  });
+  if(page==='customers')renderCustomers();
+  if(page==='revenue'){setRevMonth();renderRevenue();}
+  if(page==='home'){renderHomeRecent();renderHomeAlerts();}
+  if(page==='settings')renderSettings();
+  if(page==='reminders')renderReminders();
+  updateRemBadge();
+}
+
+// ══ REMINDER ENGINE ══
+function getAllReminders(){
+  const custs=DB.get('customers');
+  const visits=DB.get('visits');
+  const svcs=DB.get('services');
+  const reminders=[];
+  const todayStr=today();
+
+  // Build svc lookup by id and by name
+  const svcById={};const svcByName={};
+  svcs.forEach(s=>{svcById[s.id]=s;if(s.remindDays>0)svcByName[s.name]=s;});
+
+  // For each customer, for each service with remindDays, find latest visit date
+  const custSvcLatest={};
+  visits.forEach(v=>{
+    (v.items||[]).forEach(item=>{
+      const svc=svcById[item.svcId||'']||(item.name&&svcByName[item.name])||null;
+      if(!svc||!svc.remindDays) return;
+      const key=v.custId+'__'+svc.id;
+      if(!custSvcLatest[key]||v.date>custSvcLatest[key].date)
+        custSvcLatest[key]={date:v.date,custId:v.custId,svcName:item.name,remindDays:svc.remindDays,svcId:svc.id};
+    });
+  });
+
+  Object.values(custSvcLatest).forEach(r=>{
+    const remDate=addDays(r.date,r.remindDays);
+    const dUntil=daysDiff(remDate);
+    const cust=custs.find(c=>c.id===r.custId);
+    if(!cust)return;
+    // Show all: overdue and up to 60 days ahead
+    if(dUntil>60)return;
+    let urgency=dUntil<0?'overdue':dUntil<=7?'urgent':'soon';
+    reminders.push({type:'service',custId:r.custId,custName:cust.name,custPhone:cust.phone,
+      svcName:r.svcName,lastDate:r.date,remindDate:remDate,daysUntil:dUntil,urgency});
+  });
+
+  // Birthday reminders – show up to 7 days ahead and 0 days (today)
+  custs.forEach(c=>{
+    if(!c.birthday)return;
+    const bd=new Date(c.birthday+'T00:00:00');
+    const now=new Date();
+    let nextBd=new Date(now.getFullYear(),bd.getMonth(),bd.getDate());
+    if(nextBd<now)nextBd=new Date(now.getFullYear()+1,bd.getMonth(),bd.getDate());
+    const dUntil=Math.floor((nextBd-now)/864e5);
+    const age=nextBd.getFullYear()-bd.getFullYear();
+    if(dUntil>7)return;
+    reminders.push({type:'birthday',custId:c.id,custName:c.name,custPhone:c.phone,
+      birthday:c.birthday,nextBd:nextBd.toISOString().slice(0,10),daysUntil:dUntil,age,urgency:'birthday'});
+  });
+
+  return reminders.sort((a,b)=>a.daysUntil-b.daysUntil);
+}
+
+function updateRemBadge(){
+  const urgent=getAllReminders().filter(r=>r.daysUntil<=3||r.urgency==='overdue'||r.urgency==='birthday');
+  const badge=document.getElementById('rem-badge');
+  if(badge){
+    if(urgent.length){badge.textContent=urgent.length>9?'9+':urgent.length;badge.style.display='flex';}
+    else badge.style.display='none';
+  }
+}
+
+function renderReminders(){
+  const filter=document.getElementById('rem-filter-sel')?.value||'all';
+  let rems=getAllReminders();
+  if(filter==='overdue')rems=rems.filter(r=>r.daysUntil<0);
+  else if(filter==='7')rems=rems.filter(r=>r.daysUntil>=0&&r.daysUntil<=7);
+  else if(filter==='30')rems=rems.filter(r=>r.daysUntil>=0&&r.daysUntil<=30);
+  else if(filter==='birthday')rems=rems.filter(r=>r.type==='birthday');
+  const el=document.getElementById('rem-cards');
+  const cnt=document.getElementById('rem-count');
+  if(cnt)cnt.textContent=`${rems.length} nhắc nhở`;
+  if(!rems.length){el.innerHTML=`<div class="rem-empty"><div class="re-icon">✅</div><p style="font-size:14px;font-weight:700;color:#006064;margin-bottom:6px">Không có nhắc nhở nào!</p><p>Tất cả khách hàng đều ổn.</p></div>`;return;}
+  el.innerHTML=`<div class="rem-cards">${rems.map(r=>{
+    const dayLabel=r.daysUntil<0?`Đã quá ${Math.abs(r.daysUntil)} ngày`:r.daysUntil===0?'Hôm nay!':r.daysUntil===1?'Ngày mai':r.daysUntil+' ngày nữa';
+    if(r.type==='birthday'){
+      return`<div class="rem-card birthday" onclick="openCust('${r.custId}')">
+        <div class="rem-card-top"><div class="rem-icon">🎂</div>
+          <div><div class="rem-name">${r.custName}</div><div class="rem-phone">📱 ${r.custPhone}</div></div>
+          <span class="rem-badge birthday">${dayLabel}</span>
+        </div>
+        <div class="rem-detail">
+          🎉 Sinh nhật <b>${r.age} tuổi</b> ngày <b>${new Date(r.nextBd+'T00:00:00').toLocaleDateString('vi-VN')}</b><br>
+          💡 Hãy gửi lời chúc và ưu đãi sinh nhật cho khách!
+        </div>
+      </div>`;
+    }
+    const icon=r.svcName.includes('môi')?'💋':r.svcName.includes('mày')||r.svcName.includes('mày')?'👁':r.svcName.includes('nám')||r.svcName.includes('mụn')?'✨':'💆';
+    const lastFmt=new Date(r.lastDate+'T00:00:00').toLocaleDateString('vi-VN');
+    const remFmt=new Date(r.remindDate+'T00:00:00').toLocaleDateString('vi-VN');
+    return`<div class="rem-card ${r.urgency}" onclick="openCust('${r.custId}')">
+      <div class="rem-card-top"><div class="rem-icon">${icon}</div>
+        <div><div class="rem-name">${r.custName}</div><div class="rem-phone">📱 ${r.custPhone}</div></div>
+        <span class="rem-badge ${r.urgency}">${r.urgency==='overdue'?'⚠️ '+dayLabel:dayLabel}</span>
+      </div>
+      <div class="rem-detail">
+        🔧 Dịch vụ: <b>${r.svcName}</b><br>
+        📅 Lần làm: <b>${lastFmt}</b> &nbsp;→&nbsp; Hẹn lại: <b>${remFmt}</b><br>
+        💡 Liên hệ nhắc lịch hẹn cho khách
+      </div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+function renderHomeAlerts(){
+  const rems=getAllReminders().filter(r=>r.daysUntil<=3||r.urgency==='overdue');
+  const el=document.getElementById('home-alerts');
+  if(!rems.length){el.innerHTML='';return;}
+  const rows=rems.slice(0,5).map(r=>{
+    const dl=r.daysUntil<0?`Quá ${Math.abs(r.daysUntil)} ngày`:r.daysUntil===0?'Hôm nay':r.daysUntil===1?'Ngày mai':r.daysUntil+' ngày nữa';
+    const icon=r.type==='birthday'?'🎂':r.urgency==='overdue'?'⚠️':'🔔';
+    const cls=r.urgency==='overdue'?'al-overdue':r.daysUntil<=1?'al-urgent':'al-soon';
+    const info=r.type==='birthday'?`Sinh nhật ${r.age} tuổi – ${new Date(r.nextBd+'T00:00:00').toLocaleDateString('vi-VN')}`:
+      `${r.svcName} – Hẹn: ${new Date(r.remindDate+'T00:00:00').toLocaleDateString('vi-VN')}`;
+    return`<div class="alert-row" onclick="openCust('${r.custId}')">
+      <div class="al-icon">${icon}</div>
+      <div><div class="al-name">${r.custName}</div><div class="al-info">${info}</div></div>
+      <span class="al-days ${cls}">${dl}</span>
+    </div>`;
+  }).join('');
+  const more=rems.length>5?`<div style="text-align:center;margin-top:8px"><button class="btn btn-gray btn-sm" onclick="showPage('reminders')">Xem tất cả ${rems.length} nhắc nhở →</button></div>`:'';
+  el.innerHTML=`<div style="padding:0 18px 14px">
+    <div class="alert-strip">
+      <div class="alert-strip-title">🔔 Cần Liên Hệ Khách Hàng (${rems.length})</div>
+      ${rows}${more}
+    </div>
+  </div>`;
+}
+
+// ══ SEARCH ══
+function searchCusts(q){if(!q)return[];q=q.toLowerCase();return DB.get('customers').filter(c=>c.name.toLowerCase().includes(q)||c.phone.includes(q));}
+function topSearch(q){
+  const dd=document.getElementById('search-dropdown');const r=searchCusts(q);
+  if(!q||!r.length){dd.classList.remove('show');return;}
+  dd.innerHTML=r.slice(0,6).map(c=>{const s=getCustStats(c.id);return`<div class="sd-item" onclick="openCust('${c.id}');document.getElementById('top-search').value='';hideTopSearch()"><div class="sd-avatar" style="background:${getABG(c.id)}">${getIni(c.name)}</div><div><div class="sd-name">${c.name}</div><div class="sd-meta">${c.phone} · ${s.visits} lần · ${fmt(s.total)}</div></div></div>`;}).join('');
+  if(r.length>6)dd.innerHTML+=`<div style="padding:7px 15px;font-size:11px;color:#90a4ae;text-align:center">+${r.length-6} kết quả khác</div>`;
+  dd.classList.add('show');
+}
+function hideTopSearch(){document.getElementById('search-dropdown').classList.remove('show');}
+function heroSearch(q){
+  const box=document.getElementById('hero-results');if(!q){box.innerHTML='';return;}
+  const r=searchCusts(q);
+  if(!r.length){box.innerHTML=`<div style="color:#90a4ae;padding:14px;font-size:13px">Không tìm thấy. <span style="color:#006064;cursor:pointer;font-weight:700" onclick="showAddCust()">+ Thêm khách mới</span></div>`;return;}
+  box.innerHTML=`<div class="cards-grid">${r.slice(0,4).map(c=>custCardHtml(c)).join('')}</div>`;
+}
+
+// ══ CUSTOMER CARDS ══
+function getCustStats(custId){
+  const visits=DB.get('visits').filter(v=>v.custId===custId);
+  const total=visits.reduce((a,v)=>a+(v.items||[]).reduce((b,i)=>b+finalPrice(i),0),0);
+  const last=visits.sort((a,b)=>b.date.localeCompare(a.date))[0]?.date||null;
+  return{visits:visits.length,total,last};
+}
+function custCardHtml(c){
+  const s=getCustStats(c.id);const tier=getTier(s.total);
+  const ds=s.last?Math.floor((new Date()-new Date(s.last+'T00:00:00'))/(864e5)):null;
+  const hasRem=getAllReminders().some(r=>r.custId===c.id&&(r.daysUntil<=3||r.urgency==='overdue'));
+  return`<div class="cust-card" onclick="openCust('${c.id}')">
+    <div class="cust-card-top">
+      <div class="cust-avatar" style="background:${getABG(c.id)}">${getIni(c.name)}</div>
+      <div><div class="cust-card-name">${c.name} <span class="tier-badge ${tier.cls}">${tier.label}</span>${hasRem?' <span style="color:#e65100;font-size:10px">🔔</span>':''}</div><div class="cust-card-phone">📱 ${c.phone}</div></div>
+    </div>
+    <div class="cust-card-stats"><span>💰 <b>${fmt(s.total)}</b></span><span>📋 <b>${s.visits}</b> lần</span><span>📅 <b style="color:${ds>30?'#c62828':'#212121'}">${ds!==null?ds+' ngày trước':'chưa có'}</b></span></div>
+    ${c.skinType?`<div style="font-size:11px;color:#546e7a;margin-top:5px;padding:3px 8px;background:#f9fdfd;border-radius:6px">🧴 ${c.skinType}</div>`:''}
+    ${c.note?`<div style="font-size:11px;color:#c62828;margin-top:3px;padding:3px 8px;background:#fff3e0;border-radius:6px">⚠️ ${c.note}</div>`:''}
+  </div>`;
+}
+function renderHomeRecent(){
+  const custs=DB.get('customers');
+  const el=document.getElementById('home-recent');
+  if(!custs.length){
+    el.innerHTML=`<div style="padding:0 18px 18px"><div style="background:#fff;border-radius:14px;padding:36px 24px;text-align:center;box-shadow:0 2px 9px rgba(0,0,0,.07)">
+      <div style="font-size:48px;margin-bottom:14px">🌸</div>
+      <div style="font-size:16px;font-weight:700;color:#006064;margin-bottom:8px">Chào mừng đến với Spa CRM!</div>
+      <div style="font-size:13px;color:#546e7a;margin-bottom:20px;line-height:1.8">Chưa có khách hàng nào.<br>Hãy thêm khách đầu tiên để bắt đầu!</div>
+      <button class="btn btn-teal" onclick="showAddCust()" style="font-size:14px;padding:10px 24px">+ Thêm Khách Hàng Đầu Tiên</button>
+    </div></div>`;
+    return;
+  }
+  // Sắp xếp: khách có lần ghé gần nhất lên trước, không có lần ghé thì theo ngày tạo
+  const visits=DB.get('visits');
+  const lastVisit={};
+  visits.forEach(v=>{if(!lastVisit[v.custId]||v.date>lastVisit[v.custId])lastVisit[v.custId]=v.date;});
+  const sorted=[...custs].sort((a,b)=>{
+    const va=lastVisit[a.id]||a.createdAt||'0';
+    const vb=lastVisit[b.id]||b.createdAt||'0';
+    return vb.localeCompare(va);
+  });
+  const rc=sorted.slice(0,8);
+  el.innerHTML=`<div style="padding:0 18px 18px"><div style="font-size:14px;font-weight:700;color:#006064;margin-bottom:10px">🕐 Khách Hàng Gần Đây</div><div class="cards-grid">${rc.map(c=>custCardHtml(c)).join('')}</div></div>`;
+}
+function renderCustomers(){
+  const q=(document.getElementById('cust-search')?.value||'').toLowerCase();
+  const custs=DB.get('customers').filter(c=>!q||c.name.toLowerCase().includes(q)||c.phone.includes(q));
+  document.getElementById('cust-count').textContent=`${custs.length} khách hàng`;
+  document.getElementById('cust-cards').innerHTML=`<div class="cards-grid" style="padding:0 0 18px">${custs.map(c=>custCardHtml(c)).join('')}</div>`;
+}
+
+// ══ CUSTOMER DETAIL PANEL ══
+function openCust(custId){
+  const c=DB.get('customers').find(x=>x.id===custId);if(!c)return;
+  const visits=DB.get('visits').filter(v=>v.custId===custId).sort((a,b)=>b.date.localeCompare(a.date));
+  const totalSpent=visits.reduce((a,v)=>a+(v.items||[]).reduce((b,i)=>b+finalPrice(i),0),0);
+  const dvTotal=visits.reduce((a,v)=>a+(v.items||[]).filter(i=>i.cat==='dv').reduce((b,i)=>b+finalPrice(i),0),0);
+  const mpTotal=visits.reduce((a,v)=>a+(v.items||[]).filter(i=>i.cat==='mp').reduce((b,i)=>b+finalPrice(i),0),0);
+  const tier=getTier(totalSpent);
+  const ds=visits[0]?.date?Math.floor((new Date()-new Date(visits[0].date+'T00:00:00'))/(864e5)):null;
+  // Customer reminders
+  const custRems=getAllReminders().filter(r=>r.custId===custId);
+  const remHtml=custRems.length?`<div style="background:#fff3e0;border-radius:9px;padding:10px 14px;margin-bottom:14px">
+    <div style="font-size:12px;font-weight:700;color:#e65100;margin-bottom:7px">🔔 Nhắc Lịch Khách Này</div>
+    ${custRems.map(r=>{
+      const dl=r.daysUntil<0?`Quá ${Math.abs(r.daysUntil)} ngày`:r.daysUntil===0?'Hôm nay':r.daysUntil+' ngày nữa';
+      const icon=r.type==='birthday'?'🎂':'🔔';
+      const info=r.type==='birthday'?`Sinh nhật – ${new Date(r.nextBd+'T00:00:00').toLocaleDateString('vi-VN')}`:
+        `${r.svcName} – Hẹn: ${new Date(r.remindDate+'T00:00:00').toLocaleDateString('vi-VN')}`;
+      return`<div style="display:flex;align-items:center;gap:8px;font-size:12px;padding:4px 0;border-bottom:1px solid #ffe082">${icon} <span>${info}</span> <b style="margin-left:auto;color:${r.daysUntil<0?'#c62828':r.daysUntil<=3?'#e65100':'#2e7d32'}">${dl}</b></div>`;
+    }).join('')}
+  </div>`:'';
+  document.getElementById('panel-inner').innerHTML=`
+<div class="panel-header">
+  <div style="display:flex;align-items:center;gap:12px">
+    <div style="width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;flex-shrink:0">${getIni(c.name)}</div>
+    <div><h2>${c.name} <span style="font-size:11px;padding:2px 8px;border-radius:9px;background:rgba(255,255,255,.2)">${tier.label}</span></h2>
+    <p style="font-size:11.5px;opacity:.85">📱 ${c.phone}${c.address?` | 📍 ${c.address}`:''}${c.birthday?` | 🎂 ${c.birthday}`:''}</p></div>
+    <button onclick="closePanel()" style="margin-left:auto;background:rgba(255,255,255,.2);border:none;color:#fff;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:17px;flex-shrink:0">✕</button>
+  </div>
+  <div class="ph-stats">
+    <div class="ph-stat"><span class="val">${fmt(totalSpent)}</span><span class="lbl">Tổng Chi</span></div>
+    <div class="ph-stat"><span class="val">${fmt(dvTotal)}</span><span class="lbl">Dịch Vụ</span></div>
+    <div class="ph-stat"><span class="val">${fmt(mpTotal)}</span><span class="lbl">Mỹ Phẩm</span></div>
+    <div class="ph-stat"><span class="val">${visits.length}</span><span class="lbl">Lần Ghé</span></div>
+    <div class="ph-stat"><span class="val" style="color:${ds>30?'#ffcdd2':'#fff'}">${ds!==null?ds+' ngày':'—'}</span><span class="lbl">Kể Từ Lần Cuối</span></div>
+  </div>
+</div>
+<div class="panel-body">
+  <div class="panel-actions">
+    <button class="btn btn-green btn-sm" onclick="showAddVisit('${c.id}')">+ Thêm Lượt Dịch Vụ</button>
+    <button class="btn btn-teal btn-sm" onclick="showEditCust('${c.id}')">✏️ Sửa Hồ Sơ</button>
+    <button class="btn btn-pink btn-sm" onclick="confirmDeleteCust('${c.id}')">🗑 Xoá KH</button>
+  </div>
+  ${remHtml}
+  <div class="info-grid">
+    <div class="info-item"><div class="il">Loại Da / Tình Trạng</div><div class="iv">${c.skinType||'Chưa cập nhật'}</div></div>
+    <div class="info-item"><div class="il">Ngày Trở Thành Khách</div><div class="iv">${c.createdAt||'—'}</div></div>
+    ${c.note?`<div class="info-item warn info-full"><div class="il">⚠️ Dị Ứng / Chống Chỉ Định</div><div class="iv">${c.note}</div></div>`:''}
+  </div>
+  <div style="font-size:13px;font-weight:700;color:#006064;margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid #e0f7fa">📋 Lịch Sử Dịch Vụ (${visits.length} lượt)</div>
+  <div class="timeline">
+  ${visits.length?visits.map((v,vi)=>{
+    const vT=(v.items||[]).reduce((a,i)=>a+finalPrice(i),0);
+    const vOrig=(v.items||[]).reduce((a,i)=>a+Number(i.price),0);
+    const vDisc=vOrig-vT;
+    const d=new Date(v.date+'T00:00:00');
+    return`<div class="visit-item">
+      <div class="visit-header" onclick="toggleVisit('vb-${v.id}')">
+        <span>📆</span><span class="vd">${WD[d.getDay()]}, ${d.toLocaleDateString('vi-VN')}</span>
+        <span style="font-size:11px;color:#546e7a">${v.items.length} mục</span>
+        ${vDisc>0?`<span class="disc-tag">Giảm ${fmt(vDisc)}</span>`:''}
+        <span class="vs">${fmt(vT)}</span>
+        <span style="font-size:11px;margin-left:5px;color:#90a4ae">${vi===0?'▼':'▶'}</span>
+      </div>
+      <div class="visit-body ${vi===0?'open':''}" id="vb-${v.id}">
+        <table class="vt">
+          <thead><tr><th>Tên Dịch Vụ / Sản Phẩm</th><th>Loại</th><th>👤 Nhân Viên</th><th>Giá Niêm Yết</th><th>Giảm Giá</th><th>Thực Thu</th><th>Ghi Chú</th></tr></thead>
+          <tbody>${v.items.map(item=>{
+            const fp=finalPrice(item);const disc=Number(item.discount)||0;
+            return`<tr>
+            <td class="left"><b>${item.name}</b></td>
+            <td><span class="cat-badge ${item.cat==='dv'?'cat-dv':'cat-mp'}">${item.cat==='dv'?'Dịch Vụ':'Mỹ Phẩm'}</span></td>
+            <td style="font-weight:600;color:#006064">${item.staff||'—'}</td>
+            <td>${disc?`<span class="price-orig">${fmt(item.price)}</span>`:fmt(item.price)}</td>
+            <td>${disc?`<span class="disc-tag">${discLabel(item)}</span>`:'—'}</td>
+            <td><b class="${disc?'price-disc':''}">${fmt(fp)}</b></td>
+            <td style="font-size:11px;color:#546e7a">${item.note||'—'}</td>
+          </tr>`;}).join('')}</tbody>
+          <tfoot><tr><td class="left" colspan="3">TỔNG LƯỢT NÀY</td>
+            <td>${vDisc>0?`<span class="price-orig">${fmt(vOrig)}</span>`:fmt(vOrig)}</td>
+            <td>${vDisc>0?`<span class="disc-tag">-${fmt(vDisc)}</span>`:'—'}</td>
+            <td>${fmt(vT)}</td><td></td></tr></tfoot>
+        </table>
+        ${v.visitNote?`<div class="visit-note">📝 ${v.visitNote}</div>`:''}
+        ${v.photos&&v.photos.length?`<div style="font-size:12px;font-weight:700;color:#006064;margin-top:9px;margin-bottom:5px">📸 Ảnh Trước / Sau</div>
+        <div class="photos-row">${v.photos.map((ph,pi)=>`<div class="photo-pair">
+          <div class="pp-label">Bộ ${pi+1}${ph.note?': '+ph.note:''}</div>
+          <div class="photos-pair-imgs">
+            ${ph.before?`<div style="text-align:center"><div style="font-size:10px;color:#90a4ae;margin-bottom:2px">TRƯỚC</div><img class="photo-thumb" src="${ph.before}" onclick="openLightbox('${ph.before}')"></div>`:
+              `<div style="text-align:center"><div style="font-size:10px;color:#90a4ae;margin-bottom:2px">TRƯỚC</div><div class="photo-slot">📷<span>Chưa có</span></div></div>`}
+            ${ph.after?`<div style="text-align:center"><div style="font-size:10px;color:#90a4ae;margin-bottom:2px">SAU</div><img class="photo-thumb" src="${ph.after}" onclick="openLightbox('${ph.after}')"></div>`:
+              `<div style="text-align:center"><div style="font-size:10px;color:#90a4ae;margin-bottom:2px">SAU</div><div class="photo-slot">📷<span>Chưa có</span></div></div>`}
+          </div>
+        </div>`).join('')}</div>`:''}
+        <div style="margin-top:8px;display:flex;gap:6px">
+          <button class="btn btn-teal btn-xs" onclick="showEditVisit('${v.id}','${c.id}')">✏️ Sửa</button>
+          <button class="btn btn-pink btn-xs" onclick="deleteVisit('${v.id}','${c.id}')">🗑 Xoá</button>
+        </div>
+      </div></div>`;
+  }).join(''):`<div style="text-align:center;padding:34px;color:#90a4ae">
+    <div style="font-size:36px;margin-bottom:10px">📋</div><p>Chưa có lượt dịch vụ nào</p>
+    <button class="btn btn-teal" style="margin-top:10px" onclick="showAddVisit('${c.id}')">+ Thêm Lượt Đầu Tiên</button>
+  </div>`}
+  </div>
+</div>`;
+  document.getElementById('detail-panel').classList.add('open');
+  document.getElementById('panel-overlay').classList.add('open');
+}
+function toggleVisit(id){const el=document.getElementById(id);if(el){el.classList.toggle('open');const arr=el.previousElementSibling.querySelector('span:last-child');if(arr)arr.textContent=el.classList.contains('open')?'▼':'▶';}}
+function closePanel(){document.getElementById('detail-panel').classList.remove('open');document.getElementById('panel-overlay').classList.remove('open');}
+
+// ══ ADD/EDIT CUSTOMER ══
+function showAddCust(p=''){
+  showModal(`<h3>➕ Thêm Khách Hàng Mới</h3>
+  <div class="form-grid">
+    <div><label>Họ và Tên *</label><input class="fi" id="c-name" placeholder="Nguyễn Thị An"></div>
+    <div><label>Số Điện Thoại *</label><input class="fi" id="c-phone" type="tel" value="${p}" placeholder="0901234567"></div>
+  </div>
+  <div class="form-grid">
+    <div><label>Ngày Sinh</label><input class="fi" id="c-bd" type="date"></div>
+    <div><label>Địa Chỉ</label><input class="fi" id="c-addr" placeholder="Quận 1, TP.HCM"></div>
+  </div>
+  <div class="form-grid full"><div><label>🧴 Loại Da / Tình Trạng</label><input class="fi" id="c-skin" placeholder="Da dầu, mụn nội tiết..."></div></div>
+  <div class="form-grid full"><div><label>⚠️ Dị Ứng / Chống Chỉ Định</label><input class="fi" id="c-note" placeholder="Dị ứng paraben..."></div></div>
+  <div class="modal-sticky-bot"><button class="btn btn-gray" onclick="closeModal()">Huỷ</button><button class="btn btn-teal" onclick="saveCust()">💾 Lưu Khách Hàng</button></div>`);
+}
+function saveCust(){
+  const name=document.getElementById('c-name').value.trim();const phone=document.getElementById('c-phone').value.trim();
+  if(!name||!phone){toast('Nhập tên và SĐT!',false);return;}
+  const custs=DB.get('customers');
+  if(custs.find(c=>c.phone===phone)){toast('SĐT đã có trong hệ thống!',false);return;}
+  const c={id:DB.id(),name,phone,address:document.getElementById('c-addr').value,birthday:document.getElementById('c-bd').value,skinType:document.getElementById('c-skin').value,note:document.getElementById('c-note').value,createdAt:today()};
+  custs.push(c);DB.set('customers',custs);closeModal();toast(`✅ Đã thêm ${name}!`);renderCustomers();renderHomeRecent();openCust(c.id);
+}
+function showEditCust(id){
+  const c=DB.get('customers').find(x=>x.id===id);if(!c)return;
+  showModal(`<h3>✏️ Sửa Hồ Sơ – ${c.name}</h3>
+  <div class="form-grid">
+    <div><label>Họ và Tên</label><input class="fi" id="c-name" value="${c.name}"></div>
+    <div><label>Số Điện Thoại</label><input class="fi" id="c-phone" type="tel" value="${c.phone}"></div>
+  </div>
+  <div class="form-grid">
+    <div><label>Ngày Sinh</label><input class="fi" id="c-bd" type="date" value="${c.birthday||''}"></div>
+    <div><label>Địa Chỉ</label><input class="fi" id="c-addr" value="${c.address||''}"></div>
+  </div>
+  <div class="form-grid full"><div><label>🧴 Loại Da</label><input class="fi" id="c-skin" value="${c.skinType||''}"></div></div>
+  <div class="form-grid full"><div><label>⚠️ Dị Ứng / Chống Chỉ Định</label><input class="fi" id="c-note" value="${c.note||''}"></div></div>
+  <div class="modal-sticky-bot"><button class="btn btn-gray" onclick="closeModal()">Huỷ</button><button class="btn btn-teal" onclick="updateCust('${id}')">💾 Cập Nhật</button></div>`);
+}
+function updateCust(id){
+  const name=document.getElementById('c-name').value.trim();
+  const phone=document.getElementById('c-phone').value.trim();
+  if(!name||!phone){toast('Vui lòng nhập tên và số điện thoại!',false);return;}
+  const custs=DB.get('customers');const i=custs.findIndex(x=>x.id===id);if(i<0)return;
+  // Kiểm tra trùng SĐT với khách khác
+  if(custs.find(c=>c.phone===phone&&c.id!==id)){toast('Số điện thoại đã tồn tại trong hệ thống!',false);return;}
+  custs[i]={...custs[i],name,phone,address:document.getElementById('c-addr').value.trim(),birthday:document.getElementById('c-bd').value,skinType:document.getElementById('c-skin').value.trim(),note:document.getElementById('c-note').value.trim()};
+  DB.set('customers',custs);closeModal();toast('✅ Đã cập nhật!');renderCustomers();openCust(id);
+}
+function confirmDeleteCust(id){
+  const c=DB.get('customers').find(x=>x.id===id);if(!c)return;
+  if(confirm(`Xoá khách ${c.name}? Tất cả lịch sử cũng bị xoá.`)){
+    DB.set('customers',DB.get('customers').filter(x=>x.id!==id));
+    DB.set('visits',DB.get('visits').filter(v=>v.custId!==id));
+    closePanel();toast(`Đã xoá ${c.name}`);renderCustomers();renderHomeRecent();
+  }
+}
+
+// ══ SERVICE CATALOG ══
+function getServices(){return DB.get('services');}
+function renderSettings(){loadStaffSettings();renderServiceCatalog();renderCloudSettings();}
+function renderServiceCatalog(){
+  const svcs=getServices();
+  const dvList=document.getElementById('svc-dv-list');const mpList=document.getElementById('svc-mp-list');
+  if(!dvList||!mpList)return;
+  const row=s=>`<div class="svc-row">
+    <div><div class="sn">${s.name}</div>${s.remindDays?`<div style="font-size:10px;color:#7b1fa2;margin-top:1px">🔔 Nhắc sau ${s.remindDays} ngày</div>`:'<div style="font-size:10px;color:#90a4ae">Không nhắc</div>'}</div>
+    <div class="sp">${fmt(s.price)}</div>
+    <button class="btn btn-gray btn-xs" onclick="showEditService('${s.id}')">✏️</button>
+    <button class="btn btn-pink btn-xs" onclick="deleteService('${s.id}')">✕</button>
+  </div>`;
+  dvList.innerHTML=svcs.filter(s=>s.cat==='dv').map(row).join('')||`<div style="color:#90a4ae;font-size:12px;padding:10px">Chưa có.</div>`;
+  mpList.innerHTML=svcs.filter(s=>s.cat==='mp').map(row).join('')||`<div style="color:#90a4ae;font-size:12px;padding:10px">Chưa có.</div>`;
+}
+function showAddService(defaultCat){
+  showModal(`<h3>${defaultCat==='dv'?'✨ Thêm Dịch Vụ Chính':'💄 Thêm Mỹ Phẩm / Sản Phẩm'}</h3>
+  <div class="form-grid">
+    <div><label>Tên *</label><input class="fi" id="sv-name" placeholder="VD: Phun mày Ombre"></div>
+    <div><label>Giá Tiền (đ) *</label><input class="fi" id="sv-price" type="number" step="50000" placeholder="500000"></div>
+  </div>
+  <div class="form-grid">
+    <div><label>Loại</label><select class="fi" id="sv-cat"><option value="dv" ${defaultCat==='dv'?'selected':''}>✨ Dịch Vụ Chính</option><option value="mp" ${defaultCat==='mp'?'selected':''}>💄 Mỹ Phẩm</option></select></div>
+    <div><label>🔔 Nhắc Lịch Hẹn Sau (ngày)</label><input class="fi" id="sv-remind" type="number" placeholder="VD: 30 (để trống = không nhắc)" min="0"></div>
+  </div>
+  <div style="background:#f0f9fa;border-radius:8px;padding:10px 12px;font-size:11.5px;color:#546e7a;margin-bottom:8px">
+    💡 Gợi ý: Dặm mày = <b>30</b> ngày | Dặm môi = <b>60</b> ngày | Xoá mày cũ = <b>21</b> ngày | Trị mụn = <b>14</b> ngày
+  </div>
+  <div class="modal-sticky-bot"><button class="btn btn-gray" onclick="closeModal()">Huỷ</button><button class="btn btn-teal" onclick="saveService()">💾 Lưu</button></div>`);
+}
+function showEditService(id){
+  const s=getServices().find(x=>x.id===id);if(!s)return;
+  showModal(`<h3>✏️ Sửa Dịch Vụ / Sản Phẩm</h3>
+  <div class="form-grid">
+    <div><label>Tên *</label><input class="fi" id="sv-name" value="${s.name}"></div>
+    <div><label>Giá Tiền (đ) *</label><input class="fi" id="sv-price" type="number" step="50000" value="${s.price}"></div>
+  </div>
+  <div class="form-grid">
+    <div><label>Loại</label><select class="fi" id="sv-cat"><option value="dv" ${s.cat==='dv'?'selected':''}>✨ Dịch Vụ Chính</option><option value="mp" ${s.cat==='mp'?'selected':''}>💄 Mỹ Phẩm</option></select></div>
+    <div><label>🔔 Nhắc Lịch Hẹn Sau (ngày)</label><input class="fi" id="sv-remind" type="number" value="${s.remindDays||''}" min="0" placeholder="Để trống = không nhắc"></div>
+  </div>
+  <div style="background:#f0f9fa;border-radius:8px;padding:10px 12px;font-size:11.5px;color:#546e7a;margin-bottom:8px">
+    💡 Gợi ý: Dặm mày = <b>30</b> ngày | Dặm môi = <b>60</b> ngày | Xoá mày cũ = <b>21</b> ngày | Trị mụn = <b>14</b> ngày
+  </div>
+  <div class="modal-sticky-bot"><button class="btn btn-gray" onclick="closeModal()">Huỷ</button><button class="btn btn-teal" onclick="updateService('${id}')">💾 Cập Nhật</button></div>`);
+}
+function saveService(){
+  const name=document.getElementById('sv-name').value.trim();const price=Number(document.getElementById('sv-price').value);
+  const cat=document.getElementById('sv-cat').value;const remindDays=Number(document.getElementById('sv-remind').value)||0;
+  if(!name||!price){toast('Nhập tên và giá!',false);return;}
+  const svcs=getServices();svcs.push({id:DB.id(),name,cat,price,remindDays});DB.set('services',svcs);
+  closeModal();toast('✅ Đã thêm!');renderServiceCatalog();
+}
+function updateService(id){
+  const svcs=getServices();const i=svcs.findIndex(x=>x.id===id);if(i<0)return;
+  svcs[i]={...svcs[i],name:document.getElementById('sv-name').value,price:Number(document.getElementById('sv-price').value),cat:document.getElementById('sv-cat').value,remindDays:Number(document.getElementById('sv-remind').value)||0};
+  DB.set('services',svcs);closeModal();toast('✅ Đã cập nhật!');renderServiceCatalog();
+}
+function deleteService(id){
+  if(!confirm('Xoá dịch vụ này?'))return;
+  DB.set('services',getServices().filter(s=>s.id!==id));renderServiceCatalog();toast('Đã xoá');
+}
+
+// ══ STAFF ══
+function getStaff(){return DB.get('staff_list');}
+function staffDatalist(){return`<datalist id="staff-dl">${getStaff().map(s=>`<option value="${s}">`).join('')}</datalist>`;}
+function loadStaffSettings(){const el=document.getElementById('staff-list-input');if(el)el.value=getStaff().join('\n');}
+function saveStaffList(){DB.set('staff_list',document.getElementById('staff-list-input').value.split('\n').map(s=>s.trim()).filter(Boolean));toast('✅ Đã lưu nhân viên!');}
+
+// ══ ADD/EDIT VISIT ══
+let pendingPhotos=[];let visitItems=[];
+function showAddVisit(custId){pendingPhotos=[];visitItems=[{id:DB.id(),name:'',cat:'dv',price:'',staff:'',note:'',svcId:'',discount:0,discountType:'pct'}];renderVisitModal(custId,null);}
+function showEditVisit(visitId,custId){
+  const v=DB.get('visits').find(x=>x.id===visitId);if(!v)return;
+  visitItems=(v.items||[]).map(i=>({staff:'',note:'',svcId:'',...i}));
+  pendingPhotos=(v.photos||[]).map(p=>({...p}));renderVisitModal(custId,visitId);
+}
+function renderVisitModal(custId,editId){
+  const c=DB.get('customers').find(x=>x.id===custId);
+  const vDate=editId?DB.get('visits').find(x=>x.id===editId)?.date:today();
+  const vNote=editId?DB.get('visits').find(x=>x.id===editId)?.visitNote||'':'';
+  showModal(`<h3>${editId?'✏️ Sửa':'➕ Thêm'} Lượt Dịch Vụ${c?' – '+c.name:''}</h3>
+  <div class="modal-sticky-top">
+    <button class="btn btn-teal" onclick="saveVisit('${custId}','${editId||''}')">💾 Lưu Lượt Dịch Vụ</button>
+    <button class="btn btn-gray" onclick="closeModal()">Huỷ</button>
+    <div><label style="margin-bottom:0;font-size:11px">📅 Ngày Làm *</label><input class="fi" id="v-date" type="date" value="${vDate}" style="width:150px;padding:5px 8px;margin-top:2px"></div>
+  </div>
+  <div style="font-size:12px;font-weight:700;color:#006064;margin-bottom:6px;margin-top:4px">📋 Dịch Vụ & Sản Phẩm</div>
+  <div id="visit-items-wrap"></div>
+  <button class="btn btn-gray btn-sm" onclick="addVisitItem()" style="margin-bottom:12px">+ Thêm Dòng</button>
+  <div style="font-size:12px;font-weight:700;color:#006064;margin-bottom:6px">📸 Ảnh Trước / Sau (tuỳ chọn)</div>
+  <div id="photos-wrap"></div>
+  <div class="add-photo-pair" onclick="addPhotoPair()">📷 + Thêm Bộ Ảnh Trước / Sau</div>
+  <div class="form-grid full" style="margin-top:10px">
+    <div><label>📝 Ghi Chú</label><textarea class="fi" id="v-note" placeholder="KH hài lòng, hẹn lại sau...">${vNote}</textarea></div>
+  </div>
+  <div class="modal-sticky-bot"><button class="btn btn-gray" onclick="closeModal()">Huỷ</button><button class="btn btn-teal" onclick="saveVisit('${custId}','${editId||''}')">💾 Lưu</button></div>`);
+  renderVisitItems();renderPhotosWrap();
+}
+function renderVisitItems(){
+  const svcs=getServices();
+  const dvOpts=svcs.filter(s=>s.cat==='dv').map(s=>`<option value="${s.id}">${s.name} – ${fmt(s.price)}${s.remindDays?' 🔔'+s.remindDays+'ng':''}</option>`).join('');
+  const mpOpts=svcs.filter(s=>s.cat==='mp').map(s=>`<option value="${s.id}">${s.name} – ${fmt(s.price)}</option>`).join('');
+  document.getElementById('visit-items-wrap').innerHTML=staffDatalist()+visitItems.map((item,i)=>`
+  <div class="vi-row" id="vi-${item.id}">
+    <div style="width:100%;margin-bottom:3px">
+      <select class="vi-catalog-select" onchange="pickCatalog(${i},this)">
+        <option value="">── Chọn từ danh mục dịch vụ ──</option>
+        <optgroup label="✨ Dịch Vụ Chính">${dvOpts}</optgroup>
+        <optgroup label="💄 Mỹ Phẩm / Sản Phẩm">${mpOpts}</optgroup>
+      </select>
+    </div>
+    <input id="vn-${item.id}" placeholder="Tên dịch vụ / sản phẩm *" value="${item.name}" oninput="visitItems[${i}].name=this.value" style="flex:2;min-width:140px">
+    <select id="vc-${item.id}" onchange="visitItems[${i}].cat=this.value" style="width:100px">
+      <option value="dv" ${item.cat==='dv'?'selected':''}>✨ Dịch Vụ</option>
+      <option value="mp" ${item.cat==='mp'?'selected':''}>💄 Mỹ Phẩm</option>
+    </select>
+    <input id="vp-${item.id}" type="number" placeholder="Giá (đ)" value="${item.price}" oninput="visitItems[${i}].price=this.value;updateDiscPreview('${item.id}',${i})" step="50000" style="width:110px">
+    <div class="disc-row">
+      <span style="font-size:11px;color:#e65100;font-weight:700;white-space:nowrap">🏷 Giảm:</span>
+      <input id="vd-${item.id}" type="number" placeholder="0" value="${item.discount||''}" oninput="visitItems[${i}].discount=this.value;updateDiscPreview('${item.id}',${i})" min="0" style="width:75px">
+      <select id="vdt-${item.id}" onchange="visitItems[${i}].discountType=this.value;updateDiscPreview('${item.id}',${i})" style="width:65px">
+        <option value="pct" ${(item.discountType||'pct')==='pct'?'selected':''}>%</option>
+        <option value="amt" ${item.discountType==='amt'?'selected':''}>VNĐ</option>
+      </select>
+      <span id="vfp-${item.id}" style="font-size:11px;font-weight:700;color:#c62828;min-width:60px">${Number(item.discount)?'→ '+fmt(finalPrice(item)):''}</span>
+    </div>
+    <input id="vs-${item.id}" list="staff-dl" placeholder="👤 Nhân viên" value="${item.staff||''}" oninput="visitItems[${i}].staff=this.value" style="width:130px">
+    <input id="vo-${item.id}" placeholder="Ghi chú" value="${item.note||''}" oninput="visitItems[${i}].note=this.value" style="flex:1;min-width:80px">
+    ${visitItems.length>1?`<button class="btn btn-pink btn-xs" onclick="removeVisitItem(${i})">✕</button>`:''}
+  </div>`).join('');
+}
+function updateDiscPreview(itemId, idx){
+  const el=document.getElementById('vfp-'+itemId);if(!el)return;
+  const p=Number(visitItems[idx].price)||0;
+  const d=Number(visitItems[idx].discount)||0;
+  if(!d||!p){el.textContent='';return;}
+  const fp=finalPrice(visitItems[idx]);
+  el.textContent='→ '+fmt(fp);
+}
+function pickCatalog(idx,sel){
+  const id=sel.value;if(!id)return;const s=getServices().find(x=>x.id===id);if(!s)return;
+  visitItems[idx]={...visitItems[idx],name:s.name,cat:s.cat,price:s.price,svcId:s.id,discount:visitItems[idx].discount||0,discountType:visitItems[idx].discountType||'pct'};renderVisitItems();
+}
+function addVisitItem(){visitItems.push({id:DB.id(),name:'',cat:'dv',price:'',staff:'',note:'',svcId:'',discount:0,discountType:'pct'});renderVisitItems();}
+function removeVisitItem(i){visitItems.splice(i,1);renderVisitItems();}
+function renderPhotosWrap(){
+  const wrap=document.getElementById('photos-wrap');
+  wrap.innerHTML=pendingPhotos.map((ph,i)=>`<div class="pu-pair">
+    <div style="font-size:11px;font-weight:700;color:#00838f;margin-bottom:6px">Bộ Ảnh ${i+1}</div>
+    <div style="display:flex;gap:9px;align-items:flex-end;flex-wrap:wrap">
+      <div><div style="font-size:10px;color:#90a4ae;margin-bottom:3px">TRƯỚC</div>
+        ${ph.before?`<img src="${ph.before}" style="width:96px;height:78px;object-fit:cover;border-radius:6px;border:2px solid #e0f7fa;cursor:pointer" onclick="openLightbox('${ph.before}')">`:
+          `<label class="pu-btn" for="ph-b-${i}">📷<span>Tải lên</span></label><input type="file" id="ph-b-${i}" accept="image/*" style="display:none" onchange="uploadPhoto(${i},'before',this)">`}
+      </div>
+      <div><div style="font-size:10px;color:#90a4ae;margin-bottom:3px">SAU</div>
+        ${ph.after?`<img src="${ph.after}" style="width:96px;height:78px;object-fit:cover;border-radius:6px;border:2px solid #e0f7fa;cursor:pointer" onclick="openLightbox('${ph.after}')">`:
+          `<label class="pu-btn" for="ph-a-${i}">📷<span>Tải lên</span></label><input type="file" id="ph-a-${i}" accept="image/*" style="display:none" onchange="uploadPhoto(${i},'after',this)">`}
+      </div>
+      <input class="fi" placeholder="Ghi chú ảnh..." value="${ph.note||''}" oninput="pendingPhotos[${i}].note=this.value" style="width:140px;height:34px;padding:4px 8px;">
+      <button class="btn btn-pink btn-xs" onclick="removePhotoPair(${i})">🗑</button>
+    </div>
+  </div>`).join('');
+}
+function addPhotoPair(){pendingPhotos.push({before:null,after:null,note:''});renderPhotosWrap();}
+function removePhotoPair(i){pendingPhotos.splice(i,1);renderPhotosWrap();}
+function uploadPhoto(pairIdx,side,input){
+  const file=input.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onerror=()=>toast('⚠️ Không đọc được file ảnh!',false);
+  reader.onload=e=>{
+    const img=new Image();
+    img.onerror=()=>toast('⚠️ File ảnh bị lỗi!',false);
+    img.onload=()=>{
+      try {
+        const canvas=document.createElement('canvas');
+        // Nén nhỏ hơn (800px, quality 0.6) để tiết kiệm bộ nhớ điện thoại
+        const max=800;let w=img.width,h=img.height;
+        if(w>h&&w>max){h=Math.round(h*max/w);w=max;}else if(h>max){w=Math.round(w*max/h);h=max;}
+        canvas.width=w;canvas.height=h;
+        canvas.getContext('2d').drawImage(img,0,0,w,h);
+        const data=canvas.toDataURL('image/jpeg',0.6);
+        // Ước tính dung lượng hiện tại
+        let usedBytes=0;
+        try{for(let k in localStorage){usedBytes+=((localStorage[k]||'').length+(k||'').length)*2;}}catch(_){}
+        const limitBytes=4.5*1024*1024; // cảnh báo khi dùng >4.5MB
+        if(usedBytes+data.length*2>limitBytes){
+          toast('⚠️ Bộ nhớ sắp đầy! Ảnh được lưu nhưng hãy xóa bớt ảnh cũ.',false);
+        }
+        pendingPhotos[pairIdx][side]=data;
+        renderPhotosWrap();toast('✅ Đã tải ảnh!');
+      } catch(e) {
+        if(e.name==='QuotaExceededError'||e.code===22){
+          toast('⚠️ Bộ nhớ điện thoại đầy! Xóa bớt ảnh cũ rồi thử lại.',false);
+        } else {
+          toast('⚠️ Không lưu được ảnh: '+e.message,false);
+        }
+      }
+    };
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+function saveVisit(custId,editId){
+  for(let i=0;i<visitItems.length;i++){
+    const id=visitItems[i].id;
+    const vn=document.getElementById('vn-'+id);const vc=document.getElementById('vc-'+id);
+    const vp=document.getElementById('vp-'+id);const vs=document.getElementById('vs-'+id);const vo=document.getElementById('vo-'+id);
+    const vd=document.getElementById('vd-'+id);const vdt=document.getElementById('vdt-'+id);
+    if(vn)visitItems[i].name=vn.value;if(vc)visitItems[i].cat=vc.value;
+    if(vp)visitItems[i].price=parseInt(vp.value.replace(/[^\d]/g,''),10)||0;if(vs)visitItems[i].staff=vs.value||'';if(vo)visitItems[i].note=vo.value||'';
+    if(vd)visitItems[i].discount=Number(vd.value)||0;if(vdt)visitItems[i].discountType=vdt.value||'pct';
+  }
+  const items=visitItems.filter(i=>i.name&&i.price);
+  if(!items.length){toast('Nhập ít nhất 1 dịch vụ có giá!',false);return;}
+  const visits=DB.get('visits');
+  const rec={date:document.getElementById('v-date').value,items,photos:pendingPhotos,visitNote:document.getElementById('v-note').value};
+  if(editId){const i=visits.findIndex(x=>x.id===editId);if(i<0)return;visits[i]={...visits[i],...rec};}
+  else{visits.push({id:DB.id(),custId,...rec,createdAt:today()});}
+  DB.set('visits',visits);closeModal();toast('✅ Đã lưu!');openCust(custId);renderHomeRecent();updateRemBadge();
+}
+function deleteVisit(visitId,custId){
+  if(!confirm('Xoá lượt dịch vụ này?'))return;
+  DB.set('visits',DB.get('visits').filter(x=>x.id!==visitId));toast('Đã xoá');openCust(custId);
+}
+
+// ══ REVENUE ══
+function setRevToday(){document.getElementById('rev-from').value=today();document.getElementById('rev-to').value=today();renderRevenue();}
+function setRevMonth(){document.getElementById('rev-from').value=firstOfMonth();document.getElementById('rev-to').value=lastOfMonth();renderRevenue();}
+function setRevLastMonth(){
+  const d=new Date();d.setMonth(d.getMonth()-1);
+  document.getElementById('rev-from').value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;
+  document.getElementById('rev-to').value=new Date(d.getFullYear(),d.getMonth()+1,0).toISOString().slice(0,10);renderRevenue();
+}
+function renderRevenue(){
+  const from=document.getElementById('rev-from').value;const to=document.getElementById('rev-to').value;if(!from||!to)return;
+  const visits=DB.get('visits').filter(v=>v.date>=from&&v.date<=to);
+  const allItems=visits.flatMap(v=>(v.items||[]).map(i=>({...i,date:v.date,custId:v.custId})));
+  const dvItems=allItems.filter(i=>i.cat==='dv');const mpItems=allItems.filter(i=>i.cat==='mp');
+  const dvTotal=dvItems.reduce((a,i)=>a+finalPrice(i),0);const mpTotal=mpItems.reduce((a,i)=>a+finalPrice(i),0);const grand=dvTotal+mpTotal;
+  const custSet=new Set(visits.map(v=>v.custId));
+  const byDate={};
+  visits.forEach(v=>{if(!byDate[v.date])byDate[v.date]={dv:0,mp:0,vCount:0,custSet:new Set()};
+    v.items.forEach(i=>{if(i.cat==='dv')byDate[v.date].dv+=finalPrice(i);else byDate[v.date].mp+=finalPrice(i);});
+    byDate[v.date].vCount++;byDate[v.date].custSet.add(v.custId);});
+  const dates=Object.keys(byDate).sort((a,b)=>b.localeCompare(a));
+  const svcMap={};dvItems.forEach(i=>{svcMap[i.name]=(svcMap[i.name]||0)+finalPrice(i);});
+  const topDv=Object.entries(svcMap).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const prodMap={};mpItems.forEach(i=>{prodMap[i.name]=(prodMap[i.name]||0)+finalPrice(i);});
+  const topMp=Object.entries(prodMap).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const staffMap={};allItems.forEach(i=>{const k=i.staff||'Không rõ';staffMap[k]=(staffMap[k]||0)+finalPrice(i);});
+  const topStaff=Object.entries(staffMap).sort((a,b)=>b[1]-a[1]);
+  document.getElementById('rev-content').innerHTML=`
+<div class="stat-cards">
+  <div class="stat-card"><div class="sc-lbl">💰 Tổng Doanh Thu</div><div class="sc-val">${fmt(grand)}</div><div style="font-size:11px;color:#90a4ae;margin-top:3px">${visits.length} lượt · ${custSet.size} khách</div></div>
+  <div class="stat-card dv"><div class="sc-lbl">✨ Dịch Vụ Chính</div><div class="sc-val">${fmt(dvTotal)}</div><div style="font-size:11px;color:#90a4ae;margin-top:3px">${grand?Math.round(dvTotal/grand*100):0}% tổng DT</div></div>
+  <div class="stat-card mp"><div class="sc-lbl">💄 Mỹ Phẩm</div><div class="sc-val">${fmt(mpTotal)}</div><div style="font-size:11px;color:#90a4ae;margin-top:3px">${grand?Math.round(mpTotal/grand*100):0}% tổng DT</div></div>
+  <div class="stat-card"><div class="sc-lbl">👥 Khách Phục Vụ</div><div class="sc-val" style="color:#1565c0">${custSet.size}</div><div style="font-size:11px;color:#90a4ae;margin-top:3px">TB ${custSet.size?fmt(Math.round(grand/custSet.size)):0}/KH</div></div>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:13px">
+  <div class="rev-table"><div class="rev-table-header"><h3>✨ Theo Dịch Vụ</h3></div>
+    <table><thead><tr><th class="left">Dịch Vụ</th><th>Doanh Thu</th><th>%</th></tr></thead>
+    <tbody>${topDv.length?topDv.map(([n,a])=>`<tr><td class="left">${n}</td><td><b>${fmt(a)}</b></td><td>${dvTotal?Math.round(a/dvTotal*100):0}%</td></tr>`).join(''):
+    '<tr><td colspan="3" style="text-align:center;color:#aaa;padding:16px">Chưa có</td></tr>'}</tbody>
+    ${dvTotal?`<tfoot><tr><td class="left">TỔNG</td><td>${fmt(dvTotal)}</td><td>100%</td></tr></tfoot>`:''}</table></div>
+  <div class="rev-table"><div class="rev-table-header"><h3>💄 Theo Mỹ Phẩm</h3></div>
+    <table><thead><tr><th class="left">Sản Phẩm</th><th>Doanh Thu</th><th>%</th></tr></thead>
+    <tbody>${topMp.length?topMp.map(([n,a])=>`<tr><td class="left">${n}</td><td><b>${fmt(a)}</b></td><td>${mpTotal?Math.round(a/mpTotal*100):0}%</td></tr>`).join(''):
+    '<tr><td colspan="3" style="text-align:center;color:#aaa;padding:16px">Chưa có</td></tr>'}</tbody>
+    ${mpTotal?`<tfoot><tr><td class="left">TỔNG</td><td>${fmt(mpTotal)}</td><td>100%</td></tr></tfoot>`:''}</table></div>
+  <div class="rev-table"><div class="rev-table-header"><h3>👤 Theo Nhân Viên</h3></div>
+    <table><thead><tr><th class="left">Nhân Viên</th><th>Doanh Thu</th><th>%</th></tr></thead>
+    <tbody>${topStaff.length?topStaff.map(([n,a])=>`<tr><td class="left"><b>${n}</b></td><td><b>${fmt(a)}</b></td><td>${grand?Math.round(a/grand*100):0}%</td></tr>`).join(''):
+    '<tr><td colspan="3" style="text-align:center;color:#aaa;padding:16px">Chưa có</td></tr>'}</tbody>
+    ${grand?`<tfoot><tr><td class="left">TỔNG</td><td>${fmt(grand)}</td><td>100%</td></tr></tfoot>`:''}</table></div>
+</div>
+<div class="rev-table"><div class="rev-table-header"><h3>📅 Chi Tiết Theo Ngày</h3></div>
+  <table><thead><tr><th class="left">Ngày</th><th>Khách</th><th>Lượt</th><th style="color:#2e7d32">Dịch Vụ</th><th style="color:#e65100">Mỹ Phẩm</th><th style="background:#006064;color:#fff">Tổng Ngày</th></tr></thead>
+  <tbody>${dates.length?dates.map(date=>{
+    const d=new Date(date+'T00:00:00');const e=byDate[date];const dt=e.dv+e.mp;
+    return`<tr><td class="left"><b>${WD[d.getDay()]}, ${d.toLocaleDateString('vi-VN')}</b></td><td>${e.custSet.size}</td><td>${e.vCount}</td>
+    <td style="color:#2e7d32;font-weight:700">${fmt(e.dv)}</td><td style="color:#e65100;font-weight:700">${fmt(e.mp)}</td>
+    <td style="font-weight:700;color:#006064;font-size:13px">${fmt(dt)}</td></tr>`;
+  }).join(''):'<tr><td colspan="6" style="text-align:center;color:#aaa;padding:26px">Không có dữ liệu</td></tr>'}</tbody>
+  <tfoot><tr><td class="left">TỔNG CỘNG</td><td>${custSet.size}</td><td>${visits.length}</td>
+    <td>${fmt(dvTotal)}</td><td>${fmt(mpTotal)}</td><td style="font-size:14px">${fmt(grand)}</td></tr></tfoot></table>
+</div>`;
+}
+
+// ══ BACKUP ══
+function exportData(){
+  const data={customers:DB.get('customers'),visits:DB.get('visits'),services:DB.get('services'),staff_list:DB.get('staff_list'),seeded:DB.get('seeded')};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`spa_crm_backup_${today()}.json`;a.click();toast('✅ Đã xuất backup!');
+}
+function importData(input){
+  const file=input.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{try{
+    const d=JSON.parse(e.target.result);
+    if(d.customers)DB.set('customers',d.customers);if(d.visits)DB.set('visits',d.visits);
+    if(d.services)DB.set('services',d.services);if(d.staff_list)DB.set('staff_list',d.staff_list);if(d.seeded)DB.set('seeded',d.seeded);
+    toast('✅ Đã nhập dữ liệu!');renderHomeRecent();renderCustomers();updateRemBadge();renderSettings();
+  }catch{toast('❌ File không hợp lệ!',false);}};reader.readAsText(file);
+}
+
+// ══ INIT ══
+(async()=>{
+  // Hiển thị màn hình loading
+  document.body.insertAdjacentHTML('beforeend',`<div id="app-loading" style="position:fixed;inset:0;background:#f0f4f8;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;font-family:'Segoe UI',Arial,sans-serif">
+    <div style="font-size:52px;margin-bottom:14px">🌸</div>
+    <div style="font-size:18px;font-weight:700;color:#006064;margin-bottom:6px">Spa CRM</div>
+    <div id="load-msg" style="font-size:13px;color:#546e7a;margin-bottom:22px">Đang tải dữ liệu...</div>
+    <div style="width:220px;height:5px;background:#b2ebf2;border-radius:3px;overflow:hidden">
+      <div id="load-bar" style="height:100%;background:linear-gradient(90deg,#006064,#00acc1);border-radius:3px;width:10%;transition:width .4s ease"></div>
+    </div>
+  </div>`);
+  const bar=document.getElementById('load-bar');
+  const msg=document.getElementById('load-msg');
+
+  if(CLOUD_URL){
+    if(msg) msg.textContent='Đang đồng bộ dữ liệu cloud...';
+    if(bar) bar.style.width='40%';
+    await cloudLoad();
+    if(bar) bar.style.width='75%';
+    // Nếu vừa được setup từ link → toast chào mừng
+    const justSetup = sessionStorage.getItem('_just_setup');
+    if (justSetup) { sessionStorage.removeItem('_just_setup'); setTimeout(()=>toast('✅ Kết nối cloud thành công! Dữ liệu đã đồng bộ.'),800); }
+    // Bắt đầu polling + xin quyền thông báo
+    setTimeout(()=>{ startPolling(); requestNotifPermission(); }, 2000);
+  } else {
+    setSyncStatus('offline');
+    if(bar) bar.style.width='60%';
+  }
+
+  if(msg) msg.textContent='Đang khởi tạo...';
+  seed();
+  setRevMonth();
+  if(bar) bar.style.width='100%';
+
+  setTimeout(()=>{
+    const loading=document.getElementById('app-loading');
+    if(loading) loading.style.opacity='0';
+    if(loading) loading.style.transition='opacity .3s';
+    setTimeout(()=>{if(loading)loading.remove();},300);
+    showPage('home');
+  },400);
+})();
+</script>
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  });
+}
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</body>
+</html>
