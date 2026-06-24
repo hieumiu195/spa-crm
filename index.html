@@ -428,7 +428,7 @@ function sendNotif(title, body) {
 async function checkCloudUpdates() {
   if (!CLOUD_URL) return;
   try {
-    const res = await fetch(CLOUD_URL + '?action=getAll', {cache:'no-cache'});
+    const res = await fetch(CLOUD_URL + '?action=getAll&_t=' + Date.now(), {cache:'no-store'});
     const json = await res.json();
     if (!json.ok || !json.data) return;
     const cc = (json.data.customers||[]).length;
@@ -506,7 +506,7 @@ async function cloudLoad() {
   if (!CLOUD_URL) { setSyncStatus('offline'); return false; }
   setSyncStatus('loading');
   try {
-    const res = await fetch(CLOUD_URL + '?action=getAll', {cache:'no-cache'});
+    const res = await fetch(CLOUD_URL + '?action=getAll&_t=' + Date.now(), {cache:'no-store'});
     const json = await res.json();
     if (json.ok && json.data) {
       const d = json.data;
@@ -639,7 +639,7 @@ async function connectCloud() {
   localStorage.setItem('spa_cloud_url', url);
   setSyncStatus('loading');
   try {
-    const res = await fetch(url + '?action=getAll', {cache:'no-cache'});
+    const res = await fetch(url + '?action=getAll&_t=' + Date.now(), {cache:'no-store'});
     const json = await res.json();
     if (!json.ok) throw new Error('bad');
     const hasData = json.data && Array.isArray(json.data.customers) && json.data.customers.length > 0;
