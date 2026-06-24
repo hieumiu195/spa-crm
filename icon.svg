@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="80" fill="#006064"/>
+  <circle cx="256" cy="200" r="50" fill="#b2dfdb" opacity="0.9"/>
+  <circle cx="206" cy="230" r="40" fill="#e0f7fa" opacity="0.8"/>
+  <circle cx="306" cy="230" r="40" fill="#e0f7fa" opacity="0.8"/>
+  <circle cx="220" cy="285" r="38" fill="#b2dfdb" opacity="0.85"/>
+  <circle cx="292" cy="285" r="38" fill="#b2dfdb" opacity="0.85"/>
+  <circle cx="256" cy="310" r="35" fill="#80cbc4" opacity="0.9"/>
+  <text x="256" y="390" font-family="Arial,sans-serif" font-size="80" font-weight="bold" fill="white" text-anchor="middle">CRM</text>
+  <text x="256" y="445" font-family="Arial,sans-serif" font-size="38" fill="#b2dfdb" text-anchor="middle">Spa</text>
+</svg>
