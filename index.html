@@ -529,13 +529,21 @@ async function cloudLoad() {
       const mergedVisits = [...localVisits, ...cloudVisitsClean.filter(v => !localVisitIds.has(v.id))];
         localStorage.setItem('spa_customers', JSON.stringify(mergedCusts));
         localStorage.setItem('spa_visits', JSON.stringify(mergedVisits));
-        // Nếu có dữ liệu mới từ local chưa có trên cloud → đẩy lên
-        if (mergedCusts.length !== cloudCusts.length || mergedVisits.length !== cloudVisits.length) {
-          setTimeout(() => cloudSaveAll(), 2000);
+        // Nếu local có khách/lượt mới hơn cloud → đẩy lên (chỉ push custs+visits, KHÔNG push services/staff)
+        if (mergedCusts.length > cloudCusts.length || mergedVisits.length > cloudVisits.length) {
+          setTimeout(() => {
+            cloudSave('customers', mergedCusts);
+            cloudSave('visits', stripPhotosForCloud(mergedVisits));
+          }, 2000);
         }
       } else if (localCusts.length > 0) {
-        // Local có khách nhưng cloud trống → đẩy local lên cloud
-        setTimeout(() => cloudSaveAll(), 1500);
+        // Local có khách nhưng cloud trống → đẩy lên
+        setTimeout(() => {
+          const c = JSON.parse(localStorage.getItem('spa_customers')||'[]');
+          const v = JSON.parse(localStorage.getItem('spa_visits')||'[]');
+          cloudSave('customers', c);
+          cloudSave('visits', stripPhotosForCloud(v));
+        }, 1500);
       }
       // Services: MERGE - giữ local + thêm dịch vụ mới từ cloud (không bao giờ xóa local)
       const localSvcs = JSON.parse(localStorage.getItem('spa_services') || '[]');
