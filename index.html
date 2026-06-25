@@ -530,8 +530,17 @@ async function cloudLoad() {
           return true;
         });
         // Cloud visits không có ảnh (bị strip) → dọn sạch photos trước khi merge
-      const cloudVisitsClean = cloudVisits.map(v => ({...v, photos: []}));
-      const mergedVisits = [...localVisits, ...cloudVisitsClean.filter(v => !localVisitIds.has(v.id))];
+      const cloudVisitMap = new Map(cloudVisits.map(v => [v.id, v]));
+      const mergedLocalVisits = localVisits.map(lv => {
+        const cv = cloudVisitMap.get(lv.id);
+        if (!cv) return lv;
+        const hasLocalPhotos = (lv.photos||[]).some(p => p.before || p.after);
+        const hasCloudPhotos = (cv.photos||[]).some(p => p.before || p.after);
+        if (!hasLocalPhotos && hasCloudPhotos) { return {...lv, photos: cv.photos}; }
+        return lv;
+      });
+      const newCloudVisits = cloudVisits.filter(v => !localVisitIds.has(v.id));
+      const mergedVisits = [...mergedLocalVisits, ...newCloudVisits];
         localStorage.setItem('spa_customers', JSON.stringify(mergedCusts));
         localStorage.setItem('spa_visits', JSON.stringify(mergedVisits));
         // Nếu local có khách/lượt mới hơn cloud → đẩy lên (chỉ push custs+visits, KHÔNG push services/staff)
@@ -596,9 +605,16 @@ async function cloudLoad() {
 }
 
 // Loại ảnh base64 trước khi đẩy lên cloud (ảnh quá lớn vượt giới hạn Google Sheets)
+// Nén ảnh thành thumbnail nhỏ trước khi đẩy lên cloud
 function stripPhotosForCloud(visits) {
-  // Xóa hoàn toàn dữ liệu ảnh (base64) - chỉ giữ metadata của visit
-  return visits.map(v => ({...v, photos: []}));
+  return visits.map(v => ({
+    ...v,
+    photos: (v.photos||[]).map(p => ({
+      before: p.before_t || null,
+      after:  p.after_t  || null,
+      note:   p.note     || ''
+    })).filter(p => p.before || p.after || p.note)
+  }));
 }
 
 async function cloudSaveAll() {
@@ -1425,6 +1441,10 @@ function uploadPhoto(pairIdx,side,input){
         canvas.width=w;canvas.height=h;
         canvas.getContext('2d').drawImage(img,0,0,w,h);
         const data=canvas.toDataURL('image/jpeg',0.6);
+        const tc=document.createElement('canvas');const tm=80;let tw=w,th=h;
+        if(tw>th&&tw>tm){th=Math.round(th*tm/tw);tw=tm;}else if(th>tm){tw=Math.round(tw*tm/th);th=tm;}
+        tc.width=tw;tc.height=th;tc.getContext('2d').drawImage(img,0,0,tw,th);
+        const thumb=tc.toDataURL('image/jpeg',0.12);
         // Ước tính dung lượng hiện tại
         let usedBytes=0;
         try{for(let k in localStorage){usedBytes+=((localStorage[k]||'').length+(k||'').length)*2;}}catch(_){}
@@ -1433,6 +1453,7 @@ function uploadPhoto(pairIdx,side,input){
           toast('⚠️ Bộ nhớ sắp đầy! Ảnh được lưu nhưng hãy xóa bớt ảnh cũ.',false);
         }
         pendingPhotos[pairIdx][side]=data;
+        pendingPhotos[pairIdx][side+'_t']=thumb;
         renderPhotosWrap();toast('✅ Đã tải ảnh!');
       } catch(e) {
         if(e.name==='QuotaExceededError'||e.code===22){
