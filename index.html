@@ -222,6 +222,16 @@ tfoot td{background:#006064!important;color:#fff;font-weight:700;}
 #lightbox img{max-width:92vw;max-height:92vh;border-radius:7px;}
 @media(max-width:680px){.stat-cards{grid-template-columns:1fr 1fr;}.settings-grid{grid-template-columns:1fr;}}
 ::-webkit-scrollbar{width:5px;height:5px;}::-webkit-scrollbar-track{background:#f0f0f0;}::-webkit-scrollbar-thumb{background:#b2ebf2;border-radius:3px;}
+/* COSMETICS PAGE */
+.prod-row{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid #f0f0f0;font-size:12px;flex-wrap:wrap;}
+.prod-row:hover{background:#f9fdfd;}
+.prod-name{flex:2;font-weight:600;min-width:120px;}
+.prod-stock{min-width:60px;text-align:center;padding:3px 8px;border-radius:8px;font-weight:700;font-size:11px;}
+.stock-ok{background:#e8f5e9;color:#2e7d32;}
+.stock-low{background:#fff3e0;color:#e65100;}
+.stock-out{background:#ffebee;color:#c62828;}
+.cosm-row{display:flex;gap:6px;align-items:center;margin-bottom:6px;background:#fff8f0;border-radius:8px;padding:7px 10px;flex-wrap:wrap;}
+.cosm-row select,.cosm-row input{border:1.5px solid #ffe082;border-radius:6px;padding:5px 8px;font-size:12px;font-family:inherit;background:#fff;}
 </style>
 </head>
 <body>
@@ -238,6 +248,7 @@ tfoot td{background:#006064!important;color:#fff;font-weight:700;}
     <a onclick="showPage('customers')" id="nav-customers">👥 Khách Hàng</a>
     <a onclick="showPage('reminders')" id="nav-reminders">🔔 Lịch Nhắc<span class="nav-badge" id="rem-badge" style="display:none"></span></a>
     <a onclick="showPage('revenue')" id="nav-revenue">📊 Doanh Thu</a>
+    <a onclick="showPage('cosmetics')" id="nav-cosmetics">💄 Mỹ Phẩm</a>
     <a onclick="showPage('settings')" id="nav-settings">⚙️ Cài Đặt</a>
   </nav>
   <div class="right-btns">
@@ -348,6 +359,13 @@ tfoot td{background:#006064!important;color:#fff;font-weight:700;}
           <div style="margin-top:7px">📋 Gợi ý: Dặm mày = 30 ngày, Dặm môi = 60 ngày, Xoá mày cũ = 21 ngày.</div>
         </div>
       </div>
+      <!-- COMMISSION CARD -->
+      <div class="settings-card" style="grid-column:1/-1">
+        <h3>💸 Hoa Hồng Nhân Viên</h3>
+        <div style="font-size:12px;color:#546e7a;margin-bottom:11px">Đặt % hoa hồng trên <b>doanh thu dịch vụ</b> cho từng nhân viên. Hoa hồng được tổng hợp trong trang Doanh Thu.</div>
+        <div id="commission-settings"></div>
+        <button class="btn btn-teal btn-sm" onclick="saveCommissions()" style="margin-top:9px">💾 Lưu Hoa Hồng</button>
+      </div>
       <!-- CLOUD CARD -->
       <div class="settings-card" style="grid-column:1/-1;border:2px solid #b2ebf2;" id="cloud-settings-card">
         <h3>☁️ Lưu Dữ Liệu Cloud – Dùng Trên Mọi Máy</h3>
@@ -373,6 +391,40 @@ tfoot td{background:#006064!important;color:#fff;font-weight:700;}
           6. Click <b>Triển khai</b> → Sao chép URL → Dán vào ô trên → Kết Nối ✅
         </div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- COSMETICS PAGE -->
+<div id="page-cosmetics" style="display:none">
+  <div class="controls">
+    <h2>💄 Kho Mỹ Phẩm</h2>
+    <button class="btn btn-teal" onclick="showAddProduct()">+ Thêm Sản Phẩm</button>
+    <button class="btn btn-green" onclick="showPurchaseModal()">📦 Nhập Hàng</button>
+    <button class="btn btn-orange" onclick="showSellCosmModal()">💰 Bán Lẻ</button>
+    <input type="text" id="prod-search" class="fi" placeholder="Tìm sản phẩm..." oninput="renderProducts()" style="width:170px;margin-left:auto">
+  </div>
+  <div id="cosm-stats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:11px;margin-bottom:14px"></div>
+  <div class="rev-table" style="margin-bottom:13px">
+    <div class="rev-table-header" style="justify-content:space-between;align-items:center">
+      <h3>📋 Danh Sách Tồn Kho</h3>
+      <select id="stock-filter" class="fi" onchange="renderProducts()" style="width:150px;padding:5px 9px;font-size:11px">
+        <option value="all">Tất cả sản phẩm</option>
+        <option value="ok">Còn hàng (&gt;5)</option>
+        <option value="low">Sắp hết (1–5)</option>
+        <option value="out">Hết hàng</option>
+      </select>
+    </div>
+    <div id="prod-list"></div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:13px">
+    <div class="rev-table">
+      <div class="rev-table-header"><h3>📦 Lịch Sử Nhập Hàng</h3></div>
+      <div id="purchase-list"></div>
+    </div>
+    <div class="rev-table">
+      <div class="rev-table-header"><h3>💰 Lịch Sử Bán Lẻ</h3></div>
+      <div id="cosm-sale-list"></div>
     </div>
   </div>
 </div>
@@ -411,8 +463,21 @@ let CLOUD_URL = localStorage.getItem('spa_cloud_url') || _HARDCODED_CLOUD;
 
 // ══ THÔNG BÁO & AUTO-POLLING ══
 let _pollCustCount = -1, _pollVisitCount = -1, _pollTimer = null;
+// Hash/fingerprint of last-seen cloud data (để detect edits, không chỉ additions)
+let _lastCloudHash = '';
 // Dirty flags: true = user vừa sửa local, chờ sync lên cloud (cloudLoad không được ghi đè)
 let _svcsDirty = false, _staffDirty = false;
+
+// Tạo fingerprint đơn giản từ array dữ liệu (detect mọi thay đổi: thêm/sửa/xoá)
+function _dataHash(arr) {
+  if (!Array.isArray(arr)) return '';
+  // Dùng JSON nhỏ gọn: id + trường quan trọng của từng item
+  const sig = arr.map(x => x.id + (x.name||'') + (x.date||'') + (x.phone||'')).join('|');
+  // Băm đơn giản (FNV-like) để tránh so sánh chuỗi dài
+  let h = 0x811c9dc5;
+  for (let i = 0; i < sig.length; i++) { h ^= sig.charCodeAt(i); h = (h * 0x01000193) >>> 0; }
+  return h.toString(16);
+}
 
 async function requestNotifPermission() {
   if (!('Notification' in window)) return;
@@ -431,20 +496,44 @@ async function checkCloudUpdates() {
     const res = await fetch(CLOUD_URL + '?action=getAll&_t=' + Date.now(), {cache:'no-store'});
     const json = await res.json();
     if (!json.ok || !json.data) return;
-    const cc = (json.data.customers||[]).length;
-    const cv = (json.data.visits||[]).length;
-    if (_pollCustCount === -1) { _pollCustCount = cc; _pollVisitCount = cv; return; }
-    const newC = cc - _pollCustCount;
-    const newV = cv - _pollVisitCount;
-    if (newC > 0 || newV > 0) {
-      _pollCustCount = cc; _pollVisitCount = cv;
+    const cloudCusts = json.data.customers || [];
+    const cloudVisits = json.data.visits || [];
+    const cc = cloudCusts.length;
+    const cv = cloudVisits.length;
+
+    // Tạo fingerprint bao gồm cả nội dung (detect sửa/xoá, không chỉ thêm mới)
+    const newHash = _dataHash(cloudCusts) + '|' + _dataHash(cloudVisits);
+
+    // Lần đầu chạy: lưu baseline rồi thoát (không import)
+    if (_pollCustCount === -1) {
+      _pollCustCount = cc; _pollVisitCount = cv; _lastCloudHash = newHash;
+      return;
+    }
+
+    // Phát hiện thay đổi: số lượng HOẶC nội dung khác với lần poll trước
+    const countChanged = cc !== _pollCustCount || cv !== _pollVisitCount;
+    const contentChanged = newHash !== _lastCloudHash;
+
+    if (countChanged || contentChanged) {
+      const prevCc = _pollCustCount;
+      const prevCv = _pollVisitCount;
+      _pollCustCount = cc; _pollVisitCount = cv; _lastCloudHash = newHash;
       await cloudLoad();
-      const parts = [];
-      if (newC > 0) parts.push(newC + ' khách hàng mới');
-      if (newV > 0) parts.push(newV + ' lượt dịch vụ mới');
-      const msg = parts.join(', ') + ' vừa được cập nhật!';
-      toast('🔔 ' + msg);
-      sendNotif('🌸 Spa CRM', msg);
+
+      // Thông báo khi có dữ liệu MỚI (thêm, không chỉ sửa)
+      const newC = cc - prevCc;
+      const newV = cv - prevCv;
+      if (newC > 0 || newV > 0) {
+        const parts = [];
+        if (newC > 0) parts.push(newC + ' khách hàng mới');
+        if (newV > 0) parts.push(newV + ' lượt dịch vụ mới');
+        const msg = parts.join(', ') + ' vừa được cập nhật!';
+        toast('🔔 ' + msg);
+        sendNotif('🌸 Spa CRM', msg);
+      } else if (contentChanged) {
+        // Nội dung thay đổi (sửa/xoá) nhưng số lượng giữ nguyên
+        toast('🔄 Dữ liệu từ thiết bị khác đã được cập nhật!');
+      }
     }
   } catch(e) {}
 }
@@ -452,7 +541,7 @@ async function checkCloudUpdates() {
 function startPolling() {
   stopPolling();
   if (!CLOUD_URL) return;
-  _pollCustCount = -1; _pollVisitCount = -1;
+  _pollCustCount = -1; _pollVisitCount = -1; _lastCloudHash = '';
   checkCloudUpdates();
   _pollTimer = setInterval(checkCloudUpdates, 30000);
 }
@@ -529,35 +618,31 @@ async function cloudLoad() {
           seenPhones.add(key);
           return true;
         });
-        // Cloud visits không có ảnh (bị strip) → dọn sạch photos trước khi merge
-      const cloudVisitMap = new Map(cloudVisits.map(v => [v.id, v]));
-      const mergedLocalVisits = localVisits.map(lv => {
-        const cv = cloudVisitMap.get(lv.id);
-        if (!cv) return lv;
-        const hasLocalPhotos = (lv.photos||[]).some(p => p.before || p.after);
-        const hasCloudPhotos = (cv.photos||[]).some(p => p.before || p.after);
-        if (!hasLocalPhotos && hasCloudPhotos) { return {...lv, photos: cv.photos}; }
-        return lv;
-      });
-      const newCloudVisits = cloudVisits.filter(v => !localVisitIds.has(v.id));
-      const mergedVisits = [...mergedLocalVisits, ...newCloudVisits];
+        // Merge visits: giữ ảnh full local, lấy thumbnail từ cloud nếu local chưa có ảnh
+        const cloudVisitMap = new Map(cloudVisits.map(v => [v.id, v]));
+        const mergedLocalVisits = localVisits.map(lv => {
+          const cv = cloudVisitMap.get(lv.id);
+          if (!cv) return lv;
+          const hasLocalPhotos = (lv.photos||[]).some(p => p.before || p.after);
+          const hasCloudPhotos = (cv.photos||[]).some(p => p.before || p.after);
+          if (!hasLocalPhotos && hasCloudPhotos) {
+            return {...lv, photos: cv.photos}; // dùng thumbnail từ cloud
+          }
+          return lv; // giữ ảnh full local
+        });
+        const newCloudVisits = cloudVisits.filter(v => !localVisitIds.has(v.id));
+        const mergedVisits = [...mergedLocalVisits, ...newCloudVisits];
         localStorage.setItem('spa_customers', JSON.stringify(mergedCusts));
         localStorage.setItem('spa_visits', JSON.stringify(mergedVisits));
-        // Nếu local có khách/lượt mới hơn cloud → đẩy lên (chỉ push custs+visits, KHÔNG push services/staff)
+        // Nếu merged có nhiều dữ liệu hơn cloud (local có thêm items) → đẩy lên cloud
+        // Cũng đẩy nếu local trống mà cloud cũng trống nhưng merge tạo ra dữ liệu (không thể xảy ra)
         if (mergedCusts.length > cloudCusts.length || mergedVisits.length > cloudVisits.length) {
           setTimeout(() => {
             cloudSave('customers', mergedCusts);
             cloudSave('visits', stripPhotosForCloud(mergedVisits));
           }, 2000);
         }
-      } else if (localCusts.length > 0) {
-        // Local có khách nhưng cloud trống → đẩy lên
-        setTimeout(() => {
-          const c = JSON.parse(localStorage.getItem('spa_customers')||'[]');
-          const v = JSON.parse(localStorage.getItem('spa_visits')||'[]');
-          cloudSave('customers', c);
-          cloudSave('visits', stripPhotosForCloud(v));
-        }, 1500);
+        // (Không cần else if vì nhánh trên đã bao gồm trường hợp localCusts > 0 & cloudCusts = 0)
       }
       // Services: MERGE - giữ local + thêm dịch vụ mới từ cloud (không bao giờ xóa local)
       const localSvcs = JSON.parse(localStorage.getItem('spa_services') || '[]');
@@ -604,13 +689,12 @@ async function cloudLoad() {
   }
 }
 
-// Loại ảnh base64 trước khi đẩy lên cloud (ảnh quá lớn vượt giới hạn Google Sheets)
 // Nén ảnh thành thumbnail nhỏ trước khi đẩy lên cloud
 function stripPhotosForCloud(visits) {
   return visits.map(v => ({
     ...v,
     photos: (v.photos||[]).map(p => ({
-      before: p.before_t || null,
+      before: p.before_t || null,  // thumbnail nhỏ (80px) cho cloud
       after:  p.after_t  || null,
       note:   p.note     || ''
     })).filter(p => p.before || p.after || p.note)
@@ -625,7 +709,11 @@ async function cloudSaveAll() {
       customers: DB.get('customers'),
       visits: stripPhotosForCloud(DB.get('visits')),
       services: DB.get('services'),
-      staff_list: DB.get('staff_list')
+      staff_list: DB.get('staff_list'),
+      products: getProducts(),
+      purchases: getPurchases(),
+      cosm_sales: getCosmSales(),
+      staff_rates: getStaffRates()
     };
     const body = 'data=' + encodeURIComponent(JSON.stringify({allData}));
     const r = await fetch(CLOUD_URL, {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body});
@@ -655,26 +743,71 @@ async function connectCloud() {
   localStorage.setItem('spa_cloud_url', url);
   setSyncStatus('loading');
   try {
-    const res = await fetch(url + '?action=getAll&_t=' + Date.now(), {cache:'no-store'});
+    const res = await fetch(url + '?action=getAll', {cache:'no-cache'});
     const json = await res.json();
     if (!json.ok) throw new Error('bad');
     const hasData = json.data && Array.isArray(json.data.customers) && json.data.customers.length > 0;
     if (hasData) {
-      // Cloud đã có khách hàng → tải về máy này
+      // Cloud đã có khách hàng → MERGE với dữ liệu local (không xoá local)
       const d = json.data;
       const cloudCusts = Array.isArray(d.customers) ? d.customers : [];
       const cloudVisits = Array.isArray(d.visits) ? d.visits : [];
-      if (cloudCusts.length > 0) {
-        localStorage.setItem('spa_customers', JSON.stringify(cloudCusts));
-        // Dọn sạch photos từ cloud (không có dữ liệu ảnh thực) trước khi lưu local
-        localStorage.setItem('spa_visits', JSON.stringify(cloudVisits.map(v=>({...v,photos:[]}))));
+      const localCusts = JSON.parse(localStorage.getItem('spa_customers') || '[]');
+      const localVisits = JSON.parse(localStorage.getItem('spa_visits') || '[]');
+
+      // Merge customers: giữ local + thêm cloud-only (theo ID)
+      const localCustIds = new Set(localCusts.map(c => c.id));
+      const rawMerged = [...localCusts, ...cloudCusts.filter(c => !localCustIds.has(c.id))];
+      // Dedup theo phone: giữ bản local (đầu tiên)
+      const seenPhones = new Set();
+      const mergedCusts = rawMerged.filter(c => {
+        const key = c.phone || c.id;
+        if (seenPhones.has(key)) return false;
+        seenPhones.add(key); return true;
+      });
+
+      // Merge visits: local wins (giữ ảnh full local), thêm cloud-only visits
+      const localVisitIds = new Set(localVisits.map(v => v.id));
+      const cloudVisitMap = new Map(cloudVisits.map(v => [v.id, v]));
+      const mergedLocalVisits = localVisits.map(lv => {
+        const cv = cloudVisitMap.get(lv.id);
+        if (!cv) return lv;
+        const hasLocalPhotos = (lv.photos||[]).some(p => p.before || p.after);
+        const hasCloudPhotos = (cv.photos||[]).some(p => p.before || p.after);
+        if (!hasLocalPhotos && hasCloudPhotos) return {...lv, photos: cv.photos};
+        return lv;
+      });
+      // Cloud visits mà local chưa có (lấy về, xoá ảnh thực vì cloud chỉ có thumbnail)
+      const newCloudVisits = cloudVisits.filter(v => !localVisitIds.has(v.id)).map(v => ({...v, photos: (v.photos||[]).map(p => ({...p}))}));
+      const mergedVisits = [...mergedLocalVisits, ...newCloudVisits];
+
+      localStorage.setItem('spa_customers', JSON.stringify(mergedCusts));
+      localStorage.setItem('spa_visits', JSON.stringify(mergedVisits));
+
+      // Nếu merge tạo ra dữ liệu nhiều hơn cloud → đẩy ngược lên cloud
+      if (mergedCusts.length > cloudCusts.length || mergedVisits.length > cloudVisits.length) {
+        setTimeout(() => {
+          cloudSave('customers', mergedCusts);
+          cloudSave('visits', stripPhotosForCloud(mergedVisits));
+        }, 2000);
       }
-      if (Array.isArray(d.services) && d.services.length > 0)
-        localStorage.setItem('spa_services', JSON.stringify(d.services));
-      if (Array.isArray(d.staff_list) && d.staff_list.length > 0)
-        localStorage.setItem('spa_staff_list', JSON.stringify(d.staff_list));
+
+      if (Array.isArray(d.services) && d.services.length > 0) {
+        const localSvcs = JSON.parse(localStorage.getItem('spa_services') || '[]');
+        const localSvcIds = new Set(localSvcs.map(s => s.id));
+        const mergedSvcs = [...localSvcs, ...d.services.filter(s => !localSvcIds.has(s.id))];
+        localStorage.setItem('spa_services', JSON.stringify(mergedSvcs));
+      }
+      if (Array.isArray(d.staff_list) && d.staff_list.length > 0) {
+        const localStaff = JSON.parse(localStorage.getItem('spa_staff_list') || '[]');
+        const localNames = new Set(localStaff.map(s => typeof s === 'string' ? s : s.name || s.id));
+        const mergedStaff = [...localStaff, ...d.staff_list.filter(s => {
+          const k = typeof s === 'string' ? s : s.name || s.id; return !localNames.has(k);
+        })];
+        localStorage.setItem('spa_staff_list', JSON.stringify(mergedStaff));
+      }
       setSyncStatus('ok');
-      toast('✅ Kết nối thành công! Đã tải dữ liệu từ cloud về máy này.');
+      toast('✅ Kết nối thành công! Đã đồng bộ dữ liệu cloud ↔ máy này.');
     } else {
       // Cloud trống → đẩy dữ liệu local lên
       const allData = {
@@ -880,7 +1013,7 @@ setInterval(()=>{const d=new Date(),el=document.getElementById('clock');if(el)el
 
 // ══ PAGES ══
 function showPage(page){
-  ['home','customers','reminders','revenue','settings'].forEach(p=>{
+  ['home','customers','reminders','revenue','cosmetics','settings'].forEach(p=>{
     document.getElementById('page-'+p).style.display=p===page?'':'none';
     const n=document.getElementById('nav-'+p);if(n)n.classList.toggle('active',p===page);
   });
@@ -889,6 +1022,7 @@ function showPage(page){
   if(page==='home'){renderHomeRecent();renderHomeAlerts();}
   if(page==='settings')renderSettings();
   if(page==='reminders')renderReminders();
+  if(page==='cosmetics')renderProducts();
   updateRemBadge();
 }
 
@@ -1260,7 +1394,7 @@ function confirmDeleteCust(id){
 
 // ══ SERVICE CATALOG ══
 function getServices(){return DB.get('services');}
-function renderSettings(){loadStaffSettings();renderServiceCatalog();renderCloudSettings();}
+function renderSettings(){loadStaffSettings();renderServiceCatalog();renderCloudSettings();renderCommissionSettings();}
 function renderServiceCatalog(){
   const svcs=getServices();
   const dvList=document.getElementById('svc-dv-list');const mpList=document.getElementById('svc-mp-list');
@@ -1329,12 +1463,14 @@ function loadStaffSettings(){const el=document.getElementById('staff-list-input'
 function saveStaffList(){DB.set('staff_list',document.getElementById('staff-list-input').value.split('\n').map(s=>s.trim()).filter(Boolean));toast('✅ Đã lưu nhân viên!');}
 
 // ══ ADD/EDIT VISIT ══
-let pendingPhotos=[];let visitItems=[];
-function showAddVisit(custId){pendingPhotos=[];visitItems=[{id:DB.id(),name:'',cat:'dv',price:'',staff:'',note:'',svcId:'',discount:0,discountType:'pct'}];renderVisitModal(custId,null);}
+let pendingPhotos=[];let visitItems=[];let pendingCosm=[];
+function showAddVisit(custId){pendingPhotos=[];pendingCosm=[];visitItems=[{id:DB.id(),name:'',cat:'dv',price:'',staff:'',note:'',svcId:'',discount:0,discountType:'pct'}];renderVisitModal(custId,null);}
 function showEditVisit(visitId,custId){
   const v=DB.get('visits').find(x=>x.id===visitId);if(!v)return;
   visitItems=(v.items||[]).map(i=>({staff:'',note:'',svcId:'',...i}));
-  pendingPhotos=(v.photos||[]).map(p=>({...p}));renderVisitModal(custId,visitId);
+  pendingPhotos=(v.photos||[]).map(p=>({...p}));
+  pendingCosm=(v.cosm||[]).map(c=>({...c}));
+  renderVisitModal(custId,visitId);
 }
 function renderVisitModal(custId,editId){
   const c=DB.get('customers').find(x=>x.id===custId);
@@ -1352,11 +1488,14 @@ function renderVisitModal(custId,editId){
   <div style="font-size:12px;font-weight:700;color:#006064;margin-bottom:6px">📸 Ảnh Trước / Sau (tuỳ chọn)</div>
   <div id="photos-wrap"></div>
   <div class="add-photo-pair" onclick="addPhotoPair()">📷 + Thêm Bộ Ảnh Trước / Sau</div>
-  <div class="form-grid full" style="margin-top:10px">
+  <div style="font-size:12px;font-weight:700;color:#e65100;margin:12px 0 5px">💄 Mỹ Phẩm Bán Kèm <span style="font-weight:400;font-size:11px;color:#90a4ae">(tuỳ chọn)</span></div>
+  <div id="cosm-items-wrap"></div>
+  <button class="btn btn-gray btn-sm" onclick="addCosmItem()" style="margin-bottom:10px">+ Thêm Mỹ Phẩm Bán Kèm</button>
+  <div class="form-grid full" style="margin-top:4px">
     <div><label>📝 Ghi Chú</label><textarea class="fi" id="v-note" placeholder="KH hài lòng, hẹn lại sau...">${vNote}</textarea></div>
   </div>
   <div class="modal-sticky-bot"><button class="btn btn-gray" onclick="closeModal()">Huỷ</button><button class="btn btn-teal" onclick="saveVisit('${custId}','${editId||''}')">💾 Lưu</button></div>`);
-  renderVisitItems();renderPhotosWrap();
+  renderVisitItems();renderPhotosWrap();renderCosmWrap();
 }
 function renderVisitItems(){
   const svcs=getServices();
@@ -1441,9 +1580,12 @@ function uploadPhoto(pairIdx,side,input){
         canvas.width=w;canvas.height=h;
         canvas.getContext('2d').drawImage(img,0,0,w,h);
         const data=canvas.toDataURL('image/jpeg',0.6);
-        const tc=document.createElement('canvas');const tm=80;let tw=w,th=h;
+        // Tạo thumbnail nhỏ (80px, quality 0.12) để đồng bộ cloud
+        const tc=document.createElement('canvas');
+        const tm=80;let tw=w,th=h;
         if(tw>th&&tw>tm){th=Math.round(th*tm/tw);tw=tm;}else if(th>tm){tw=Math.round(tw*tm/th);th=tm;}
-        tc.width=tw;tc.height=th;tc.getContext('2d').drawImage(img,0,0,tw,th);
+        tc.width=tw;tc.height=th;
+        tc.getContext('2d').drawImage(img,0,0,tw,th);
         const thumb=tc.toDataURL('image/jpeg',0.12);
         // Ước tính dung lượng hiện tại
         let usedBytes=0;
@@ -1453,7 +1595,7 @@ function uploadPhoto(pairIdx,side,input){
           toast('⚠️ Bộ nhớ sắp đầy! Ảnh được lưu nhưng hãy xóa bớt ảnh cũ.',false);
         }
         pendingPhotos[pairIdx][side]=data;
-        pendingPhotos[pairIdx][side+'_t']=thumb;
+        pendingPhotos[pairIdx][side+'_t']=thumb; // thumbnail cho cloud sync
         renderPhotosWrap();toast('✅ Đã tải ảnh!');
       } catch(e) {
         if(e.name==='QuotaExceededError'||e.code===22){
@@ -1479,8 +1621,23 @@ function saveVisit(custId,editId){
   }
   const items=visitItems.filter(i=>i.name&&i.price);
   if(!items.length){toast('Nhập ít nhất 1 dịch vụ có giá!',false);return;}
+  // Handle cosm items: validate and deduct stock
+  const cosm=pendingCosm.filter(c=>c.productId&&(c.qty||0)>0);
+  // For new visits, deduct stock; for edits, reverse old then deduct new
+  if(cosm.length){
+    const prods=getProducts();
+    // If editing, get old cosm to reverse
+    const oldCosm=editId?(DB.get('visits').find(x=>x.id===editId)?.cosm||[]):[];
+    // Restore old stock
+    oldCosm.forEach(oc=>{const p=prods.find(x=>x.id===oc.productId);if(p)p.stock+=Number(oc.qty)||0;});
+    // Deduct new cosm
+    for(const c of cosm){const p=prods.find(x=>x.id===c.productId);if(!p){toast(`Không tìm thấy sản phẩm: ${c.name}`,false);return;}
+      if(p.stock<c.qty){toast(`Không đủ hàng: ${p.name} (tồn: ${p.stock})`,false);return;}
+      p.stock-=Number(c.qty);}
+    saveProducts(prods);
+  }
   const visits=DB.get('visits');
-  const rec={date:document.getElementById('v-date').value,items,photos:pendingPhotos,visitNote:document.getElementById('v-note').value};
+  const rec={date:document.getElementById('v-date').value,items,photos:pendingPhotos,cosm,visitNote:document.getElementById('v-note').value};
   if(editId){const i=visits.findIndex(x=>x.id===editId);if(i<0)return;visits[i]={...visits[i],...rec};}
   else{visits.push({id:DB.id(),custId,...rec,createdAt:today()});}
   DB.set('visits',visits);closeModal();toast('✅ Đã lưu!');openCust(custId);renderHomeRecent();updateRemBadge();
@@ -1514,13 +1671,15 @@ function renderRevenue(){
   const topDv=Object.entries(svcMap).sort((a,b)=>b[1]-a[1]).slice(0,6);
   const prodMap={};mpItems.forEach(i=>{prodMap[i.name]=(prodMap[i.name]||0)+finalPrice(i);});
   const topMp=Object.entries(prodMap).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  // Count cosm from visits in period
+  const cosmRev=visits.reduce((a,v)=>(v.cosm||[]).reduce((b,c)=>b+Number(c.qty||0)*Number(c.price||0),a),0);
   const staffMap={};allItems.forEach(i=>{const k=i.staff||'Không rõ';staffMap[k]=(staffMap[k]||0)+finalPrice(i);});
   const topStaff=Object.entries(staffMap).sort((a,b)=>b[1]-a[1]);
   document.getElementById('rev-content').innerHTML=`
 <div class="stat-cards">
   <div class="stat-card"><div class="sc-lbl">💰 Tổng Doanh Thu</div><div class="sc-val">${fmt(grand)}</div><div style="font-size:11px;color:#90a4ae;margin-top:3px">${visits.length} lượt · ${custSet.size} khách</div></div>
   <div class="stat-card dv"><div class="sc-lbl">✨ Dịch Vụ Chính</div><div class="sc-val">${fmt(dvTotal)}</div><div style="font-size:11px;color:#90a4ae;margin-top:3px">${grand?Math.round(dvTotal/grand*100):0}% tổng DT</div></div>
-  <div class="stat-card mp"><div class="sc-lbl">💄 Mỹ Phẩm</div><div class="sc-val">${fmt(mpTotal)}</div><div style="font-size:11px;color:#90a4ae;margin-top:3px">${grand?Math.round(mpTotal/grand*100):0}% tổng DT</div></div>
+  <div class="stat-card mp"><div class="sc-lbl">💄 Mỹ Phẩm (DV+Kho)</div><div class="sc-val">${fmt(mpTotal+cosmRev)}</div><div style="font-size:11px;color:#90a4ae;margin-top:3px">Trong lượt: ${fmt(mpTotal)} · Kho: ${fmt(cosmRev)}</div></div>
   <div class="stat-card"><div class="sc-lbl">👥 Khách Phục Vụ</div><div class="sc-val" style="color:#1565c0">${custSet.size}</div><div style="font-size:11px;color:#90a4ae;margin-top:3px">TB ${custSet.size?fmt(Math.round(grand/custSet.size)):0}/KH</div></div>
 </div>
 <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:13px">
@@ -1550,12 +1709,250 @@ function renderRevenue(){
   }).join(''):'<tr><td colspan="6" style="text-align:center;color:#aaa;padding:26px">Không có dữ liệu</td></tr>'}</tbody>
   <tfoot><tr><td class="left">TỔNG CỘNG</td><td>${custSet.size}</td><td>${visits.length}</td>
     <td>${fmt(dvTotal)}</td><td>${fmt(mpTotal)}</td><td style="font-size:14px">${fmt(grand)}</td></tr></tfoot></table>
-</div>`;
+</div>
+${(()=>{const rates=getStaffRates();const commRows=topStaff.map(([nm,rev])=>{const r=rates[nm]||0;return{nm,rev,r,comm:Math.round(rev*r/100)};}).filter(x=>x.r>0);if(!commRows.length)return'';const totalComm=commRows.reduce((a,x)=>a+x.comm,0);return`<div class="rev-table"><div class="rev-table-header"><h3>💸 Hoa Hồng Nhân Viên</h3></div>
+<table><thead><tr><th class="left">Nhân Viên</th><th>DT Dịch Vụ</th><th>% HH</th><th style="color:#e65100">Hoa Hồng</th></tr></thead>
+<tbody>${commRows.map(x=>`<tr><td class="left"><b>${x.nm}</b></td><td>${fmt(x.rev)}</td><td>${x.r}%</td><td style="color:#e65100;font-weight:700">${fmt(x.comm)}</td></tr>`).join('')}</tbody>
+<tfoot><tr><td class="left">TỔNG</td><td>${fmt(topStaff.reduce((a,[,v])=>a+v,0))}</td><td></td><td style="color:#e65100;font-size:13px">${fmt(totalComm)}</td></tr></tfoot></table></div>`;})()} `;
+}
+
+// ══ COSMETICS DB ══
+function getProducts(){return JSON.parse(localStorage.getItem('spa_products')||'[]');}
+function saveProducts(arr){localStorage.setItem('spa_products',JSON.stringify(arr));}
+function getPurchases(){return JSON.parse(localStorage.getItem('spa_purchases')||'[]');}
+function savePurchases(arr){localStorage.setItem('spa_purchases',JSON.stringify(arr));}
+function getCosmSales(){return JSON.parse(localStorage.getItem('spa_cosm_sales')||'[]');}
+function saveCosmSales(arr){localStorage.setItem('spa_cosm_sales',JSON.stringify(arr));}
+function getStaffRates(){return JSON.parse(localStorage.getItem('spa_staff_rates')||'{}');}
+function saveStaffRates(obj){localStorage.setItem('spa_staff_rates',JSON.stringify(obj));}
+
+// ══ PRODUCTS ══
+function renderProducts(){
+  const prods=getProducts();
+  const q=(document.getElementById('prod-search')?.value||'').toLowerCase();
+  const fil=document.getElementById('stock-filter')?.value||'all';
+  const purchases=getPurchases();
+  const sales=getCosmSales();
+  const totalPurch=purchases.reduce((a,p)=>a+p.qty*p.buyPrice,0);
+  const totalSold=sales.reduce((a,s)=>a+s.qty*s.sellPrice,0);
+  const visitCosmRev=DB.get('visits').reduce((a,v)=>(v.cosm||[]).reduce((b,c)=>b+Number(c.qty||0)*Number(c.price||0),a),0);
+  const totalStock=prods.reduce((a,p)=>a+Number(p.stock||0),0);
+  const sc=document.getElementById('cosm-stats');
+  if(sc)sc.innerHTML=`
+    <div class="stat-card"><div class="sc-lbl">📦 Sản Phẩm</div><div class="sc-val" style="font-size:20px">${prods.length}</div></div>
+    <div class="stat-card dv"><div class="sc-lbl">📥 Tổng Tiền Nhập</div><div class="sc-val" style="font-size:15px">${fmt(totalPurch)}</div></div>
+    <div class="stat-card mp"><div class="sc-lbl">💰 Doanh Thu Bán</div><div class="sc-val" style="font-size:15px">${fmt(totalSold+visitCosmRev)}</div></div>
+    <div class="stat-card"><div class="sc-lbl">📊 Tổng Tồn Kho</div><div class="sc-val" style="font-size:20px">${totalStock} sp</div></div>`;
+  let filtered=prods.filter(p=>!q||p.name.toLowerCase().includes(q));
+  if(fil==='ok')filtered=filtered.filter(p=>p.stock>5);
+  else if(fil==='low')filtered=filtered.filter(p=>p.stock>0&&p.stock<=5);
+  else if(fil==='out')filtered=filtered.filter(p=>p.stock<=0);
+  const pl=document.getElementById('prod-list');
+  if(!pl)return;
+  if(!filtered.length){pl.innerHTML='<div style="text-align:center;padding:22px;color:#90a4ae">Chưa có sản phẩm nào phù hợp</div>';return;}
+  pl.innerHTML=`<div class="prod-row" style="font-weight:700;background:#e0f7fa;font-size:11px">
+    <span class="prod-name">Tên Sản Phẩm</span>
+    <span style="min-width:55px;text-align:center">ĐV</span>
+    <span style="min-width:90px;text-align:right">Giá Nhập</span>
+    <span style="min-width:90px;text-align:right">Giá Bán</span>
+    <span style="min-width:75px;text-align:center">Tồn</span>
+    <span style="min-width:85px;text-align:right">Lãi/SP</span>
+    <span style="min-width:75px"></span>
+  </div>`+filtered.map(p=>{
+    const stCls=p.stock<=0?'stock-out':p.stock<=5?'stock-low':'stock-ok';
+    const profit=(p.sellPrice||0)-(p.buyPrice||0);
+    return`<div class="prod-row">
+      <span class="prod-name">${p.name}</span>
+      <span style="min-width:55px;text-align:center;color:#546e7a;font-size:11px">${p.unit||'cái'}</span>
+      <span style="min-width:90px;text-align:right;color:#546e7a">${fmt(p.buyPrice||0)}</span>
+      <span style="min-width:90px;text-align:right;font-weight:700">${fmt(p.sellPrice||0)}</span>
+      <span style="min-width:75px;text-align:center"><span class="prod-stock ${stCls}">${p.stock||0}</span></span>
+      <span style="min-width:85px;text-align:right;color:${profit>0?'#2e7d32':'#c62828'};font-weight:700">${profit>0?'+':''}${fmt(profit)}</span>
+      <span style="min-width:75px;display:flex;gap:4px">
+        <button class="btn btn-gray btn-xs" onclick="showEditProduct('${p.id}')">✏️</button>
+        <button class="btn btn-pink btn-xs" onclick="deleteProduct('${p.id}')">✕</button>
+      </span>
+    </div>`;
+  }).join('');
+  // Purchase list
+  const pur=getPurchases().slice().reverse().slice(0,20);
+  const purEl=document.getElementById('purchase-list');
+  if(purEl)purEl.innerHTML=pur.length?`<table><thead><tr><th class="left">Ngày</th><th class="left">Sản Phẩm</th><th>SL</th><th>Giá Nhập</th><th>Tổng</th></tr></thead>
+  <tbody>${pur.map(p=>`<tr><td class="left">${p.date}</td><td class="left">${p.productName}</td><td style="text-align:center">${p.qty}</td><td>${fmt(p.buyPrice)}</td><td><b>${fmt(p.qty*p.buyPrice)}</b></td></tr>`).join('')}</tbody></table>`:
+  '<div style="text-align:center;padding:16px;color:#90a4ae">Chưa có lần nhập hàng nào</div>';
+  // Sale list
+  const sls=getCosmSales().slice().reverse().slice(0,20);
+  const slEl=document.getElementById('cosm-sale-list');
+  if(slEl)slEl.innerHTML=sls.length?`<table><thead><tr><th class="left">Ngày</th><th class="left">Sản Phẩm</th><th>SL</th><th>Doanh Thu</th></tr></thead>
+  <tbody>${sls.map(s=>`<tr><td class="left">${s.date}</td><td class="left">${s.productName}</td><td style="text-align:center">${s.qty}</td><td><b>${fmt(s.qty*s.sellPrice)}</b></td></tr>`).join('')}</tbody></table>`:
+  '<div style="text-align:center;padding:16px;color:#90a4ae">Chưa có lần bán lẻ nào</div>';
+}
+function showAddProduct(){
+  showModal(`<h3>+ Thêm Sản Phẩm Mỹ Phẩm</h3>
+  <div class="form-grid">
+    <div><label>Tên Sản Phẩm *</label><input class="fi" id="pp-name" placeholder="VD: Kem dưỡng Laneige"></div>
+    <div><label>Đơn Vị</label><input class="fi" id="pp-unit" value="hộp" placeholder="hộp / chai / cái"></div>
+    <div><label>Giá Nhập (đ)</label><input class="fi" id="pp-buy" type="number" step="5000" placeholder="0"></div>
+    <div><label>Giá Bán (đ)</label><input class="fi" id="pp-sell" type="number" step="5000" placeholder="0"></div>
+    <div><label>Tồn Kho Ban Đầu</label><input class="fi" id="pp-stock" type="number" value="0" min="0"></div>
+  </div>
+  <div class="btn-group"><button class="btn btn-gray" onclick="closeModal()">Huỷ</button><button class="btn btn-teal" onclick="saveProduct('')">💾 Lưu</button></div>`);
+}
+function showEditProduct(id){
+  const p=getProducts().find(x=>x.id===id);if(!p)return;
+  showModal(`<h3>✏️ Sửa Sản Phẩm</h3>
+  <div class="form-grid">
+    <div><label>Tên Sản Phẩm *</label><input class="fi" id="pp-name" value="${p.name}"></div>
+    <div><label>Đơn Vị</label><input class="fi" id="pp-unit" value="${p.unit||'hộp'}"></div>
+    <div><label>Giá Nhập (đ)</label><input class="fi" id="pp-buy" type="number" step="5000" value="${p.buyPrice||0}"></div>
+    <div><label>Giá Bán (đ)</label><input class="fi" id="pp-sell" type="number" step="5000" value="${p.sellPrice||0}"></div>
+    <div><label>Tồn Kho Hiện Tại</label><input class="fi" id="pp-stock" type="number" value="${p.stock||0}" min="0"></div>
+  </div>
+  <div class="btn-group"><button class="btn btn-gray" onclick="closeModal()">Huỷ</button><button class="btn btn-teal" onclick="saveProduct('${id}')">💾 Lưu</button></div>`);
+}
+function saveProduct(id){
+  const name=document.getElementById('pp-name').value.trim();
+  if(!name){toast('Nhập tên sản phẩm!',false);return;}
+  const prods=getProducts();
+  const obj={id:id||DB.id(),name,unit:document.getElementById('pp-unit').value.trim()||'cái',
+    buyPrice:Number(document.getElementById('pp-buy').value)||0,
+    sellPrice:Number(document.getElementById('pp-sell').value)||0,
+    stock:Number(document.getElementById('pp-stock').value)||0};
+  if(id){const i=prods.findIndex(x=>x.id===id);if(i>=0)prods[i]=obj;else prods.push(obj);}
+  else prods.push(obj);
+  saveProducts(prods);closeModal();renderProducts();toast('✅ Đã lưu sản phẩm!');
+}
+function deleteProduct(id){
+  if(!confirm('Xoá sản phẩm này? Lịch sử nhập/bán vẫn được giữ.'))return;
+  saveProducts(getProducts().filter(x=>x.id!==id));renderProducts();toast('Đã xoá');
+}
+
+// ══ PURCHASE (NHẬP HÀNG) ══
+function showPurchaseModal(){
+  const opts=getProducts().map(p=>`<option value="${p.id}">${p.name} (tồn: ${p.stock||0})</option>`).join('');
+  if(!opts){toast('Chưa có sản phẩm. Hãy thêm sản phẩm trước!',false);return;}
+  showModal(`<h3>📦 Nhập Hàng</h3>
+  <div class="form-grid">
+    <div class="full"><label>Sản Phẩm *</label><select class="fi" id="pur-prod"><option value="">-- Chọn sản phẩm --</option>${opts}</select></div>
+    <div><label>Số Lượng Nhập *</label><input class="fi" id="pur-qty" type="number" min="1" value="1"></div>
+    <div><label>Giá Nhập/Đơn Vị (đ)</label><input class="fi" id="pur-price" type="number" step="5000" placeholder="0"></div>
+    <div><label>Ngày Nhập</label><input class="fi" id="pur-date" type="date" value="${today()}"></div>
+    <div class="full"><label>Ghi Chú</label><input class="fi" id="pur-note" placeholder="Nhà cung cấp, số hoá đơn..."></div>
+  </div>
+  <div class="btn-group"><button class="btn btn-gray" onclick="closeModal()">Huỷ</button><button class="btn btn-green" onclick="savePurchase()">📦 Xác Nhận Nhập</button></div>`);
+}
+function savePurchase(){
+  const prodId=document.getElementById('pur-prod').value;
+  const qty=Number(document.getElementById('pur-qty').value)||0;
+  if(!prodId||qty<=0){toast('Chọn sản phẩm và nhập số lượng!',false);return;}
+  const prods=getProducts();const p=prods.find(x=>x.id===prodId);if(!p)return;
+  const buyPrice=Number(document.getElementById('pur-price').value)||p.buyPrice||0;
+  const date=document.getElementById('pur-date').value||today();
+  const note=document.getElementById('pur-note').value.trim();
+  p.stock=(p.stock||0)+qty;
+  if(buyPrice&&buyPrice!==p.buyPrice)p.buyPrice=buyPrice;
+  saveProducts(prods);
+  const purs=getPurchases();
+  purs.push({id:DB.id(),productId:prodId,productName:p.name,qty,buyPrice,date,note});
+  savePurchases(purs);
+  closeModal();renderProducts();toast(`✅ Đã nhập ${qty} ${p.unit||'cái'} – ${p.name}!`);
+}
+
+// ══ STANDALONE COSM SALE ══
+function showSellCosmModal(){
+  const prods=getProducts().filter(p=>(p.stock||0)>0);
+  if(!prods.length){toast('Không có sản phẩm còn hàng!',false);return;}
+  const opts=prods.map(p=>`<option value="${p.id}">${p.name} (tồn: ${p.stock}, giá: ${fmt(p.sellPrice||0)})</option>`).join('');
+  const staffOpts=getStaff().map(s=>`<option value="${s}">${s}</option>`).join('');
+  showModal(`<h3>💰 Bán Mỹ Phẩm Lẻ</h3>
+  <div class="form-grid">
+    <div class="full"><label>Sản Phẩm *</label><select class="fi" id="sell-prod" onchange="fillSellPrice()">${opts}</select></div>
+    <div><label>Số Lượng *</label><input class="fi" id="sell-qty" type="number" min="1" value="1"></div>
+    <div><label>Giá Bán/Đơn Vị (đ)</label><input class="fi" id="sell-price" type="number" step="5000"></div>
+    <div><label>Nhân Viên</label><select class="fi" id="sell-staff"><option value="">-- Không ghi --</option>${staffOpts}</select></div>
+    <div><label>Ngày Bán</label><input class="fi" id="sell-date" type="date" value="${today()}"></div>
+    <div><label>Ghi Chú</label><input class="fi" id="sell-note" placeholder="Tên khách, ghi chú..."></div>
+  </div>
+  <div class="btn-group"><button class="btn btn-gray" onclick="closeModal()">Huỷ</button><button class="btn btn-orange" onclick="saveCosmSale()">💰 Xác Nhận Bán</button></div>`);
+  fillSellPrice();
+}
+function fillSellPrice(){
+  const pid=document.getElementById('sell-prod')?.value;
+  const p=pid?getProducts().find(x=>x.id===pid):null;
+  const el=document.getElementById('sell-price');
+  if(p&&el)el.value=p.sellPrice||0;
+}
+function saveCosmSale(){
+  const prodId=document.getElementById('sell-prod').value;
+  const qty=Number(document.getElementById('sell-qty').value)||0;
+  if(!prodId||qty<=0){toast('Chọn sản phẩm và số lượng!',false);return;}
+  const prods=getProducts();const p=prods.find(x=>x.id===prodId);if(!p)return;
+  if((p.stock||0)<qty){toast(`Không đủ hàng! Tồn kho: ${p.stock||0}`,false);return;}
+  const sellPrice=Number(document.getElementById('sell-price').value)||p.sellPrice||0;
+  const staffId=document.getElementById('sell-staff').value;
+  const date=document.getElementById('sell-date').value||today();
+  const note=document.getElementById('sell-note').value.trim();
+  p.stock=(p.stock||0)-qty;saveProducts(prods);
+  const sls=getCosmSales();
+  sls.push({id:DB.id(),productId:prodId,productName:p.name,qty,sellPrice,staffId,date,note});
+  saveCosmSales(sls);
+  closeModal();renderProducts();toast(`✅ Đã bán ${qty} ${p.unit||'cái'} – ${p.name}!`);
+}
+
+// ══ COSM IN VISIT MODAL ══
+function addCosmItem(){
+  const prods=getProducts().filter(p=>(p.stock||0)>0);
+  if(!prods.length){toast('Không có sản phẩm còn hàng trong kho!',false);return;}
+  pendingCosm.push({productId:'',name:'',qty:1,price:0});renderCosmWrap();
+}
+function removeCosmItem(i){pendingCosm.splice(i,1);renderCosmWrap();}
+function renderCosmWrap(){
+  const prods=getProducts();
+  const el=document.getElementById('cosm-items-wrap');if(!el)return;
+  if(!pendingCosm.length){el.innerHTML='';return;}
+  el.innerHTML=pendingCosm.map((c,i)=>{
+    const opts=prods.map(p=>`<option value="${p.id}" ${p.id===c.productId?'selected':''}>${p.name} (tồn: ${p.stock||0})</option>`).join('');
+    const total=(c.price||0)*(c.qty||1);
+    return`<div class="cosm-row">
+      <select style="flex:2;min-width:150px" onchange="pickCosmProd(${i},this)">
+        <option value="">-- Chọn SP --</option>${opts}
+      </select>
+      <input type="number" placeholder="SL" value="${c.qty||1}" min="1" oninput="pendingCosm[${i}].qty=Number(this.value);renderCosmWrap()" style="width:60px">
+      <input type="number" placeholder="Giá bán" value="${c.price||''}" step="5000" oninput="pendingCosm[${i}].price=Number(this.value);renderCosmWrap()" style="width:110px">
+      <span style="font-size:11px;color:#e65100;min-width:85px;font-weight:700">${c.name?'= '+fmt(total):''}</span>
+      <button class="btn btn-pink btn-xs" onclick="removeCosmItem(${i})">✕</button>
+    </div>`;
+  }).join('');
+}
+function pickCosmProd(i,sel){
+  const p=getProducts().find(x=>x.id===sel.value);
+  if(p){pendingCosm[i].productId=p.id;pendingCosm[i].name=p.name;pendingCosm[i].price=p.sellPrice||0;}
+  renderCosmWrap();
+}
+
+// ══ COMMISSION ══
+function renderCommissionSettings(){
+  const staff=getStaff();const rates=getStaffRates();
+  const el=document.getElementById('commission-settings');if(!el)return;
+  if(!staff.length){el.innerHTML='<div style="color:#90a4ae;font-size:12px">Chưa có nhân viên. Thêm nhân viên trong mục Danh Sách Nhân Viên.</div>';return;}
+  el.innerHTML=`<table style="width:100%;border-collapse:collapse">
+    <thead><tr style="background:#e0f7fa"><th class="left" style="padding:8px 10px;font-size:12px;border-radius:6px 0 0 0">Nhân Viên</th><th style="padding:8px 10px;font-size:12px;width:180px;border-radius:0 6px 0 0">% Hoa Hồng (trên DT DV)</th></tr></thead>
+    <tbody>${staff.map(s=>`<tr style="border-bottom:1px solid #f0f0f0">
+      <td style="padding:7px 10px;font-size:12px;font-weight:600">${s}</td>
+      <td style="padding:7px 10px"><div style="display:flex;align-items:center;gap:6px">
+        <input type="number" class="fi comm-input" data-staff="${s}" value="${rates[s]||0}" min="0" max="100" style="width:75px;padding:5px 8px;margin-bottom:0"> <span style="color:#546e7a;font-size:12px">%</span>
+      </div></td>
+    </tr>`).join('')}</tbody></table>`;
+}
+function saveCommissions(){
+  const inputs=document.querySelectorAll('.comm-input');
+  const rates={};inputs.forEach(inp=>rates[inp.dataset.staff]=Number(inp.value)||0);
+  saveStaffRates(rates);toast('✅ Đã lưu hoa hồng!');
 }
 
 // ══ BACKUP ══
 function exportData(){
-  const data={customers:DB.get('customers'),visits:DB.get('visits'),services:DB.get('services'),staff_list:DB.get('staff_list'),seeded:DB.get('seeded')};
+  const data={customers:DB.get('customers'),visits:DB.get('visits'),services:DB.get('services'),staff_list:DB.get('staff_list'),seeded:DB.get('seeded'),products:getProducts(),purchases:getPurchases(),cosm_sales:getCosmSales(),staff_rates:getStaffRates()};
   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`spa_crm_backup_${today()}.json`;a.click();toast('✅ Đã xuất backup!');
 }
@@ -1566,6 +1963,8 @@ function importData(input){
     const d=JSON.parse(e.target.result);
     if(d.customers)DB.set('customers',d.customers);if(d.visits)DB.set('visits',d.visits);
     if(d.services)DB.set('services',d.services);if(d.staff_list)DB.set('staff_list',d.staff_list);if(d.seeded)DB.set('seeded',d.seeded);
+    if(d.products)saveProducts(d.products);if(d.purchases)savePurchases(d.purchases);
+    if(d.cosm_sales)saveCosmSales(d.cosm_sales);if(d.staff_rates)saveStaffRates(d.staff_rates);
     toast('✅ Đã nhập dữ liệu!');renderHomeRecent();renderCustomers();updateRemBadge();renderSettings();
   }catch{toast('❌ File không hợp lệ!',false);}};reader.readAsText(file);
 }
