@@ -368,27 +368,15 @@ tfoot td{background:#006064!important;color:#fff;font-weight:700;}
       </div>
       <!-- CLOUD CARD -->
       <div class="settings-card" style="grid-column:1/-1;border:2px solid #b2ebf2;" id="cloud-settings-card">
-        <h3>☁️ Lưu Dữ Liệu Cloud – Dùng Trên Mọi Máy</h3>
+        <h3>☁️ Đồng Bộ Tự Động</h3>
         <div id="cloud-status-area"></div>
-        <div style="font-size:12px;color:#546e7a;margin-bottom:13px;line-height:1.8">
-          Sau khi thiết lập, dữ liệu sẽ <b>tự động lưu lên Google Sheets</b> của chị — mở trên điện thoại, máy tính nào cũng được, không bao giờ mất.
-        </div>
-        <div style="margin-bottom:11px">
-          <label>URL Google Apps Script (dán vào đây sau khi deploy)</label>
-          <div style="display:flex;gap:7px;margin-top:5px">
-            <input id="cloud-url-input" class="fi" type="url" placeholder="https://script.google.com/macros/s/..." style="flex:1">
-            <button class="btn btn-teal" onclick="connectCloud()">🔌 Kết Nối</button>
-            <button class="btn btn-gray btn-sm" onclick="disconnectCloud()">✖ Ngắt</button>
+        <div style="background:#e0f7fa;border-radius:9px;padding:14px 16px;font-size:13px;color:#006064;line-height:2;display:flex;align-items:center;gap:12px;">
+          <span style="font-size:28px">✅</span>
+          <div>
+            <b>Dữ liệu tự động lưu & đồng bộ</b><br>
+            <span style="font-size:12px;color:#546e7a">Mở trên điện thoại hay máy tính đều tự cập nhật — không cần cài đặt gì thêm.</span>
           </div>
-        </div>
-        <div style="background:#e0f7fa;border-radius:9px;padding:12px 15px;font-size:12px;color:#006064;line-height:1.8">
-          <b>📋 Hướng dẫn thiết lập (làm 1 lần duy nhất):</b><br>
-          1. Mở <b>sheets.google.com</b> → tạo bảng tính mới, đặt tên <b>"Spa CRM Data"</b><br>
-          2. Click menu <b>Tiện ích mở rộng → Apps Script</b><br>
-          3. Xoá hết code cũ, dán code từ file <b>SpaCRM_CloudScript.gs</b> vào<br>
-          4. Click <b>Triển khai → Triển khai mới → Ứng dụng web</b><br>
-          5. Đặt: <b>Thực thi là "Tôi"</b>, <b>Ai có quyền truy cập "Bất kỳ ai"</b><br>
-          6. Click <b>Triển khai</b> → Sao chép URL → Dán vào ô trên → Kết Nối ✅
+          <button class="btn btn-teal btn-sm" onclick="cloudLoad().then(()=>toast('✅ Đã đồng bộ xong!'))" style="margin-left:auto;white-space:nowrap">🔄 Sync ngay</button>
         </div>
       </div>
     </div>
