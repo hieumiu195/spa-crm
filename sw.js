@@ -1,5 +1,5 @@
 // Spa CRM Service Worker v4 — HTML never cached, always fresh
-const STATIC_CACHE = 'spa-crm-static-v4';
+const STATIC_CACHE = 'spa-crm-static-v5';
 const STATIC_FILES = ['/manifest.json', '/icon.svg'];
 
 self.addEventListener('install', e => {
