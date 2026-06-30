@@ -2,7 +2,7 @@
   "name": "🌸 Spa CRM – Quản Lý Khách Hàng",
   "short_name": "Spa CRM",
   "description": "Quản lý khách hàng Spa chuyên nghiệp",
-  "start_url": "/",
+  "start_url": "/spa-crm/",
   "display": "standalone",
   "background_color": "#f0f4f8",
   "theme_color": "#006064",
