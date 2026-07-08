@@ -425,8 +425,14 @@ tfoot td{background:#006064!important;color:#fff;font-weight:700;}
 
 <script>
 // ══ CLOUD SYNC ══
-// KHÔNG đặt URL mặc định – chỉ dùng URL do chị tự kết nối trong Cài Đặt
-const _HARDCODED_CLOUD = 'https://script.google.com/macros/s/AKfycbz30mA1SaGmecxrmWLFONhg9OIUE9E78EYKAKonbFv8gBbuEXLIlCXuAtQsG8FRxg1REQ/exec';
+// Kho CHÍNH (đầy đủ nhất) – dùng chung cho MỌI thiết bị (điện thoại + máy tính)
+const _HARDCODED_CLOUD = 'https://script.google.com/macros/s/AKfycbz_sSHpzKlNHKgMnK6h7XRC9IV8ly-kYVmwBn1Z9M9I6eWpgtCvhuDA5xdv3AdN2SD6Bw/exec';
+// Kho CŨ (đã bỏ) – máy nào còn trỏ vào đây sẽ tự động chuyển về kho chính
+const _OLD_CLOUD = 'https://script.google.com/macros/s/AKfycbz30mA1SaGmecxrmWLFONhg9OIUE9E78EYKAKonbFv8gBbuEXLIlCXuAtQsG8FRxg1REQ/exec';
+// Tự động chuyển thiết bị đang lỡ dùng kho cũ sang kho chính (không mất dữ liệu – merge)
+if (localStorage.getItem('spa_cloud_url') === _OLD_CLOUD) {
+  localStorage.setItem('spa_cloud_url', _HARDCODED_CLOUD);
+}
 // Tự động set cloud URL nếu chưa có (hard-coded cho deployment này)
 if (!localStorage.getItem('spa_cloud_url')) {
   localStorage.setItem('spa_cloud_url', _HARDCODED_CLOUD);
