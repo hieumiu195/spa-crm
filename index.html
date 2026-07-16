@@ -248,6 +248,7 @@ tfoot td{background:#006064!important;color:#fff;font-weight:700;}
     <a onclick="showPage('customers')" id="nav-customers">👥 Khách Hàng</a>
     <a onclick="showPage('reminders')" id="nav-reminders">🔔 Lịch Nhắc<span class="nav-badge" id="rem-badge" style="display:none"></span></a>
     <a onclick="showPage('revenue')" id="nav-revenue">📊 Doanh Thu</a>
+    <a onclick="showPage('payroll')" id="nav-payroll">💵 Bảng Lương</a>
     <a onclick="showPage('cosmetics')" id="nav-cosmetics">💄 Mỹ Phẩm</a>
     <a onclick="showPage('settings')" id="nav-settings">⚙️ Cài Đặt</a>
   </nav>
@@ -319,6 +320,18 @@ tfoot td{background:#006064!important;color:#fff;font-weight:700;}
     <div id="rev-content"></div>
   </div>
 
+  <!-- PAYROLL -->
+  <div id="page-payroll" style="display:none">
+    <div class="rev-controls">
+      <h2>💵 Bảng Lương</h2>
+      <label style="font-size:12px">Tháng: <input type="month" id="pay-month" oninput="renderPayroll()" style="margin-left:4px"></label>
+      <button class="btn btn-gray btn-sm" onclick="setPayMonth(0)">Tháng này</button>
+      <button class="btn btn-gray btn-sm" onclick="setPayMonth(-1)">Tháng trước</button>
+      <button class="btn btn-gray btn-sm" style="margin-left:auto" onclick="window.print()">🖨️ In bảng lương</button>
+    </div>
+    <div id="pay-content"></div>
+  </div>
+
   <!-- SETTINGS -->
   <div id="page-settings" style="display:none">
     <div class="controls"><h2>⚙️ Cài Đặt</h2></div>
@@ -361,10 +374,12 @@ tfoot td{background:#006064!important;color:#fff;font-weight:700;}
       </div>
       <!-- COMMISSION CARD -->
       <div class="settings-card" style="grid-column:1/-1">
-        <h3>💸 Hoa Hồng Nhân Viên</h3>
-        <div style="font-size:12px;color:#546e7a;margin-bottom:11px">Đặt % hoa hồng trên <b>doanh thu dịch vụ</b> cho từng nhân viên. Hoa hồng được tổng hợp trong trang Doanh Thu.</div>
-        <div id="commission-settings"></div>
-        <button class="btn btn-teal btn-sm" onclick="saveCommissions()" style="margin-top:9px">💾 Lưu Hoa Hồng</button>
+        <h3>💸 Cài Đặt Hoa Hồng Nhân Viên</h3>
+        <div style="font-size:12px;color:#546e7a;margin-bottom:11px">
+          Điền % vào ô là xong — <b>tự lưu ngay</b>. Để trống = không có hoa hồng.
+          Lúc khách vào làm, sếp chỉ cần bấm <b>tên người làm</b> và <b>tên người tư vấn</b>, hệ thống tự lấy % ở bảng này ra tính.
+        </div>
+        <div id="comm-table"></div>
       </div>
       <!-- CLOUD CARD -->
       <div class="settings-card" style="grid-column:1/-1;border:2px solid #b2ebf2;" id="cloud-settings-card">
@@ -460,7 +475,7 @@ let _pollCustCount = -1, _pollVisitCount = -1, _pollTimer = null;
 // Hash/fingerprint of last-seen cloud data (để detect edits, không chỉ additions)
 let _lastCloudHash = '';
 // Dirty flags: true = user vừa sửa local, chờ sync lên cloud (cloudLoad không được ghi đè)
-let _svcsDirty = false, _staffDirty = false;
+let _svcsDirty = false, _staffDirty = false, _payrollDirty = false, _baseDirty = false;
 
 // Tạo fingerprint đơn giản từ array dữ liệu (detect mọi thay đổi: thêm/sửa/xoá)
 function _dataHash(arr) {
@@ -581,6 +596,8 @@ function cloudSave(key, value) {
     if (j.ok) {
       if (key === 'services') _svcsDirty = false;
       if (key === 'staff_list') _staffDirty = false;
+      if (key === 'payroll') _payrollDirty = false;
+      if (key === 'staff_base') _baseDirty = false;
     }
   }).catch(() => setSyncStatus('error', 'Mất kết nối mạng'));
 }
@@ -666,12 +683,21 @@ async function cloudLoad() {
         }
       }
 
+      // Lương cứng + thưởng/phạt/ứng: chỉ lấy cloud về khi local KHÔNG có sửa đang chờ sync
+      if (!_baseDirty && d.staff_base && typeof d.staff_base === 'object' && !Array.isArray(d.staff_base)) {
+        localStorage.setItem('spa_staff_base', JSON.stringify(d.staff_base));
+      }
+      if (!_payrollDirty && d.payroll && typeof d.payroll === 'object' && !Array.isArray(d.payroll)) {
+        localStorage.setItem('spa_payroll', JSON.stringify(d.payroll));
+      }
+
       setSyncStatus('ok');
       // Refresh UI sau khi load dữ liệu từ cloud
       try {
         if(typeof renderHomeRecent==='function') renderHomeRecent();
         if(typeof renderCustomers==='function') renderCustomers();
         if(typeof updateRemBadge==='function') updateRemBadge();
+        if(typeof renderPayroll==='function' && document.getElementById('page-payroll')?.style.display==='') renderPayroll();
       } catch(_){}
       return true;
     }
@@ -707,7 +733,9 @@ async function cloudSaveAll() {
       products: getProducts(),
       purchases: getPurchases(),
       cosm_sales: getCosmSales(),
-      staff_rates: getStaffRates()
+      staff_rates: getStaffRates(),
+      staff_base: getStaffBase(),
+      payroll: getPayroll()
     };
     const body = 'data=' + encodeURIComponent(JSON.stringify({allData}));
     const r = await fetch(CLOUD_URL, {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body});
@@ -995,6 +1023,21 @@ function discLabel(item){
   const d=Number(item.discount)||0;if(!d)return'';
   return item.discountType==='pct'?`-${d}%`:'-'+fmt(d);
 }
+// ══ HOA HỒNG 1 DÒNG ══
+// % được CHỐT vào từng dòng lúc nhập (commPct/advicePct) → sau này sửa % trong danh mục
+// thì lương các tháng đã chốt KHÔNG bị chạy lại.
+// Lượt khách cũ (nhập trước khi có tính năng này) không có % → hoa hồng = 0, không đụng tới.
+function itemComm(item){
+  const base=finalPrice(item);                       // tính trên giá SAU giảm giá
+  const wp=Math.min(100,Math.max(0,Number(item.commPct)||0));
+  const ap=Math.min(100,Math.max(0,Number(item.advicePct)||0));
+  const staff=(item.staff||'').trim(), advisor=(item.advisor||'').trim();
+  return {
+    workPct:wp, advicePct:ap, staff, advisor,
+    work:   staff   && wp ? Math.round(base*wp/100) : 0,
+    advice: advisor && ap ? Math.round(base*ap/100) : 0
+  };
+}
 function bdNextWeek(){const d=new Date();d.setDate(d.getDate()+5);return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
 function daysDiff(dateStr){return Math.floor((new Date(dateStr+'T00:00:00')-new Date())/(864e5));}
 function toast(msg,ok=true){const t=document.getElementById('toast');t.style.background=ok?'#2e7d32':'#c62828';t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2600);}
@@ -1007,12 +1050,13 @@ setInterval(()=>{const d=new Date(),el=document.getElementById('clock');if(el)el
 
 // ══ PAGES ══
 function showPage(page){
-  ['home','customers','reminders','revenue','cosmetics','settings'].forEach(p=>{
+  ['home','customers','reminders','revenue','payroll','cosmetics','settings'].forEach(p=>{
     document.getElementById('page-'+p).style.display=p===page?'':'none';
     const n=document.getElementById('nav-'+p);if(n)n.classList.toggle('active',p===page);
   });
   if(page==='customers')renderCustomers();
   if(page==='revenue'){setRevMonth();renderRevenue();}
+  if(page==='payroll'){if(!document.getElementById('pay-month').value)setPayMonth(0);else renderPayroll();}
   if(page==='home'){renderHomeRecent();renderHomeAlerts();}
   if(page==='settings')renderSettings();
   if(page==='reminders')renderReminders();
@@ -1388,13 +1432,14 @@ function confirmDeleteCust(id){
 
 // ══ SERVICE CATALOG ══
 function getServices(){return DB.get('services');}
-function renderSettings(){loadStaffSettings();renderServiceCatalog();renderCloudSettings();renderCommissionSettings();}
+function renderSettings(){loadStaffSettings();renderServiceCatalog();renderCloudSettings();renderCommTable();}
 function renderServiceCatalog(){
   const svcs=getServices();
   const dvList=document.getElementById('svc-dv-list');const mpList=document.getElementById('svc-mp-list');
   if(!dvList||!mpList)return;
   const row=s=>`<div class="svc-row">
-    <div><div class="sn">${s.name}</div>${s.remindDays?`<div style="font-size:10px;color:#7b1fa2;margin-top:1px">🔔 Nhắc sau ${s.remindDays} ngày</div>`:'<div style="font-size:10px;color:#90a4ae">Không nhắc</div>'}</div>
+    <div><div class="sn">${s.name}</div>${s.remindDays?`<div style="font-size:10px;color:#7b1fa2;margin-top:1px">🔔 Nhắc sau ${s.remindDays} ngày</div>`:'<div style="font-size:10px;color:#90a4ae">Không nhắc</div>'}
+      ${(s.commPct||s.advicePct)?`<div style="font-size:10px;color:#e65100;margin-top:1px">💸 Làm ${s.commPct||0}%${s.advicePct?` · Tư vấn ${s.advicePct}%`:''}</div>`:`<div style="font-size:10px;color:#bbb">💸 Chưa cài hoa hồng</div>`}</div>
     <div class="sp">${fmt(s.price)}</div>
     <button class="btn btn-gray btn-xs" onclick="showEditService('${s.id}')">✏️</button>
     <button class="btn btn-pink btn-xs" onclick="deleteService('${s.id}')">✕</button>
@@ -1412,6 +1457,14 @@ function showAddService(defaultCat){
     <div><label>Loại</label><select class="fi" id="sv-cat"><option value="dv" ${defaultCat==='dv'?'selected':''}>✨ Dịch Vụ Chính</option><option value="mp" ${defaultCat==='mp'?'selected':''}>💄 Mỹ Phẩm</option></select></div>
     <div><label>🔔 Nhắc Lịch Hẹn Sau (ngày)</label><input class="fi" id="sv-remind" type="number" placeholder="VD: 30 (để trống = không nhắc)" min="0"></div>
   </div>
+  <div style="background:#fff8e1;border-radius:8px;padding:11px 12px;margin-bottom:9px">
+    <div style="font-size:12px;font-weight:700;color:#e65100;margin-bottom:8px">💸 Hoa hồng cho cái này</div>
+    <div class="form-grid">
+      <div><label>% Người LÀM</label><input class="fi" id="sv-comm" type="number" min="0" max="100" step="1" placeholder="VD: 10"></div>
+      <div><label>% Người TƯ VẤN</label><input class="fi" id="sv-adv" type="number" min="0" max="100" step="1" placeholder="VD: 5"></div>
+    </div>
+    <div style="font-size:11.5px;color:#8d6e63">Cài sẵn ở đây rồi, lúc nhập khách chỉ cần bấm tên nhân viên là tự tính. Để trống = không có hoa hồng.</div>
+  </div>
   <div style="background:#f0f9fa;border-radius:8px;padding:10px 12px;font-size:11.5px;color:#546e7a;margin-bottom:8px">
     💡 Gợi ý: Dặm mày = <b>30</b> ngày | Dặm môi = <b>60</b> ngày | Xoá mày cũ = <b>21</b> ngày | Trị mụn = <b>14</b> ngày
   </div>
@@ -1428,6 +1481,14 @@ function showEditService(id){
     <div><label>Loại</label><select class="fi" id="sv-cat"><option value="dv" ${s.cat==='dv'?'selected':''}>✨ Dịch Vụ Chính</option><option value="mp" ${s.cat==='mp'?'selected':''}>💄 Mỹ Phẩm</option></select></div>
     <div><label>🔔 Nhắc Lịch Hẹn Sau (ngày)</label><input class="fi" id="sv-remind" type="number" value="${s.remindDays||''}" min="0" placeholder="Để trống = không nhắc"></div>
   </div>
+  <div style="background:#fff8e1;border-radius:8px;padding:11px 12px;margin-bottom:9px">
+    <div style="font-size:12px;font-weight:700;color:#e65100;margin-bottom:8px">💸 Hoa hồng cho cái này</div>
+    <div class="form-grid">
+      <div><label>% Người LÀM</label><input class="fi" id="sv-comm" type="number" min="0" max="100" step="1" value="${s.commPct||''}" placeholder="VD: 10"></div>
+      <div><label>% Người TƯ VẤN</label><input class="fi" id="sv-adv" type="number" min="0" max="100" step="1" value="${s.advicePct||''}" placeholder="VD: 5"></div>
+    </div>
+    <div style="font-size:11.5px;color:#8d6e63">Sửa % ở đây chỉ ảnh hưởng các lượt khách nhập <b>từ giờ trở đi</b> — lương tháng cũ giữ nguyên, không chạy sai.</div>
+  </div>
   <div style="background:#f0f9fa;border-radius:8px;padding:10px 12px;font-size:11.5px;color:#546e7a;margin-bottom:8px">
     💡 Gợi ý: Dặm mày = <b>30</b> ngày | Dặm môi = <b>60</b> ngày | Xoá mày cũ = <b>21</b> ngày | Trị mụn = <b>14</b> ngày
   </div>
@@ -1437,14 +1498,18 @@ function saveService(){
   const name=document.getElementById('sv-name').value.trim();const price=Number(document.getElementById('sv-price').value);
   const cat=document.getElementById('sv-cat').value;const remindDays=Number(document.getElementById('sv-remind').value)||0;
   if(!name||!price){toast('Nhập tên và giá!',false);return;}
-  const svcs=getServices();svcs.push({id:DB.id(),name,cat,price,remindDays});DB.set('services',svcs);
+  const commPct=pctInput('sv-comm'), advicePct=pctInput('sv-adv');
+  const svcs=getServices();svcs.push({id:DB.id(),name,cat,price,remindDays,commPct,advicePct});DB.set('services',svcs);
   closeModal();toast('✅ Đã thêm!');renderServiceCatalog();
 }
 function updateService(id){
   const svcs=getServices();const i=svcs.findIndex(x=>x.id===id);if(i<0)return;
-  svcs[i]={...svcs[i],name:document.getElementById('sv-name').value,price:Number(document.getElementById('sv-price').value),cat:document.getElementById('sv-cat').value,remindDays:Number(document.getElementById('sv-remind').value)||0};
+  svcs[i]={...svcs[i],name:document.getElementById('sv-name').value,price:Number(document.getElementById('sv-price').value),cat:document.getElementById('sv-cat').value,remindDays:Number(document.getElementById('sv-remind').value)||0,
+    commPct:pctInput('sv-comm'), advicePct:pctInput('sv-adv')};
   DB.set('services',svcs);closeModal();toast('✅ Đã cập nhật!');renderServiceCatalog();
 }
+// Đọc ô %, kẹp về 0–100 để không bao giờ ra hoa hồng âm hoặc quá 100%
+function pctInput(id){const v=Number(document.getElementById(id)?.value)||0;return Math.min(100,Math.max(0,v));}
 function deleteService(id){
   if(!confirm('Xoá dịch vụ này?'))return;
   DB.set('services',getServices().filter(s=>s.id!==id));renderServiceCatalog();toast('Đã xoá');
@@ -1458,10 +1523,10 @@ function saveStaffList(){DB.set('staff_list',document.getElementById('staff-list
 
 // ══ ADD/EDIT VISIT ══
 let pendingPhotos=[];let visitItems=[];let pendingCosm=[];
-function showAddVisit(custId){pendingPhotos=[];pendingCosm=[];visitItems=[{id:DB.id(),name:'',cat:'dv',price:'',staff:'',note:'',svcId:'',discount:0,discountType:'pct'}];renderVisitModal(custId,null);}
+function showAddVisit(custId){pendingPhotos=[];pendingCosm=[];visitItems=[{id:DB.id(),name:'',cat:'dv',price:'',staff:'',advisor:'',note:'',svcId:'',discount:0,discountType:'pct'}];renderVisitModal(custId,null);}
 function showEditVisit(visitId,custId){
   const v=DB.get('visits').find(x=>x.id===visitId);if(!v)return;
-  visitItems=(v.items||[]).map(i=>({staff:'',note:'',svcId:'',...i}));
+  visitItems=(v.items||[]).map(i=>({staff:'',advisor:'',note:'',svcId:'',...i}));
   pendingPhotos=(v.photos||[]).map(p=>({...p}));
   pendingCosm=(v.cosm||[]).map(c=>({...c}));
   renderVisitModal(custId,visitId);
@@ -1519,10 +1584,25 @@ function renderVisitItems(){
       </select>
       <span id="vfp-${item.id}" style="font-size:11px;font-weight:700;color:#c62828;min-width:60px">${Number(item.discount)?'→ '+fmt(finalPrice(item)):''}</span>
     </div>
-    <input id="vs-${item.id}" list="staff-dl" placeholder="👤 Nhân viên" value="${item.staff||''}" oninput="visitItems[${i}].staff=this.value" style="width:130px">
+    <input id="vs-${item.id}" list="staff-dl" placeholder="👤 Người làm" value="${item.staff||''}" oninput="visitItems[${i}].staff=this.value;updateCommPreview(${i})" style="width:120px">
+    <input id="va-${item.id}" list="staff-dl" placeholder="🗣 Người tư vấn" value="${item.advisor||''}" oninput="visitItems[${i}].advisor=this.value;updateCommPreview(${i})" style="width:120px">
     <input id="vo-${item.id}" placeholder="Ghi chú" value="${item.note||''}" oninput="visitItems[${i}].note=this.value" style="flex:1;min-width:80px">
     ${visitItems.length>1?`<button class="btn btn-pink btn-xs" onclick="removeVisitItem(${i})">✕</button>`:''}
+    <div id="vhh-${item.id}" style="width:100%;font-size:11px;color:#e65100;font-weight:600;margin-top:2px">${commPreviewText(item)}</div>
   </div>`).join('');
+}
+// Dòng nhỏ hiện ngay: ai được bao nhiêu hoa hồng cho dòng này
+function commPreviewText(item){
+  const c=itemComm(item);
+  if(!c.work && !c.advice) return '';
+  const p=[];
+  if(c.work)   p.push(`👤 ${item.staff}: ${fmt(c.work)} (${c.workPct}%)`);
+  if(c.advice) p.push(`🗣 ${item.advisor}: ${fmt(c.advice)} (${c.advicePct}%)`);
+  return '💸 Hoa hồng → '+p.join('  ·  ');
+}
+function updateCommPreview(i){
+  const item=visitItems[i];const el=document.getElementById('vhh-'+item.id);
+  if(el)el.innerHTML=commPreviewText(item);
 }
 function updateDiscPreview(itemId, idx){
   const el=document.getElementById('vfp-'+itemId);if(!el)return;
@@ -1534,9 +1614,12 @@ function updateDiscPreview(itemId, idx){
 }
 function pickCatalog(idx,sel){
   const id=sel.value;if(!id)return;const s=getServices().find(x=>x.id===id);if(!s)return;
-  visitItems[idx]={...visitItems[idx],name:s.name,cat:s.cat,price:s.price,svcId:s.id,discount:visitItems[idx].discount||0,discountType:visitItems[idx].discountType||'pct'};renderVisitItems();
+  // CHỐT % hoa hồng của dịch vụ vào ngay lượt này. Sau sếp đổi % thì lượt cũ vẫn giữ số đã chốt.
+  visitItems[idx]={...visitItems[idx],name:s.name,cat:s.cat,price:s.price,svcId:s.id,
+    commPct:Number(s.commPct)||0, advicePct:Number(s.advicePct)||0,
+    discount:visitItems[idx].discount||0,discountType:visitItems[idx].discountType||'pct'};renderVisitItems();
 }
-function addVisitItem(){visitItems.push({id:DB.id(),name:'',cat:'dv',price:'',staff:'',note:'',svcId:'',discount:0,discountType:'pct'});renderVisitItems();}
+function addVisitItem(){visitItems.push({id:DB.id(),name:'',cat:'dv',price:'',staff:'',advisor:'',note:'',svcId:'',discount:0,discountType:'pct'});renderVisitItems();}
 function removeVisitItem(i){visitItems.splice(i,1);renderVisitItems();}
 function renderPhotosWrap(){
   const wrap=document.getElementById('photos-wrap');
@@ -1610,8 +1693,16 @@ function saveVisit(custId,editId){
     const vp=document.getElementById('vp-'+id);const vs=document.getElementById('vs-'+id);const vo=document.getElementById('vo-'+id);
     const vd=document.getElementById('vd-'+id);const vdt=document.getElementById('vdt-'+id);
     if(vn)visitItems[i].name=vn.value;if(vc)visitItems[i].cat=vc.value;
+    const va=document.getElementById('va-'+id);
     if(vp)visitItems[i].price=parseInt(vp.value.replace(/[^\d]/g,''),10)||0;if(vs)visitItems[i].staff=vs.value||'';if(vo)visitItems[i].note=vo.value||'';
+    if(va)visitItems[i].advisor=va.value||'';
     if(vd)visitItems[i].discount=Number(vd.value)||0;if(vdt)visitItems[i].discountType=vdt.value||'pct';
+    // Nếu sếp gõ tay tên dịch vụ (không bấm chọn từ danh mục) → tra danh mục theo tên để lấy %
+    if(visitItems[i].commPct===undefined && visitItems[i].advicePct===undefined){
+      const nm=(visitItems[i].name||'').trim().toLowerCase();
+      const s=getServices().find(x=>x.id===visitItems[i].svcId) || getServices().find(x=>x.name.trim().toLowerCase()===nm);
+      if(s){visitItems[i].commPct=Number(s.commPct)||0;visitItems[i].advicePct=Number(s.advicePct)||0;}
+    }
   }
   const items=visitItems.filter(i=>i.name&&i.price);
   if(!items.length){toast('Nhập ít nhất 1 dịch vụ có giá!',false);return;}
@@ -1704,10 +1795,18 @@ function renderRevenue(){
   <tfoot><tr><td class="left">TỔNG CỘNG</td><td>${custSet.size}</td><td>${visits.length}</td>
     <td>${fmt(dvTotal)}</td><td>${fmt(mpTotal)}</td><td style="font-size:14px">${fmt(grand)}</td></tr></tfoot></table>
 </div>
-${(()=>{const rates=getStaffRates();const commRows=topStaff.map(([nm,rev])=>{const r=rates[nm]||0;return{nm,rev,r,comm:Math.round(rev*r/100)};}).filter(x=>x.r>0);if(!commRows.length)return'';const totalComm=commRows.reduce((a,x)=>a+x.comm,0);return`<div class="rev-table"><div class="rev-table-header"><h3>💸 Hoa Hồng Nhân Viên</h3></div>
-<table><thead><tr><th class="left">Nhân Viên</th><th>DT Dịch Vụ</th><th>% HH</th><th style="color:#e65100">Hoa Hồng</th></tr></thead>
-<tbody>${commRows.map(x=>`<tr><td class="left"><b>${x.nm}</b></td><td>${fmt(x.rev)}</td><td>${x.r}%</td><td style="color:#e65100;font-weight:700">${fmt(x.comm)}</td></tr>`).join('')}</tbody>
-<tfoot><tr><td class="left">TỔNG</td><td>${fmt(topStaff.reduce((a,[,v])=>a+v,0))}</td><td></td><td style="color:#e65100;font-size:13px">${fmt(totalComm)}</td></tr></tfoot></table></div>`;})()} `;
+${(()=>{
+  // Dùng CHUNG cách tính với tab Bảng Lương (cộng từ từng ca) để 2 nơi không bao giờ lệch số
+  const entries=commissionEntries(from,to);
+  if(!entries.length)return'';
+  const by={};entries.forEach(e=>{if(!by[e.nm])by[e.nm]={work:0,advice:0};by[e.nm][e.role==='work'?'work':'advice']+=e.comm;});
+  const rowsC=Object.entries(by).map(([nm,v])=>({nm,...v,tong:v.work+v.advice})).sort((a,b)=>b.tong-a.tong);
+  const totalComm=rowsC.reduce((a,x)=>a+x.tong,0);
+  return`<div class="rev-table"><div class="rev-table-header" style="justify-content:space-between"><h3>💸 Hoa Hồng Nhân Viên</h3>
+  <span style="font-size:11px;color:#78909c">Chi tiết từng ngày xem ở tab 💵 Bảng Lương</span></div>
+<table><thead><tr><th class="left">Nhân Viên</th><th style="color:#e65100">HH Làm</th><th style="color:#8e24aa">HH Tư Vấn</th><th style="color:#e65100">Tổng HH</th></tr></thead>
+<tbody>${rowsC.map(x=>`<tr><td class="left"><b>${x.nm}</b></td><td style="color:#e65100">${fmt(x.work)}</td><td style="color:#8e24aa">${fmt(x.advice)}</td><td style="color:#e65100;font-weight:700">${fmt(x.tong)}</td></tr>`).join('')}</tbody>
+<tfoot><tr><td class="left">TỔNG</td><td></td><td></td><td style="color:#e65100;font-size:13px">${fmt(totalComm)}</td></tr></tfoot></table></div>`;})()} `;
 }
 
 // ══ COSMETICS DB ══
@@ -1719,6 +1818,224 @@ function getCosmSales(){return JSON.parse(localStorage.getItem('spa_cosm_sales')
 function saveCosmSales(arr){localStorage.setItem('spa_cosm_sales',JSON.stringify(arr));}
 function getStaffRates(){return JSON.parse(localStorage.getItem('spa_staff_rates')||'{}');}
 function saveStaffRates(obj){localStorage.setItem('spa_staff_rates',JSON.stringify(obj));}
+
+// ══ PAYROLL DB ══
+// staff_base: lương cứng cố định mỗi tháng   {"Tên NV": 5000000}
+// payroll:    thưởng/phạt/ứng theo từng tháng {"2026-07": {"Tên NV": {bonus,penalty,advance}}}
+function getStaffBase(){try{return JSON.parse(localStorage.getItem('spa_staff_base')||'{}');}catch{return{};}}
+function saveStaffBase(obj){localStorage.setItem('spa_staff_base',JSON.stringify(obj));_baseDirty=true;cloudSave('staff_base',obj);}
+function getPayroll(){try{return JSON.parse(localStorage.getItem('spa_payroll')||'{}');}catch{return{};}}
+function savePayroll(obj){localStorage.setItem('spa_payroll',JSON.stringify(obj));_payrollDirty=true;cloudSave('payroll',obj);}
+function payCell(month,staff){const p=getPayroll();return (p[month]&&p[month][staff])||{bonus:0,penalty:0,advance:0};}
+
+// ══ PAYROLL ══
+function setPayMonth(offset){
+  const d=new Date();d.setDate(1);d.setMonth(d.getMonth()+offset);
+  document.getElementById('pay-month').value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  renderPayroll();
+}
+// Ngày cuối tháng — KHÔNG dùng toISOString (lệch múi giờ VN +7 → mất ngày cuối tháng)
+function monthRange(month){
+  const [y,m]=month.split('-').map(Number);
+  return {from:month+'-01', to:`${month}-${String(new Date(y,m,0).getDate()).padStart(2,'0')}`};
+}
+// Bóc TỪNG CA ra: mỗi lần 1 nhân viên làm/tư vấn 1 dịch vụ = 1 dòng hoa hồng, có ngày
+// → cộng lại theo ngày ra báo cáo ngày, cộng cả tháng ra bảng lương. Cùng 1 nguồn nên không lệch.
+function commissionEntries(from,to){
+  const out=[];
+  DB.get('visits').filter(v=>v.date>=from&&v.date<=to).forEach(v=>{
+    (v.items||[]).forEach(i=>{
+      const c=itemComm(i);
+      const money=finalPrice(i);
+      if(c.work)   out.push({date:v.date,nm:c.staff,   role:'work',   svc:i.name,cat:i.cat,money,pct:c.workPct,  comm:c.work,   custId:v.custId});
+      if(c.advice) out.push({date:v.date,nm:c.advisor, role:'advice', svc:i.name,cat:i.cat,money,pct:c.advicePct,comm:c.advice, custId:v.custId});
+    });
+  });
+  return out.sort((a,b)=>a.date.localeCompare(b.date));
+}
+function payrollRows(month){
+  const {from,to}=monthRange(month);
+  const visits=DB.get('visits').filter(v=>v.date>=from&&v.date<=to);
+  // Doanh thu tính theo NGƯỜI LÀM (giữ như tab Doanh Thu đang chạy)
+  const revBy={};
+  visits.flatMap(v=>v.items||[]).forEach(i=>{const k=(i.staff||'').trim();if(!k)return;
+    if(!revBy[k])revBy[k]={dv:0,mp:0};
+    if(i.cat==='dv')revBy[k].dv+=finalPrice(i);else revBy[k].mp+=finalPrice(i);});
+  // Hoa hồng cộng dồn từ từng ca trong tháng
+  const commBy={};
+  commissionEntries(from,to).forEach(e=>{
+    if(!commBy[e.nm])commBy[e.nm]={work:0,advice:0};
+    commBy[e.nm][e.role==='work'?'work':'advice']+=e.comm;
+  });
+  const base=getStaffBase();
+  return getStaff().map(nm=>{
+    const r=revBy[nm]||{dv:0,mp:0};
+    const cm=commBy[nm]||{work:0,advice:0};
+    const rev=r.dv+r.mp;
+    const comm=cm.work+cm.advice;
+    const c=payCell(month,nm);
+    const bonus=Number(c.bonus)||0,penalty=Number(c.penalty)||0,advance=Number(c.advance)||0;
+    const salary=Number(base[nm])||0;
+    return{nm,dv:r.dv,mp:r.mp,rev,commWork:cm.work,commAdvice:cm.advice,comm,salary,bonus,penalty,advance,
+      net:salary+comm+bonus-penalty-advance};
+  });
+}
+function setPay(nm,field,val){
+  const month=document.getElementById('pay-month').value;if(!month)return;
+  const n=Math.max(0,Number(val)||0);
+  if(field==='salary'){const b=getStaffBase();b[nm]=n;saveStaffBase(b);}
+  else{const p=getPayroll();if(!p[month])p[month]={};if(!p[month][nm])p[month][nm]={bonus:0,penalty:0,advance:0};
+    p[month][nm][field]=n;savePayroll(p);}
+  renderPayroll();
+}
+function renderPayroll(){
+  const month=document.getElementById('pay-month').value;if(!month)return;
+  const rows=payrollRows(month);
+  const [y,m]=month.split('-');
+  const T=k=>rows.reduce((a,r)=>a+r[k],0);
+  const el=document.getElementById('pay-content');
+  if(!rows.length){el.innerHTML=`<div class="rev-table"><div style="text-align:center;color:#aaa;padding:30px;font-size:13px">Chưa có nhân viên nào.<br>Vào <b>⚙️ Cài Đặt</b> để thêm nhân viên trước nhé.</div></div>`;return;}
+  el.innerHTML=`
+<div class="stat-cards">
+  <div class="stat-card"><div class="sc-lbl">💵 Tổng Phải Trả</div><div class="sc-val">${fmt(T('net'))}</div><div style="font-size:11px;color:#90a4ae;margin-top:3px">Tháng ${m}/${y} · ${rows.length} nhân viên</div></div>
+  <div class="stat-card dv"><div class="sc-lbl">🏦 Tổng Lương Cứng</div><div class="sc-val">${fmt(T('salary'))}</div></div>
+  <div class="stat-card mp"><div class="sc-lbl">💸 Tổng Hoa Hồng</div><div class="sc-val">${fmt(T('comm'))}</div><div style="font-size:11px;color:#90a4ae;margin-top:3px">Trên DT ${fmt(T('rev'))}</div></div>
+</div>
+<div class="rev-table">
+  <div class="rev-table-header" style="justify-content:space-between">
+    <h3>💵 Bảng Lương Tháng ${m}/${y}</h3>
+    <span style="font-size:11px;color:#78909c">Gõ thẳng vào ô Lương cứng / Thưởng / Phạt / Ứng — tự lưu</span>
+  </div>
+  <div style="overflow-x:auto"><table style="min-width:940px">
+  <thead><tr>
+    <th class="left">Nhân Viên</th>
+    <th>Lương Cứng</th>
+    <th>Doanh Thu</th>
+    <th style="color:#e65100">HH Làm</th>
+    <th style="color:#8e24aa">HH Tư Vấn</th>
+    <th style="color:#e65100">Tổng HH</th>
+    <th style="color:#2e7d32">Thưởng</th>
+    <th style="color:#c62828">Phạt</th>
+    <th style="color:#c62828">Tạm Ứng</th>
+    <th style="background:#006064;color:#fff">Thực Lãnh</th>
+    <th></th>
+  </tr></thead>
+  <tbody>${rows.map(r=>`<tr>
+    <td class="left"><b>${r.nm}</b></td>
+    <td><input type="number" class="fi" value="${r.salary||''}" placeholder="0" min="0" step="500000" onchange="setPay('${r.nm}','salary',this.value)" style="width:110px;padding:5px 7px;margin-bottom:0;text-align:right"></td>
+    <td title="Dịch vụ ${fmt(r.dv)} · Mỹ phẩm ${fmt(r.mp)}">${fmt(r.rev)}</td>
+    <td style="color:#e65100">${fmt(r.commWork)}</td>
+    <td style="color:#8e24aa">${fmt(r.commAdvice)}</td>
+    <td style="color:#e65100;font-weight:700">${fmt(r.comm)}</td>
+    <td><input type="number" class="fi" value="${r.bonus||''}" placeholder="0" min="0" step="100000" onchange="setPay('${r.nm}','bonus',this.value)" style="width:95px;padding:5px 7px;margin-bottom:0;text-align:right"></td>
+    <td><input type="number" class="fi" value="${r.penalty||''}" placeholder="0" min="0" step="50000" onchange="setPay('${r.nm}','penalty',this.value)" style="width:95px;padding:5px 7px;margin-bottom:0;text-align:right"></td>
+    <td><input type="number" class="fi" value="${r.advance||''}" placeholder="0" min="0" step="100000" onchange="setPay('${r.nm}','advance',this.value)" style="width:95px;padding:5px 7px;margin-bottom:0;text-align:right"></td>
+    <td style="font-weight:700;color:#006064;font-size:13px">${fmt(r.net)}</td>
+    <td><button class="btn btn-teal btn-sm" onclick="showPayslip('${r.nm}')" style="white-space:nowrap">🧾 Phiếu</button></td>
+  </tr>`).join('')}</tbody>
+  <tfoot><tr>
+    <td class="left">TỔNG CỘNG</td>
+    <td>${fmt(T('salary'))}</td>
+    <td>${fmt(T('rev'))}</td>
+    <td style="color:#e65100">${fmt(T('commWork'))}</td>
+    <td style="color:#8e24aa">${fmt(T('commAdvice'))}</td>
+    <td style="color:#e65100">${fmt(T('comm'))}</td>
+    <td style="color:#2e7d32">${fmt(T('bonus'))}</td>
+    <td style="color:#c62828">${fmt(T('penalty'))}</td>
+    <td style="color:#c62828">${fmt(T('advance'))}</td>
+    <td style="font-size:14px">${fmt(T('net'))}</td>
+    <td></td>
+  </tr></tfoot>
+  </table></div>
+</div>
+<div style="font-size:11.5px;color:#78909c;padding:2px 4px 10px">
+  💡 <b>Cách tính:</b> Thực lãnh = Lương cứng + Hoa hồng + Thưởng − Phạt − Tạm ứng.
+  Hoa hồng cộng dồn từ từng ca hàng ngày ở bảng dưới. % cài sẵn trên từng dịch vụ / sản phẩm trong <b>⚙️ Cài Đặt</b>.
+</div>
+${renderDailyCommission(month)}`;
+}
+// ══ BÁO CÁO HOA HỒNG HÀNG NGÀY ══
+function renderDailyCommission(month){
+  const {from,to}=monthRange(month);
+  const entries=commissionEntries(from,to);
+  if(!entries.length) return `<div class="rev-table"><div class="rev-table-header"><h3>📅 Hoa Hồng Từng Ngày</h3></div>
+    <div style="text-align:center;color:#aaa;padding:24px;font-size:12.5px">Tháng này chưa có ca nào tính hoa hồng.<br>
+    <span style="font-size:11.5px">Hoa hồng chỉ tính cho lượt khách nhập sau khi sếp đã cài % cho dịch vụ / sản phẩm.</span></div></div>`;
+  const byDate={};
+  entries.forEach(e=>{(byDate[e.date]=byDate[e.date]||[]).push(e);});
+  const dates=Object.keys(byDate).sort((a,b)=>b.localeCompare(a));  // mới nhất lên trước
+  const tong=entries.reduce((a,e)=>a+e.comm,0);
+  return `<div class="rev-table">
+  <div class="rev-table-header" style="justify-content:space-between">
+    <h3>📅 Hoa Hồng Từng Ngày — Tháng ${month.split('-')[1]}/${month.split('-')[0]}</h3>
+    <span style="font-size:12px;color:#e65100;font-weight:700">Tổng: ${fmt(tong)}</span>
+  </div>
+  <div style="overflow-x:auto">${dates.map(d=>{
+    const list=byDate[d];const dayTotal=list.reduce((a,e)=>a+e.comm,0);
+    const dt=new Date(d+'T00:00:00');
+    return `<div style="border-top:1px solid #e0f7fa">
+      <div style="background:#f7fdfd;padding:7px 15px;display:flex;justify-content:space-between;align-items:center">
+        <b style="font-size:12.5px;color:#006064">${WD[dt.getDay()]}, ${dt.toLocaleDateString('vi-VN')}</b>
+        <span style="font-size:12px;color:#e65100;font-weight:700">${fmt(dayTotal)} · ${list.length} ca</span>
+      </div>
+      <table style="min-width:640px"><tbody>${list.map(e=>`<tr>
+        <td class="left" style="width:150px"><b>${e.nm}</b>
+          <span style="font-size:10px;color:${e.role==='work'?'#e65100':'#8e24aa'};font-weight:700">${e.role==='work'?'👤 làm':'🗣 tư vấn'}</span></td>
+        <td class="left">${e.svc} <span style="font-size:10px;color:#90a4ae">${e.cat==='dv'?'✨':'💄'}</span></td>
+        <td style="width:110px">${fmt(e.money)}</td>
+        <td style="width:55px;color:#78909c">${e.pct}%</td>
+        <td style="width:110px;font-weight:700;color:${e.role==='work'?'#e65100':'#8e24aa'}">${fmt(e.comm)}</td>
+      </tr>`).join('')}</tbody></table>
+    </div>`;}).join('')}</div>
+</div>`;
+}
+function showPayslip(nm){
+  const month=document.getElementById('pay-month').value;
+  const r=payrollRows(month).find(x=>x.nm===nm);if(!r)return;
+  const [y,m]=month.split('-');
+  const line=(l,v,color)=>`<tr><td style="padding:7px 0;color:#546e7a">${l}</td><td style="padding:7px 0;text-align:right;font-weight:700;${color?'color:'+color:''}">${v}</td></tr>`;
+  showModal(`<div id="payslip-print">
+  <div style="text-align:center;margin-bottom:14px">
+    <div style="font-size:17px;font-weight:800;color:#006064">🧾 PHIẾU LƯƠNG</div>
+    <div style="font-size:12px;color:#78909c;margin-top:2px">TARUS Beauty · Tháng ${m}/${y}</div>
+  </div>
+  <div style="background:#e0f7fa;border-radius:9px;padding:10px 13px;margin-bottom:12px">
+    <div style="font-size:11px;color:#00838f">Nhân viên</div>
+    <div style="font-size:16px;font-weight:800;color:#006064">${nm}</div>
+  </div>
+  <table style="width:100%;font-size:13px;border-collapse:collapse">
+    ${line('Lương cứng',fmt(r.salary))}
+    ${line(`Doanh thu làm được`,fmt(r.rev))}
+    ${line(`&nbsp;&nbsp;↳ Dịch vụ`,fmt(r.dv))}
+    ${line(`&nbsp;&nbsp;↳ Mỹ phẩm`,fmt(r.mp))}
+    ${line(`Hoa hồng làm`,fmt(r.commWork),'#e65100')}
+    ${line(`Hoa hồng tư vấn`,fmt(r.commAdvice),'#8e24aa')}
+    ${line(`<b>Tổng hoa hồng</b>`,fmt(r.comm),'#e65100')}
+    ${line('Thưởng','+ '+fmt(r.bonus),'#2e7d32')}
+    ${line('Phạt','− '+fmt(r.penalty),'#c62828')}
+    ${line('Tạm ứng','− '+fmt(r.advance),'#c62828')}
+    <tr><td colspan="2" style="border-top:2px solid #006064;padding-top:9px"></td></tr>
+    <tr><td style="font-weight:800;color:#006064;font-size:15px">THỰC LÃNH</td>
+        <td style="text-align:right;font-weight:800;color:#006064;font-size:18px">${fmt(r.net)}</td></tr>
+  </table>
+  <div style="display:flex;justify-content:space-between;margin-top:22px;font-size:11px;color:#78909c;text-align:center">
+    <div style="flex:1">Người nhận<br><br><br>………………</div>
+    <div style="flex:1">Chủ spa<br><br><br>………………</div>
+  </div>
+</div>
+<div style="display:flex;gap:8px;margin-top:16px">
+  <button class="btn btn-teal" onclick="printPayslip()" style="flex:1">🖨️ In phiếu</button>
+  <button class="btn btn-gray" onclick="closeModal()" style="flex:1">Đóng</button>
+</div>`);
+}
+function printPayslip(){
+  const html=document.getElementById('payslip-print').innerHTML;
+  const w=window.open('','_blank','width=420,height=640');
+  w.document.write(`<html><head><title>Phiếu lương</title><meta charset="utf-8">
+  <style>body{font-family:-apple-system,'Segoe UI',Roboto,sans-serif;padding:22px;color:#263238}table{width:100%;border-collapse:collapse}</style>
+  </head><body>${html}</body></html>`);
+  w.document.close();setTimeout(()=>w.print(),320);
+}
 
 // ══ PRODUCTS ══
 function renderProducts(){
@@ -1925,6 +2242,54 @@ function pickCosmProd(i,sel){
 }
 
 // ══ COMMISSION ══
+// ══ BẢNG CÀI HOA HỒNG (một bảng nhìn thấy hết, gõ % vào ô là tự lưu) ══
+function renderCommTable(){
+  const el=document.getElementById('comm-table');if(!el)return;
+  const svcs=getServices();
+  const grp=(cat,tieuDe,mau,nhan)=>{
+    const list=svcs.filter(s=>s.cat===cat);
+    if(!list.length)return `<div style="font-size:12px;font-weight:700;color:${mau};margin:12px 0 6px">${tieuDe}</div>
+      <div style="color:#90a4ae;font-size:12px;padding:8px 2px">Chưa có. Thêm ở mục 💼 Danh Mục phía trên.</div>`;
+    return `<div style="font-size:12px;font-weight:700;color:${mau};margin:12px 0 6px">${tieuDe}</div>
+    <div style="overflow-x:auto"><table style="min-width:560px">
+      <thead><tr>
+        <th class="left">${cat==='dv'?'Dịch Vụ':'Sản Phẩm'}</th>
+        <th style="width:120px">Giá</th>
+        <th style="width:130px;color:${mau}">${nhan}</th>
+        <th style="width:130px;color:#8e24aa">% Tư Vấn</th>
+        <th style="width:150px">Ví dụ 1 lần</th>
+      </tr></thead>
+      <tbody>${list.map(s=>{
+        const cp=Number(s.commPct)||0, ap=Number(s.advicePct)||0;
+        const vd=(cp||ap)?`<span style="color:${mau}">${fmt(Math.round(s.price*cp/100))}</span> + <span style="color:#8e24aa">${fmt(Math.round(s.price*ap/100))}</span>`:'<span style="color:#ccc">—</span>';
+        return `<tr>
+        <td class="left"><b>${s.name}</b></td>
+        <td style="color:#546e7a">${fmt(s.price)}</td>
+        <td><input type="number" class="fi" min="0" max="100" step="1" value="${s.commPct||''}" placeholder="—"
+             onchange="setSvcPct('${s.id}','commPct',this.value)" style="width:78px;padding:5px 7px;margin-bottom:0;text-align:right"> %</td>
+        <td><input type="number" class="fi" min="0" max="100" step="1" value="${s.advicePct||''}" placeholder="—"
+             onchange="setSvcPct('${s.id}','advicePct',this.value)" style="width:78px;padding:5px 7px;margin-bottom:0;text-align:right"> %</td>
+        <td style="font-size:11.5px;font-weight:700">${vd}</td>
+      </tr>`;}).join('')}</tbody>
+    </table></div>`;
+  };
+  el.innerHTML = grp('dv','✨ DỊCH VỤ','#e65100','% Người Làm')
+               + grp('mp','💄 SẢN PHẨM / MỸ PHẨM','#2e7d32','% Người Bán')
+               + `<div style="font-size:11.5px;color:#78909c;margin-top:10px;line-height:1.6">
+    💡 Cột <b style="color:#e65100">% Người Làm / Bán</b> là cho người trực tiếp làm dịch vụ hoặc bán sản phẩm.
+    Cột <b style="color:#8e24aa">% Tư Vấn</b> là cho người tư vấn chốt khách — có thể là người khác.<br>
+    Cột <b>Ví dụ 1 lần</b> cho sếp thấy trước: làm/bán 1 lần thì người làm được bao nhiêu + người tư vấn được bao nhiêu.<br>
+    ⚠️ Sửa % ở đây chỉ áp dụng cho khách nhập <b>từ lúc sửa trở đi</b>. Lương các tháng đã chốt giữ nguyên, không chạy lại.
+  </div>`;
+}
+function setSvcPct(id,field,val){
+  const n=Math.min(100,Math.max(0,Number(val)||0));
+  const svcs=getServices();const i=svcs.findIndex(x=>x.id===id);if(i<0)return;
+  svcs[i]={...svcs[i],[field]:n};
+  DB.set('services',svcs);
+  renderCommTable();renderServiceCatalog();
+  toast('✅ Đã lưu hoa hồng '+svcs[i].name);
+}
 function renderCommissionSettings(){
   const staff=getStaff();const rates=getStaffRates();
   const el=document.getElementById('commission-settings');if(!el)return;
@@ -1946,7 +2311,7 @@ function saveCommissions(){
 
 // ══ BACKUP ══
 function exportData(){
-  const data={customers:DB.get('customers'),visits:DB.get('visits'),services:DB.get('services'),staff_list:DB.get('staff_list'),seeded:DB.get('seeded'),products:getProducts(),purchases:getPurchases(),cosm_sales:getCosmSales(),staff_rates:getStaffRates()};
+  const data={customers:DB.get('customers'),visits:DB.get('visits'),services:DB.get('services'),staff_list:DB.get('staff_list'),seeded:DB.get('seeded'),products:getProducts(),purchases:getPurchases(),cosm_sales:getCosmSales(),staff_rates:getStaffRates(),staff_base:getStaffBase(),payroll:getPayroll()};
   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`spa_crm_backup_${today()}.json`;a.click();toast('✅ Đã xuất backup!');
 }
@@ -1959,6 +2324,7 @@ function importData(input){
     if(d.services)DB.set('services',d.services);if(d.staff_list)DB.set('staff_list',d.staff_list);if(d.seeded)DB.set('seeded',d.seeded);
     if(d.products)saveProducts(d.products);if(d.purchases)savePurchases(d.purchases);
     if(d.cosm_sales)saveCosmSales(d.cosm_sales);if(d.staff_rates)saveStaffRates(d.staff_rates);
+    if(d.staff_base)saveStaffBase(d.staff_base);if(d.payroll)savePayroll(d.payroll);
     toast('✅ Đã nhập dữ liệu!');renderHomeRecent();renderCustomers();updateRemBadge();renderSettings();
   }catch{toast('❌ File không hợp lệ!',false);}};reader.readAsText(file);
 }
