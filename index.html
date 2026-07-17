@@ -376,8 +376,9 @@ tfoot td{background:#006064!important;color:#fff;font-weight:700;}
       <div class="settings-card" style="grid-column:1/-1">
         <h3>💸 Cài Đặt Hoa Hồng Nhân Viên</h3>
         <div style="font-size:12px;color:#546e7a;margin-bottom:11px">
-          Điền % vào ô là xong — <b>tự lưu ngay</b>. Để trống = không có hoa hồng.
+          Bấm <b>✏️ Sửa</b> → điền % → bấm <b>💾 Lưu</b>. Để trống = không có hoa hồng.
           Lúc khách vào làm, sếp chỉ cần bấm <b>tên người làm</b> và <b>tên người tư vấn</b>, hệ thống tự lấy % ở bảng này ra tính.
+          🔒 Phần này <b>chỉ cài được trên máy tính</b> — điện thoại chỉ xem.
         </div>
         <div id="comm-table"></div>
       </div>
@@ -1432,7 +1433,7 @@ function confirmDeleteCust(id){
 
 // ══ SERVICE CATALOG ══
 function getServices(){return DB.get('services');}
-function renderSettings(){loadStaffSettings();renderServiceCatalog();renderCloudSettings();renderCommTable();}
+function renderSettings(){_commEdit=false;loadStaffSettings();renderServiceCatalog();renderCloudSettings();renderCommTable();}
 function renderServiceCatalog(){
   const svcs=getServices();
   const dvList=document.getElementById('svc-dv-list');const mpList=document.getElementById('svc-mp-list');
@@ -1457,14 +1458,16 @@ function showAddService(defaultCat){
     <div><label>Loại</label><select class="fi" id="sv-cat"><option value="dv" ${defaultCat==='dv'?'selected':''}>✨ Dịch Vụ Chính</option><option value="mp" ${defaultCat==='mp'?'selected':''}>💄 Mỹ Phẩm</option></select></div>
     <div><label>🔔 Nhắc Lịch Hẹn Sau (ngày)</label><input class="fi" id="sv-remind" type="number" placeholder="VD: 30 (để trống = không nhắc)" min="0"></div>
   </div>
-  <div style="background:#fff8e1;border-radius:8px;padding:11px 12px;margin-bottom:9px">
+  ${isMayTinh()?`<div style="background:#fff8e1;border-radius:8px;padding:11px 12px;margin-bottom:9px">
     <div style="font-size:12px;font-weight:700;color:#e65100;margin-bottom:8px">💸 Hoa hồng cho cái này</div>
     <div class="form-grid">
       <div><label>% Người LÀM</label><input class="fi" id="sv-comm" type="number" min="0" max="100" step="1" placeholder="VD: 10"></div>
       <div><label>% Người TƯ VẤN</label><input class="fi" id="sv-adv" type="number" min="0" max="100" step="1" placeholder="VD: 5"></div>
     </div>
     <div style="font-size:11.5px;color:#8d6e63">Cài sẵn ở đây rồi, lúc nhập khách chỉ cần bấm tên nhân viên là tự tính. Để trống = không có hoa hồng.</div>
-  </div>
+  </div>`:`<div style="background:#fff3e0;border-radius:8px;padding:10px 12px;margin-bottom:9px;font-size:12px;color:#e65100">
+    🔒 <b>% hoa hồng chỉ cài trên máy tính.</b> Sếp cứ thêm dịch vụ ở đây, lát mở máy tính cài % sau cũng được.
+  </div>`}
   <div style="background:#f0f9fa;border-radius:8px;padding:10px 12px;font-size:11.5px;color:#546e7a;margin-bottom:8px">
     💡 Gợi ý: Dặm mày = <b>30</b> ngày | Dặm môi = <b>60</b> ngày | Xoá mày cũ = <b>21</b> ngày | Trị mụn = <b>14</b> ngày
   </div>
@@ -1481,14 +1484,16 @@ function showEditService(id){
     <div><label>Loại</label><select class="fi" id="sv-cat"><option value="dv" ${s.cat==='dv'?'selected':''}>✨ Dịch Vụ Chính</option><option value="mp" ${s.cat==='mp'?'selected':''}>💄 Mỹ Phẩm</option></select></div>
     <div><label>🔔 Nhắc Lịch Hẹn Sau (ngày)</label><input class="fi" id="sv-remind" type="number" value="${s.remindDays||''}" min="0" placeholder="Để trống = không nhắc"></div>
   </div>
-  <div style="background:#fff8e1;border-radius:8px;padding:11px 12px;margin-bottom:9px">
+  ${isMayTinh()?`<div style="background:#fff8e1;border-radius:8px;padding:11px 12px;margin-bottom:9px">
     <div style="font-size:12px;font-weight:700;color:#e65100;margin-bottom:8px">💸 Hoa hồng cho cái này</div>
     <div class="form-grid">
       <div><label>% Người LÀM</label><input class="fi" id="sv-comm" type="number" min="0" max="100" step="1" value="${s.commPct||''}" placeholder="VD: 10"></div>
       <div><label>% Người TƯ VẤN</label><input class="fi" id="sv-adv" type="number" min="0" max="100" step="1" value="${s.advicePct||''}" placeholder="VD: 5"></div>
     </div>
     <div style="font-size:11.5px;color:#8d6e63">Sửa % ở đây chỉ ảnh hưởng các lượt khách nhập <b>từ giờ trở đi</b> — lương tháng cũ giữ nguyên, không chạy sai.</div>
-  </div>
+  </div>`:`<div style="background:#fff3e0;border-radius:8px;padding:10px 12px;margin-bottom:9px;font-size:12px;color:#e65100">
+    🔒 <b>% hoa hồng chỉ sửa trên máy tính.</b> Đang để: người làm <b>${s.commPct||0}%</b> · tư vấn <b>${s.advicePct||0}%</b> — sửa ở đây sẽ không đổi 2 số này.
+  </div>`}
   <div style="background:#f0f9fa;border-radius:8px;padding:10px 12px;font-size:11.5px;color:#546e7a;margin-bottom:8px">
     💡 Gợi ý: Dặm mày = <b>30</b> ngày | Dặm môi = <b>60</b> ngày | Xoá mày cũ = <b>21</b> ngày | Trị mụn = <b>14</b> ngày
   </div>
@@ -1505,11 +1510,17 @@ function saveService(){
 function updateService(id){
   const svcs=getServices();const i=svcs.findIndex(x=>x.id===id);if(i<0)return;
   svcs[i]={...svcs[i],name:document.getElementById('sv-name').value,price:Number(document.getElementById('sv-price').value),cat:document.getElementById('sv-cat').value,remindDays:Number(document.getElementById('sv-remind').value)||0,
-    commPct:pctInput('sv-comm'), advicePct:pctInput('sv-adv')};
+    commPct:pctInput('sv-comm',svcs[i].commPct), advicePct:pctInput('sv-adv',svcs[i].advicePct)};
   DB.set('services',svcs);closeModal();toast('✅ Đã cập nhật!');renderServiceCatalog();
 }
-// Đọc ô %, kẹp về 0–100 để không bao giờ ra hoa hồng âm hoặc quá 100%
-function pctInput(id){const v=Number(document.getElementById(id)?.value)||0;return Math.min(100,Math.max(0,v));}
+// Đọc ô %, kẹp về 0–100 để không bao giờ ra hoa hồng âm hoặc quá 100%.
+// Nếu KHÔNG có ô đó trên màn hình (điện thoại đã khoá) → giữ nguyên % cũ, TUYỆT ĐỐI không xoá về 0.
+function pctInput(id,giuNguyen=0){
+  const el=document.getElementById(id);
+  if(!el) return Math.min(100,Math.max(0,Number(giuNguyen)||0));
+  const v=Number(el.value)||0;
+  return Math.min(100,Math.max(0,v));
+}
 function deleteService(id){
   if(!confirm('Xoá dịch vụ này?'))return;
   DB.set('services',getServices().filter(s=>s.id!==id));renderServiceCatalog();toast('Đã xoá');
@@ -2243,9 +2254,36 @@ function pickCosmProd(i,sel){
 
 // ══ COMMISSION ══
 // ══ BẢNG CÀI HOA HỒNG (một bảng nhìn thấy hết, gõ % vào ô là tự lưu) ══
+// Điện thoại/máy tính bảng → CHỈ XEM, không cài được hoa hồng (tránh nhân viên sửa % tiền)
+function isMayTinh(){
+  const ua=navigator.userAgent||'';
+  const dtDaiDien=/iPhone|iPod|Android.*Mobile|Windows Phone|BlackBerry|Opera Mini|IEMobile/i.test(ua);
+  const iPadMoi=/iPad/i.test(ua)||(/Macintosh/i.test(ua)&&navigator.maxTouchPoints>1);
+  const manHinhNho=Math.min(screen.width,screen.height)<768;
+  return !dtDaiDien && !iPadMoi && !manHinhNho;
+}
+let _commEdit=false;   // false = đang XEM (khoá) · true = đang SỬA
+function commSua(){_commEdit=true;renderCommTable();}
+function commHuy(){_commEdit=false;renderCommTable();toast('Đã huỷ, không lưu gì cả');}
+function commLuu(){
+  const svcs=getServices();let doi=0;
+  document.querySelectorAll('#comm-table input[data-svc]').forEach(inp=>{
+    const i=svcs.findIndex(x=>x.id===inp.dataset.svc);if(i<0)return;
+    const f=inp.dataset.field;
+    const cu=Number(svcs[i][f])||0;
+    const moi=inp.value===''?0:Math.min(100,Math.max(0,Number(inp.value)||0));
+    if(cu!==moi){svcs[i]={...svcs[i],[f]:moi};doi++;}
+  });
+  if(!doi){_commEdit=false;renderCommTable();toast('Không có gì thay đổi');return;}
+  DB.set('services',svcs);
+  _commEdit=false;renderCommTable();renderServiceCatalog();
+  toast('✅ Đã lưu hoa hồng — sửa '+doi+' ô');
+}
 function renderCommTable(){
   const el=document.getElementById('comm-table');if(!el)return;
   const svcs=getServices();
+  const mayTinh=isMayTinh();
+  const suaDuoc=mayTinh&&_commEdit;
   const grp=(cat,tieuDe,mau,nhan)=>{
     const list=svcs.filter(s=>s.cat===cat);
     if(!list.length)return `<div style="font-size:12px;font-weight:700;color:${mau};margin:12px 0 6px">${tieuDe}</div>
@@ -2262,18 +2300,40 @@ function renderCommTable(){
       <tbody>${list.map(s=>{
         const cp=Number(s.commPct)||0, ap=Number(s.advicePct)||0;
         const vd=(cp||ap)?`<span style="color:${mau}">${fmt(Math.round(s.price*cp/100))}</span> + <span style="color:#8e24aa">${fmt(Math.round(s.price*ap/100))}</span>`:'<span style="color:#ccc">—</span>';
+        const o=(f,v)=>suaDuoc
+          ? `<input type="number" class="fi" data-svc="${s.id}" data-field="${f}" min="0" max="100" step="1" value="${v||''}" placeholder="—" style="width:78px;padding:5px 7px;margin-bottom:0;text-align:right"> %`
+          : `<span style="font-weight:700;color:${v?'#263238':'#ccc'}">${v?v+' %':'—'}</span>`;
         return `<tr>
         <td class="left"><b>${s.name}</b></td>
         <td style="color:#546e7a">${fmt(s.price)}</td>
-        <td><input type="number" class="fi" min="0" max="100" step="1" value="${s.commPct||''}" placeholder="—"
-             onchange="setSvcPct('${s.id}','commPct',this.value)" style="width:78px;padding:5px 7px;margin-bottom:0;text-align:right"> %</td>
-        <td><input type="number" class="fi" min="0" max="100" step="1" value="${s.advicePct||''}" placeholder="—"
-             onchange="setSvcPct('${s.id}','advicePct',this.value)" style="width:78px;padding:5px 7px;margin-bottom:0;text-align:right"> %</td>
+        <td>${o('commPct',cp)}</td>
+        <td>${o('advicePct',ap)}</td>
         <td style="font-size:11.5px;font-weight:700">${vd}</td>
       </tr>`;}).join('')}</tbody>
     </table></div>`;
   };
-  el.innerHTML = grp('dv','✨ DỊCH VỤ','#e65100','% Người Làm')
+  // Thanh nút trên cùng
+  let thanh;
+  if(!mayTinh){
+    thanh=`<div style="background:#fff3e0;border-radius:8px;padding:10px 13px;margin-bottom:6px;font-size:12.5px;color:#e65100;display:flex;align-items:center;gap:9px">
+      <span style="font-size:17px">🔒</span>
+      <div><b>Chỉ xem trên điện thoại</b><br>
+      <span style="color:#8d6e63">Cài % hoa hồng phải làm trên <b>máy tính</b> cho an toàn. Ở đây sếp chỉ xem được.</span></div>
+    </div>`;
+  } else if(_commEdit){
+    thanh=`<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
+      <button class="btn btn-teal btn-sm" onclick="commLuu()">💾 Lưu</button>
+      <button class="btn btn-gray btn-sm" onclick="commHuy()">Huỷ</button>
+      <span style="font-size:12px;color:#e65100;font-weight:600">✏️ Đang sửa — gõ xong nhớ bấm 💾 Lưu</span>
+    </div>`;
+  } else {
+    thanh=`<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
+      <button class="btn btn-teal btn-sm" onclick="commSua()">✏️ Sửa</button>
+      <span style="font-size:12px;color:#78909c">Bấm <b>✏️ Sửa</b> để đổi %, xong bấm <b>💾 Lưu</b>.</span>
+    </div>`;
+  }
+  el.innerHTML = thanh
+               + grp('dv','✨ DỊCH VỤ','#e65100','% Người Làm')
                + grp('mp','💄 SẢN PHẨM / MỸ PHẨM','#2e7d32','% Người Bán')
                + `<div style="font-size:11.5px;color:#78909c;margin-top:10px;line-height:1.6">
     💡 Cột <b style="color:#e65100">% Người Làm / Bán</b> là cho người trực tiếp làm dịch vụ hoặc bán sản phẩm.
@@ -2281,14 +2341,6 @@ function renderCommTable(){
     Cột <b>Ví dụ 1 lần</b> cho sếp thấy trước: làm/bán 1 lần thì người làm được bao nhiêu + người tư vấn được bao nhiêu.<br>
     ⚠️ Sửa % ở đây chỉ áp dụng cho khách nhập <b>từ lúc sửa trở đi</b>. Lương các tháng đã chốt giữ nguyên, không chạy lại.
   </div>`;
-}
-function setSvcPct(id,field,val){
-  const n=Math.min(100,Math.max(0,Number(val)||0));
-  const svcs=getServices();const i=svcs.findIndex(x=>x.id===id);if(i<0)return;
-  svcs[i]={...svcs[i],[field]:n};
-  DB.set('services',svcs);
-  renderCommTable();renderServiceCatalog();
-  toast('✅ Đã lưu hoa hồng '+svcs[i].name);
 }
 function renderCommissionSettings(){
   const staff=getStaff();const rates=getStaffRates();
