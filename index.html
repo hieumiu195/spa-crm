@@ -1434,6 +1434,29 @@ function confirmDeleteCust(id){
 // ══ SERVICE CATALOG ══
 function getServices(){return DB.get('services');}
 function renderSettings(){_commEdit=false;loadStaffSettings();renderServiceCatalog();renderCloudSettings();renderCommTable();}
+// ══ THU GỌN / XEM TẤT CẢ (dùng chung cho mọi danh sách dài) ══
+const _moRong={};                       // {tenPhan: true = đang mở hết}
+const MAC_DINH_HIEN=6;                  // chưa mở thì chỉ hiện 6 dòng đầu
+function dangMo(k){return !!_moRong[k];}
+function catBot(list,k){return dangMo(k)?list:list.slice(0,MAC_DINH_HIEN);}
+function toggleMo(k,ham){
+  _moRong[k]=!_moRong[k];
+  if(ham==='settings'){renderServiceCatalog();renderCommTable();}
+  else if(ham==='payroll'){renderPayroll();}
+  else if(ham==='cosm'){renderProducts();}
+  // Sau khi thu gọn, kéo lên cho sếp thấy đầu danh sách (khỏi bị lạc giữa trang)
+  if(!_moRong[k]){const el=document.getElementById('anchor-'+k);if(el)el.scrollIntoView({block:'nearest',behavior:'smooth'});}
+}
+// Nút bấm — chỉ hiện khi danh sách dài hơn 6 dòng
+function nutMo(k,tong,ham){
+  if(tong<=MAC_DINH_HIEN)return'';
+  return `<div style="text-align:center;padding:8px 0 2px">
+    <button class="btn btn-gray btn-sm" onclick="toggleMo('${k}','${ham}')" style="min-width:190px">
+      ${dangMo(k)?'▲ Thu gọn':`▼ Xem tất cả (${tong})`}
+    </button>
+    ${!dangMo(k)?`<div style="font-size:11px;color:#90a4ae;margin-top:3px">Đang hiện ${MAC_DINH_HIEN} / ${tong}</div>`:''}
+  </div>`;
+}
 function renderServiceCatalog(){
   const svcs=getServices();
   const dvList=document.getElementById('svc-dv-list');const mpList=document.getElementById('svc-mp-list');
@@ -1445,8 +1468,13 @@ function renderServiceCatalog(){
     <button class="btn btn-gray btn-xs" onclick="showEditService('${s.id}')">✏️</button>
     <button class="btn btn-pink btn-xs" onclick="deleteService('${s.id}')">✕</button>
   </div>`;
-  dvList.innerHTML=svcs.filter(s=>s.cat==='dv').map(row).join('')||`<div style="color:#90a4ae;font-size:12px;padding:10px">Chưa có.</div>`;
-  mpList.innerHTML=svcs.filter(s=>s.cat==='mp').map(row).join('')||`<div style="color:#90a4ae;font-size:12px;padding:10px">Chưa có.</div>`;
+  const dv=svcs.filter(s=>s.cat==='dv'), mp=svcs.filter(s=>s.cat==='mp');
+  dvList.innerHTML=dv.length
+    ? `<div id="anchor-svc-dv"></div>`+catBot(dv,'svc-dv').map(row).join('')+nutMo('svc-dv',dv.length,'settings')
+    : `<div style="color:#90a4ae;font-size:12px;padding:10px">Chưa có.</div>`;
+  mpList.innerHTML=mp.length
+    ? `<div id="anchor-svc-mp"></div>`+catBot(mp,'svc-mp').map(row).join('')+nutMo('svc-mp',mp.length,'settings')
+    : `<div style="color:#90a4ae;font-size:12px;padding:10px">Chưa có.</div>`;
 }
 function showAddService(defaultCat){
   showModal(`<h3>${defaultCat==='dv'?'✨ Thêm Dịch Vụ Chính':'💄 Thêm Mỹ Phẩm / Sản Phẩm'}</h3>
@@ -1974,10 +2002,11 @@ function renderDailyCommission(month){
     <span style="font-size:11.5px">Hoa hồng chỉ tính cho lượt khách nhập sau khi sếp đã cài % cho dịch vụ / sản phẩm.</span></div></div>`;
   const byDate={};
   entries.forEach(e=>{(byDate[e.date]=byDate[e.date]||[]).push(e);});
-  const dates=Object.keys(byDate).sort((a,b)=>b.localeCompare(a));  // mới nhất lên trước
+  const allDates=Object.keys(byDate).sort((a,b)=>b.localeCompare(a));  // mới nhất lên trước
+  const dates=catBot(allDates,'daily');
   const tong=entries.reduce((a,e)=>a+e.comm,0);
   return `<div class="rev-table">
-  <div class="rev-table-header" style="justify-content:space-between">
+  <div id="anchor-daily" class="rev-table-header" style="justify-content:space-between">
     <h3>📅 Hoa Hồng Từng Ngày — Tháng ${month.split('-')[1]}/${month.split('-')[0]}</h3>
     <span style="font-size:12px;color:#e65100;font-weight:700">Tổng: ${fmt(tong)}</span>
   </div>
@@ -1998,6 +2027,7 @@ function renderDailyCommission(month){
         <td style="width:110px;font-weight:700;color:${e.role==='work'?'#e65100':'#8e24aa'}">${fmt(e.comm)}</td>
       </tr>`).join('')}</tbody></table>
     </div>`;}).join('')}</div>
+  ${nutMo('daily',allDates.length,'payroll')}
 </div>`;
 }
 function showPayslip(nm){
@@ -2285,10 +2315,13 @@ function renderCommTable(){
   const mayTinh=isMayTinh();
   const suaDuoc=mayTinh&&_commEdit;
   const grp=(cat,tieuDe,mau,nhan)=>{
-    const list=svcs.filter(s=>s.cat===cat);
-    if(!list.length)return `<div style="font-size:12px;font-weight:700;color:${mau};margin:12px 0 6px">${tieuDe}</div>
+    const full=svcs.filter(s=>s.cat===cat);
+    if(!full.length)return `<div style="font-size:12px;font-weight:700;color:${mau};margin:12px 0 6px">${tieuDe}</div>
       <div style="color:#90a4ae;font-size:12px;padding:8px 2px">Chưa có. Thêm ở mục 💼 Danh Mục phía trên.</div>`;
-    return `<div style="font-size:12px;font-weight:700;color:${mau};margin:12px 0 6px">${tieuDe}</div>
+    // Đang SỬA → hiện hết (nếu thu gọn giữa chừng sẽ mất số sếp đang gõ). Đang XEM → thu gọn cho gọn màn hình.
+    const key='comm-'+cat;
+    const list=suaDuoc?full:catBot(full,key);
+    return `<div id="anchor-${key}" style="font-size:12px;font-weight:700;color:${mau};margin:12px 0 6px">${tieuDe}${suaDuoc&&full.length>MAC_DINH_HIEN?` <span style="font-weight:400;color:#90a4ae">— đang hiện hết ${full.length} dòng để sửa</span>`:''}</div>
     <div style="overflow-x:auto"><table style="min-width:560px">
       <thead><tr>
         <th class="left">${cat==='dv'?'Dịch Vụ':'Sản Phẩm'}</th>
@@ -2310,7 +2343,7 @@ function renderCommTable(){
         <td>${o('advicePct',ap)}</td>
         <td style="font-size:11.5px;font-weight:700">${vd}</td>
       </tr>`;}).join('')}</tbody>
-    </table></div>`;
+    </table></div>${suaDuoc?'':nutMo(key,full.length,'settings')}`;
   };
   // Thanh nút trên cùng
   let thanh;
