@@ -1530,7 +1530,7 @@ function showEditService(id){
 function saveService(){
   const name=document.getElementById('sv-name').value.trim();const price=Number(document.getElementById('sv-price').value);
   const cat=document.getElementById('sv-cat').value;const remindDays=Number(document.getElementById('sv-remind').value)||0;
-  if(!name||!price){toast('Nhập tên và giá!',false);return;}
+  if(!name){toast('Nhập tên dịch vụ! Giá có thể để 0đ (dịch vụ tặng miễn phí).',false);return;}
   const commPct=pctInput('sv-comm'), advicePct=pctInput('sv-adv');
   const svcs=getServices();svcs.push({id:DB.id(),name,cat,price,remindDays,commPct,advicePct});DB.set('services',svcs);
   closeModal();toast('✅ Đã thêm!');renderServiceCatalog();
