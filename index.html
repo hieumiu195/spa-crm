@@ -286,6 +286,18 @@ tfoot td{background:#006064!important;color:#fff;font-weight:700;}
       <button class="btn btn-teal" onclick="showAddCust()">+ Thêm Khách Hàng</button>
       <span id="cust-count" style="color:#546e7a;font-size:12px"></span>
     </div>
+    <div class="controls" style="margin-top:-2px;flex-wrap:wrap;gap:7px;align-items:center">
+      <span style="font-size:12px;font-weight:700;color:#006064">📅 Xem khách theo:</span>
+      <button id="cbtn-today" class="btn btn-gray btn-sm" onclick="setCustRange('today')">Hôm nay</button>
+      <button id="cbtn-week" class="btn btn-gray btn-sm" onclick="setCustRange('week')">Tuần này</button>
+      <button id="cbtn-month" class="btn btn-gray btn-sm" onclick="setCustRange('month')">Tháng này</button>
+      <button id="cbtn-year" class="btn btn-gray btn-sm" onclick="setCustRange('year')">Năm nay</button>
+      <button id="cbtn-all" class="btn btn-teal btn-sm" onclick="setCustRange('all')">Tất cả</button>
+      <span style="font-size:12px;color:#546e7a;margin-left:6px">Từ</span>
+      <input type="date" id="cust-from" class="fi" style="width:150px" onchange="_custBtnActive(null);renderCustomers()">
+      <span style="font-size:12px;color:#546e7a">đến</span>
+      <input type="date" id="cust-to" class="fi" style="width:150px" onchange="_custBtnActive(null);renderCustomers()">
+    </div>
     <div id="cust-cards"></div>
   </div>
 
@@ -1256,11 +1268,40 @@ function renderHomeRecent(){
   const rc=sorted.slice(0,8);
   el.innerHTML=`<div style="padding:0 18px 18px"><div style="font-size:14px;font-weight:700;color:#006064;margin-bottom:10px">🕐 Khách Hàng Gần Đây</div><div class="cards-grid">${rc.map(c=>custCardHtml(c)).join('')}</div></div>`;
 }
+// Làm sáng nút mốc đang chọn (null = không nút nào, khi sếp tự chọn khoảng ngày)
+function _custBtnActive(kind){
+  ['today','week','month','year','all'].forEach(k=>{const b=document.getElementById('cbtn-'+k);if(b)b.className='btn btn-sm '+(k===kind?'btn-teal':'btn-gray');});
+}
+// Đặt khoảng ngày lọc khách theo nút bấm nhanh (dùng ngày GIỜ ĐỊA PHƯƠNG, tránh lệch múi giờ)
+function setCustRange(kind){
+  _custBtnActive(kind);
+  const d=new Date();
+  const ymd=x=>`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`;
+  let from='',to='';
+  if(kind==='today'){from=to=ymd(d);}
+  else if(kind==='week'){const dow=(d.getDay()+6)%7;const mon=new Date(d);mon.setDate(d.getDate()-dow);const sun=new Date(mon);sun.setDate(mon.getDate()+6);from=ymd(mon);to=ymd(sun);}
+  else if(kind==='month'){from=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;to=ymd(new Date(d.getFullYear(),d.getMonth()+1,0));}
+  else if(kind==='year'){from=`${d.getFullYear()}-01-01`;to=`${d.getFullYear()}-12-31`;}
+  // 'all' => để trống, hiện hết
+  const fe=document.getElementById('cust-from'),te=document.getElementById('cust-to');
+  if(fe)fe.value=from;if(te)te.value=to;
+  renderCustomers();
+}
 function renderCustomers(){
   const q=(document.getElementById('cust-search')?.value||'').toLowerCase();
-  const custs=DB.get('customers').filter(c=>!q||c.name.toLowerCase().includes(q)||c.phone.includes(q));
-  document.getElementById('cust-count').textContent=`${custs.length} khách hàng`;
-  document.getElementById('cust-cards').innerHTML=`<div class="cards-grid" style="padding:0 0 18px">${custs.map(c=>custCardHtml(c)).join('')}</div>`;
+  const from=document.getElementById('cust-from')?.value||'';
+  const to=document.getElementById('cust-to')?.value||'';
+  let custs=DB.get('customers').filter(c=>!q||c.name.toLowerCase().includes(q)||c.phone.includes(q));
+  let note='';
+  if(from||to){
+    const f=from||'0000-00-00', t=to||'9999-99-99';
+    const active=new Set(DB.get('visits').filter(v=>v.date>=f&&v.date<=t).map(v=>v.custId));
+    custs=custs.filter(c=>active.has(c.id));
+    const vn=s=>new Date(s+'T00:00:00').toLocaleDateString('vi-VN');
+    note=` · có ghé ${from?'từ '+vn(from):''}${to?(from?' đến ':'trước ')+vn(to):' trở đi'}`;
+  }
+  document.getElementById('cust-count').textContent=`${custs.length} khách hàng${note}`;
+  document.getElementById('cust-cards').innerHTML=`<div class="cards-grid" style="padding:0 0 18px">${custs.length?custs.map(c=>custCardHtml(c)).join(''):'<div style="grid-column:1/-1;text-align:center;color:#90a4ae;padding:34px">Không có khách nào ghé trong khoảng này 🌸</div>'}</div>`;
 }
 
 // ══ CUSTOMER DETAIL PANEL ══
