@@ -1743,8 +1743,8 @@ function saveVisit(custId,editId){
       if(s){visitItems[i].commPct=Number(s.commPct)||0;visitItems[i].advicePct=Number(s.advicePct)||0;}
     }
   }
-  const items=visitItems.filter(i=>i.name&&i.price);
-  if(!items.length){toast('Nhập ít nhất 1 dịch vụ có giá!',false);return;}
+  const items=visitItems.filter(i=>i.name&&String(i.name).trim());
+  if(!items.length){toast('Nhập ít nhất 1 dịch vụ (có tên)! Giá có thể để 0đ nếu tặng miễn phí.',false);return;}
   // Handle cosm items: validate and deduct stock
   const cosm=pendingCosm.filter(c=>c.productId&&(c.qty||0)>0);
   // For new visits, deduct stock; for edits, reverse old then deduct new
