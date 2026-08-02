@@ -335,12 +335,21 @@ tfoot td{background:#006064!important;color:#fff;font-weight:700;}
 
   <!-- PAYROLL -->
   <div id="page-payroll" style="display:none">
-    <div class="rev-controls">
-      <h2>💵 Bảng Lương</h2>
-      <label style="font-size:12px">Tháng: <input type="month" id="pay-month" oninput="renderPayroll()" style="margin-left:4px"></label>
-      <button class="btn btn-gray btn-sm" onclick="setPayMonth(0)">Tháng này</button>
-      <button class="btn btn-gray btn-sm" onclick="setPayMonth(-1)">Tháng trước</button>
-      <button class="btn btn-gray btn-sm" style="margin-left:auto" onclick="window.print()">🖨️ In bảng lương</button>
+    <div class="rev-controls" style="flex-wrap:wrap;gap:6px;align-items:center">
+      <h2 style="margin-right:4px">💵 Bảng Lương</h2>
+      <button class="btn btn-gray btn-sm" onclick="payShiftDay(-1)" title="Lùi 1 ngày">◀ Trước</button>
+      <input type="date" id="pay-from" class="fi" onchange="payCustom()" style="width:150px;margin-bottom:0">
+      <span style="font-size:12px;color:#546e7a">→</span>
+      <input type="date" id="pay-to" class="fi" onchange="payCustom()" style="width:150px;margin-bottom:0">
+      <button class="btn btn-gray btn-sm" onclick="payShiftDay(1)" title="Tới 1 ngày">Sau ▶</button>
+      <input type="hidden" id="pay-month">
+      <button id="cbp-today" class="btn btn-gray btn-sm" onclick="setPayRange('today')">Hôm nay</button>
+      <button id="cbp-yesterday" class="btn btn-gray btn-sm" onclick="setPayRange('yesterday')">Hôm qua</button>
+      <button id="cbp-3d" class="btn btn-gray btn-sm" onclick="setPayRange('3d')">3 ngày</button>
+      <button id="cbp-7d" class="btn btn-gray btn-sm" onclick="setPayRange('7d')">7 ngày</button>
+      <button id="cbp-week" class="btn btn-gray btn-sm" onclick="setPayRange('week')">Tuần này</button>
+      <button id="cbp-month" class="btn btn-teal btn-sm" onclick="setPayRange('month')">Tháng này</button>
+      <button class="btn btn-gray btn-sm" style="margin-left:auto" onclick="window.print()">🖨️ In</button>
     </div>
     <div id="pay-content"></div>
   </div>
@@ -1085,7 +1094,7 @@ function showPage(page){
   });
   if(page==='customers')renderCustomers();
   if(page==='revenue'){setRevMonth();renderRevenue();}
-  if(page==='payroll'){if(!document.getElementById('pay-month').value)setPayMonth(0);else renderPayroll();}
+  if(page==='payroll'){if(!document.getElementById('pay-from').value)setPayRange('month');else renderPayroll();}
   if(page==='home'){renderHomeRecent();renderHomeAlerts();}
   if(page==='settings')renderSettings();
   if(page==='reminders')renderReminders();
@@ -1950,6 +1959,38 @@ function setPayMonth(offset){
   document.getElementById('pay-month').value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
   renderPayroll();
 }
+// ── Bộ lọc NGÀY cho Bảng Lương (dùng ngày GIỜ ĐỊA PHƯƠNG, tránh lệch múi giờ) ──
+function _pymd(x){return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`;}
+function _pAddDays(s,n){const [y,m,d]=s.split('-').map(Number);return _pymd(new Date(y,m-1,d+n));}
+function _payBtnActive(kind){['today','yesterday','3d','7d','week','month'].forEach(k=>{const b=document.getElementById('cbp-'+k);if(b)b.className='btn btn-sm '+(k===kind?'btn-teal':'btn-gray');});}
+function setPayRange(kind){
+  _payBtnActive(kind);
+  const d=new Date(); let from,to;
+  if(kind==='today'){from=to=_pymd(d);}
+  else if(kind==='yesterday'){const y=new Date(d.getFullYear(),d.getMonth(),d.getDate()-1);from=to=_pymd(y);}
+  else if(kind==='3d'){from=_pymd(new Date(d.getFullYear(),d.getMonth(),d.getDate()-2));to=_pymd(d);}
+  else if(kind==='7d'){from=_pymd(new Date(d.getFullYear(),d.getMonth(),d.getDate()-6));to=_pymd(d);}
+  else if(kind==='week'){const dow=(d.getDay()+6)%7;from=_pymd(new Date(d.getFullYear(),d.getMonth(),d.getDate()-dow));to=_pymd(new Date(d.getFullYear(),d.getMonth(),d.getDate()-dow+6));}
+  else {from=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;to=_pymd(new Date(d.getFullYear(),d.getMonth()+1,0));}
+  document.getElementById('pay-from').value=from;
+  document.getElementById('pay-to').value=to;
+  renderPayroll();
+}
+function payShiftDay(delta){
+  const fe=document.getElementById('pay-from'),te=document.getElementById('pay-to');
+  if(!fe.value||!te.value){setPayRange('today');return;}
+  fe.value=_pAddDays(fe.value,delta);te.value=_pAddDays(te.value,delta);_payBtnActive(null);renderPayroll();
+}
+function payCustom(){_payBtnActive(null);renderPayroll();}
+// Nếu khoảng đúng bằng TRỌN 1 tháng → trả về 'YYYY-MM' để hiện bảng lương đầy đủ; ngược lại null
+function payIsFullMonth(from,to){
+  if(!from||!to)return null;
+  const [fy,fm,fd]=from.split('-').map(Number);
+  if(fd!==1)return null;
+  const monthStr=`${fy}-${String(fm).padStart(2,'0')}`;
+  const last=`${monthStr}-${String(new Date(fy,fm,0).getDate()).padStart(2,'0')}`;
+  return to===last?monthStr:null;
+}
 // Ngày cuối tháng — KHÔNG dùng toISOString (lệch múi giờ VN +7 → mất ngày cuối tháng)
 function monthRange(month){
   const [y,m]=month.split('-').map(Number);
@@ -2005,7 +2046,15 @@ function setPay(nm,field,val){
   renderPayroll();
 }
 function renderPayroll(){
-  const month=document.getElementById('pay-month').value;if(!month)return;
+  const _f=document.getElementById('pay-from')?.value,_t=document.getElementById('pay-to')?.value;
+  if(!_f||!_t){setPayRange('month');return;}
+  if(_f>_t){document.getElementById('pay-from').value=_t;document.getElementById('pay-to').value=_f;return renderPayroll();}
+  const _mn=payIsFullMonth(_f,_t);
+  if(_mn){document.getElementById('pay-month').value=_mn;renderPayrollMonth(_mn);}
+  else{renderPayrollRange(_f,_t);}
+}
+// Bảng lương ĐẦY ĐỦ khi chọn trọn 1 tháng (lương cứng + thực lãnh + phiếu lương) — giữ nguyên như cũ
+function renderPayrollMonth(month){
   const rows=payrollRows(month);
   const [y,m]=month.split('-');
   const T=k=>rows.reduce((a,r)=>a+r[k],0);
@@ -2066,17 +2115,56 @@ function renderPayroll(){
 </div>
 <div style="font-size:11.5px;color:#78909c;padding:2px 4px 10px">
   💡 <b>Cách tính:</b> Thực lãnh = Lương cứng + Hoa hồng + Thưởng − Phạt − Tạm ứng.
-  Hoa hồng cộng dồn từ từng ca hàng ngày ở bảng dưới. % cài sẵn trên từng dịch vụ / sản phẩm trong <b>⚙️ Cài Đặt</b>.
+  Hoa hồng cộng dồn từ từng ca hàng ngày ở bảng dưới. % / tiền cài sẵn trên từng dịch vụ / sản phẩm trong <b>⚙️ Cài Đặt</b>.
 </div>
-${renderDailyCommission(month)}`;
+${renderDailyCommission(monthRange(month).from,monthRange(month).to,'Tháng '+m+'/'+y)}`;
+}
+// ══ THU NHẬP THEO KHOẢNG NGÀY (hoa hồng + doanh thu mỗi nhân viên) ══
+function earningsRows(from,to){
+  const visits=DB.get('visits').filter(v=>v.date>=from&&v.date<=to);
+  const by={}; const ensure=nm=>by[nm]||(by[nm]={dv:0,mp:0,ca:0,commWork:0,commAdvice:0});
+  visits.forEach(v=>(v.items||[]).forEach(i=>{const nm=(i.staff||'').trim();if(!nm)return;const r=ensure(nm);r.ca++;if(i.cat==='dv')r.dv+=finalPrice(i);else r.mp+=finalPrice(i);}));
+  commissionEntries(from,to).forEach(e=>{const r=ensure(e.nm);if(e.role==='work')r.commWork+=e.comm;else r.commAdvice+=e.comm;});
+  const names=new Set([...getStaff(),...Object.keys(by)]);
+  return [...names].map(nm=>{const r=by[nm]||{dv:0,mp:0,ca:0,commWork:0,commAdvice:0};return {nm,ca:r.ca,dv:r.dv,mp:r.mp,rev:r.dv+r.mp,commWork:r.commWork,commAdvice:r.commAdvice,comm:r.commWork+r.commAdvice};}).sort((a,b)=>b.comm-a.comm);
+}
+function renderPayrollRange(from,to){
+  const rows=earningsRows(from,to).filter(r=>r.ca>0||r.comm>0);
+  const el=document.getElementById('pay-content');
+  const fmv=s=>new Date(s+'T00:00:00').toLocaleDateString('vi-VN');
+  const nhan = from===to ? fmv(from) : (fmv(from)+' → '+fmv(to));
+  const T=k=>rows.reduce((a,r)=>a+r[k],0);
+  const header=`<div class="stat-cards">
+    <div class="stat-card"><div class="sc-lbl">📅 Đang xem</div><div class="sc-val" style="font-size:15px">${nhan}</div><div style="font-size:11px;color:#90a4ae;margin-top:3px">${from===to?'1 ngày':''} ${rows.length} nhân viên</div></div>
+    <div class="stat-card mp"><div class="sc-lbl">💸 Tổng Hoa Hồng</div><div class="sc-val">${fmt(T('comm'))}</div></div>
+    <div class="stat-card dv"><div class="sc-lbl">💰 Tổng Doanh Thu</div><div class="sc-val">${fmt(T('rev'))}</div></div>
+  </div>`;
+  const body = !rows.length
+    ? `<div class="rev-table"><div style="text-align:center;color:#aaa;padding:30px;font-size:13px">Khoảng này chưa có nhân viên nào làm dịch vụ.</div></div>`
+    : `<div class="rev-table">
+      <div class="rev-table-header"><h3>💰 Thu Nhập Nhân Viên — ${nhan}</h3></div>
+      <div style="overflow-x:auto"><table style="min-width:640px">
+      <thead><tr><th class="left">Nhân Viên</th><th>Số Ca</th><th>Doanh Thu</th><th style="color:#e65100">HH Làm</th><th style="color:#8e24aa">HH Tư Vấn</th><th style="background:#006064;color:#fff">Tổng HH</th></tr></thead>
+      <tbody>${rows.map(r=>`<tr>
+        <td class="left"><b>${r.nm}</b></td>
+        <td>${r.ca}</td>
+        <td title="Dịch vụ ${fmt(r.dv)} · Mỹ phẩm ${fmt(r.mp)}">${fmt(r.rev)}</td>
+        <td style="color:#e65100">${fmt(r.commWork)}</td>
+        <td style="color:#8e24aa">${fmt(r.commAdvice)}</td>
+        <td style="font-weight:700;color:#006064">${fmt(r.comm)}</td>
+      </tr>`).join('')}</tbody>
+      <tfoot><tr><td class="left">TỔNG</td><td>${T('ca')}</td><td>${fmt(T('rev'))}</td><td style="color:#e65100">${fmt(T('commWork'))}</td><td style="color:#8e24aa">${fmt(T('commAdvice'))}</td><td style="font-size:14px">${fmt(T('comm'))}</td></tr></tfoot>
+      </table></div></div>`;
+  el.innerHTML = header + body
+    + `<div style="font-size:11.5px;color:#78909c;padding:2px 4px 10px">💡 Đây là <b>hoa hồng + doanh thu</b> nhân viên làm trong khoảng đã chọn. <b>Lương cứng, thưởng, phạt, tạm ứng</b> tính theo tháng — bấm <b>"Tháng này"</b> để xem bảng lương đầy đủ + phiếu lương.</div>`
+    + renderDailyCommission(from,to,nhan);
 }
 // ══ BÁO CÁO HOA HỒNG HÀNG NGÀY ══
-function renderDailyCommission(month){
-  const {from,to}=monthRange(month);
+function renderDailyCommission(from,to,label){
   const entries=commissionEntries(from,to);
   if(!entries.length) return `<div class="rev-table"><div class="rev-table-header"><h3>📅 Hoa Hồng Từng Ngày</h3></div>
-    <div style="text-align:center;color:#aaa;padding:24px;font-size:12.5px">Tháng này chưa có ca nào tính hoa hồng.<br>
-    <span style="font-size:11.5px">Hoa hồng chỉ tính cho lượt khách nhập sau khi sếp đã cài % cho dịch vụ / sản phẩm.</span></div></div>`;
+    <div style="text-align:center;color:#aaa;padding:24px;font-size:12.5px">Khoảng này chưa có ca nào tính hoa hồng.<br>
+    <span style="font-size:11.5px">Hoa hồng chỉ tính cho lượt khách nhập sau khi sếp đã cài % / tiền cho dịch vụ / sản phẩm.</span></div></div>`;
   const byDate={};
   entries.forEach(e=>{(byDate[e.date]=byDate[e.date]||[]).push(e);});
   const allDates=Object.keys(byDate).sort((a,b)=>b.localeCompare(a));  // mới nhất lên trước
@@ -2084,7 +2172,7 @@ function renderDailyCommission(month){
   const tong=entries.reduce((a,e)=>a+e.comm,0);
   return `<div class="rev-table">
   <div id="anchor-daily" class="rev-table-header" style="justify-content:space-between">
-    <h3>📅 Hoa Hồng Từng Ngày — Tháng ${month.split('-')[1]}/${month.split('-')[0]}</h3>
+    <h3>📅 Hoa Hồng Từng Ngày — ${label}</h3>
     <span style="font-size:12px;color:#e65100;font-weight:700">Tổng: ${fmt(tong)}</span>
   </div>
   <div style="overflow-x:auto">${dates.map(d=>{
