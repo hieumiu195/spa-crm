@@ -311,6 +311,7 @@ tfoot td{background:#006064!important;color:#fff;font-weight:700;}
         <option value="7">🔥 Trong 7 ngày</option>
         <option value="30">📅 Trong 30 ngày</option>
         <option value="birthday">🎂 Sinh nhật</option>
+        <option value="done">✅ Đã gọi rồi (đã ẩn)</option>
       </select>
       <span id="rem-count" style="color:#546e7a;font-size:12px;margin-left:4px"></span>
       <button class="btn btn-gray btn-sm" style="margin-left:auto" onclick="renderReminders()">↺ Làm Mới</button>
@@ -696,6 +697,18 @@ async function cloudLoad() {
         }
       }
 
+      // Hẹn ĐÃ GỌI: gộp dồn (union) local + cloud — đã gọi ở máy nào thì ẩn ở mọi máy
+      {
+        const localDone = getRemDone();
+        const cloudDone = Array.isArray(d.rem_done) ? d.rem_done : [];
+        if (cloudDone.length || localDone.length) {
+          const mergedDone = Array.from(new Set([...localDone, ...cloudDone]));
+          localStorage.setItem('spa_rem_done', JSON.stringify(mergedDone));
+          if (mergedDone.length > cloudDone.length) {
+            setTimeout(() => cloudSave('rem_done', mergedDone), 2500);
+          }
+        }
+      }
       // Lương cứng + thưởng/phạt/ứng: chỉ lấy cloud về khi local KHÔNG có sửa đang chờ sync
       if (!_baseDirty && d.staff_base && typeof d.staff_base === 'object' && !Array.isArray(d.staff_base)) {
         localStorage.setItem('spa_staff_base', JSON.stringify(d.staff_base));
@@ -748,7 +761,8 @@ async function cloudSaveAll() {
       cosm_sales: getCosmSales(),
       staff_rates: getStaffRates(),
       staff_base: getStaffBase(),
-      payroll: getPayroll()
+      payroll: getPayroll(),
+      rem_done: getRemDone()
     };
     const body = 'data=' + encodeURIComponent(JSON.stringify({allData}));
     const r = await fetch(CLOUD_URL, {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body});
@@ -1080,6 +1094,14 @@ function showPage(page){
 }
 
 // ══ REMINDER ENGINE ══
+// ══ ĐÃ GỌI (ẩn hẹn đã liên hệ cho gọn) ══
+function getRemDone(){try{return JSON.parse(localStorage.getItem('spa_rem_done')||'[]');}catch(_){return[];}}
+function saveRemDone(a){localStorage.setItem('spa_rem_done',JSON.stringify(a));}
+function remKey(r){return r.type==='birthday'?('bd|'+r.custId+'|'+r.nextBd):('sv|'+r.custId+'|'+(r.svcName||'')+'|'+r.remindDate);}
+function markRemDone(key){const a=getRemDone();if(!a.includes(key)){a.push(key);saveRemDone(a);if(typeof cloudSave==='function')cloudSave('rem_done',a);}}
+function unmarkRemDone(key){const a=getRemDone().filter(k=>k!==key);saveRemDone(a);if(typeof cloudSave==='function')cloudSave('rem_done',a);}
+let _remsShown=[];
+function remToggleDone(i){const r=_remsShown[i];if(!r)return;const k=remKey(r);if(r.done)unmarkRemDone(k);else markRemDone(k);renderReminders();updateRemBadge();if(typeof renderHomeAlerts==='function')renderHomeAlerts();}
 function getAllReminders(){
   const custs=DB.get('customers');
   const visits=DB.get('visits');
@@ -1129,11 +1151,13 @@ function getAllReminders(){
       birthday:c.birthday,nextBd:nextBd.toISOString().slice(0,10),daysUntil:dUntil,age,urgency:'birthday'});
   });
 
+  const doneSet=new Set(getRemDone());
+  reminders.forEach(r=>{r.done=doneSet.has(remKey(r));});
   return reminders.sort((a,b)=>a.daysUntil-b.daysUntil);
 }
 
 function updateRemBadge(){
-  const urgent=getAllReminders().filter(r=>r.daysUntil<=3||r.urgency==='overdue'||r.urgency==='birthday');
+  const urgent=getAllReminders().filter(r=>!r.done&&(r.daysUntil<=3||r.urgency==='overdue'||r.urgency==='birthday'));
   const badge=document.getElementById('rem-badge');
   if(badge){
     if(urgent.length){badge.textContent=urgent.length>9?'9+':urgent.length;badge.style.display='flex';}
@@ -1144,15 +1168,21 @@ function updateRemBadge(){
 function renderReminders(){
   const filter=document.getElementById('rem-filter-sel')?.value||'all';
   let rems=getAllReminders();
-  if(filter==='overdue')rems=rems.filter(r=>r.daysUntil<0);
-  else if(filter==='7')rems=rems.filter(r=>r.daysUntil>=0&&r.daysUntil<=7);
-  else if(filter==='30')rems=rems.filter(r=>r.daysUntil>=0&&r.daysUntil<=30);
-  else if(filter==='birthday')rems=rems.filter(r=>r.type==='birthday');
+  if(filter==='done'){ rems=rems.filter(r=>r.done); }
+  else {
+    rems=rems.filter(r=>!r.done);   // mặc định: ẩn hẹn ĐÃ GỌI cho gọn
+    if(filter==='overdue')rems=rems.filter(r=>r.daysUntil<0);
+    else if(filter==='7')rems=rems.filter(r=>r.daysUntil>=0&&r.daysUntil<=7);
+    else if(filter==='30')rems=rems.filter(r=>r.daysUntil>=0&&r.daysUntil<=30);
+    else if(filter==='birthday')rems=rems.filter(r=>r.type==='birthday');
+  }
+  _remsShown=rems;
   const el=document.getElementById('rem-cards');
   const cnt=document.getElementById('rem-count');
-  if(cnt)cnt.textContent=`${rems.length} nhắc nhở`;
-  if(!rems.length){el.innerHTML=`<div class="rem-empty"><div class="re-icon">✅</div><p style="font-size:14px;font-weight:700;color:#006064;margin-bottom:6px">Không có nhắc nhở nào!</p><p>Tất cả khách hàng đều ổn.</p></div>`;return;}
-  el.innerHTML=`<div class="rem-cards">${rems.map(r=>{
+  const soDaGoi=getAllReminders().filter(r=>r.done).length;
+  if(cnt)cnt.textContent=`${rems.length} nhắc nhở`+(filter!=='done'&&soDaGoi?` · ${soDaGoi} đã gọi (đã ẩn)`:'');
+  if(!rems.length){el.innerHTML=`<div class="rem-empty"><div class="re-icon">✅</div><p style="font-size:14px;font-weight:700;color:#006064;margin-bottom:6px">${filter==='done'?'Chưa có hẹn nào đánh dấu đã gọi':'Không có nhắc nhở nào!'}</p><p>${filter==='done'?'Bấm ✅ Đã gọi ở một hẹn để ẩn nó cho gọn.':'Tất cả khách hàng đều ổn.'}</p></div>`;return;}
+  el.innerHTML=`<div class="rem-cards">${rems.map((r,i)=>{
     const dayLabel=r.daysUntil<0?`Đã quá ${Math.abs(r.daysUntil)} ngày`:r.daysUntil===0?'Hôm nay!':r.daysUntil===1?'Ngày mai':r.daysUntil+' ngày nữa';
     if(r.type==='birthday'){
       return`<div class="rem-card birthday" onclick="openCust('${r.custId}')">
@@ -1164,6 +1194,7 @@ function renderReminders(){
           🎉 Sinh nhật <b>${r.age} tuổi</b> ngày <b>${new Date(r.nextBd+'T00:00:00').toLocaleDateString('vi-VN')}</b><br>
           💡 Hãy gửi lời chúc và ưu đãi sinh nhật cho khách!
         </div>
+        <div style="margin-top:8px;text-align:right"><button class="btn ${r.done?'btn-gray':'btn-teal'} btn-sm" onclick="event.stopPropagation();remToggleDone(${i})">${r.done?'↩️ Bỏ đánh dấu':'✅ Đã gọi'}</button></div>
       </div>`;
     }
     const icon=r.svcName.includes('môi')?'💋':r.svcName.includes('mày')||r.svcName.includes('mày')?'👁':r.svcName.includes('nám')||r.svcName.includes('mụn')?'✨':'💆';
@@ -1179,12 +1210,13 @@ function renderReminders(){
         📅 Lần làm: <b>${lastFmt}</b> &nbsp;→&nbsp; Hẹn lại: <b>${remFmt}</b><br>
         💡 Liên hệ nhắc lịch hẹn cho khách
       </div>
+      <div style="margin-top:8px;text-align:right"><button class="btn ${r.done?'btn-gray':'btn-teal'} btn-sm" onclick="event.stopPropagation();remToggleDone(${i})">${r.done?'↩️ Bỏ đánh dấu':'✅ Đã gọi'}</button></div>
     </div>`;
   }).join('')}</div>`;
 }
 
 function renderHomeAlerts(){
-  const rems=getAllReminders().filter(r=>r.daysUntil<=3||r.urgency==='overdue');
+  const rems=getAllReminders().filter(r=>!r.done&&(r.daysUntil<=3||r.urgency==='overdue'));
   const el=document.getElementById('home-alerts');
   if(!rems.length){el.innerHTML='';return;}
   const rows=rems.slice(0,5).map(r=>{
@@ -1235,7 +1267,7 @@ function getCustStats(custId){
 function custCardHtml(c){
   const s=getCustStats(c.id);const tier=getTier(s.total);
   const ds=s.last?Math.floor((new Date()-new Date(s.last+'T00:00:00'))/(864e5)):null;
-  const hasRem=getAllReminders().some(r=>r.custId===c.id&&(r.daysUntil<=3||r.urgency==='overdue'));
+  const hasRem=getAllReminders().some(r=>r.custId===c.id&&!r.done&&(r.daysUntil<=3||r.urgency==='overdue'));
   return`<div class="cust-card" onclick="openCust('${c.id}')">
     <div class="cust-card-top">
       <div class="cust-avatar" style="background:${getABG(c.id)}">${getIni(c.name)}</div>
@@ -1316,7 +1348,7 @@ function openCust(custId){
   const tier=getTier(totalSpent);
   const ds=visits[0]?.date?Math.floor((new Date()-new Date(visits[0].date+'T00:00:00'))/(864e5)):null;
   // Customer reminders
-  const custRems=getAllReminders().filter(r=>r.custId===custId);
+  const custRems=getAllReminders().filter(r=>r.custId===custId&&!r.done);
   const remHtml=custRems.length?`<div style="background:#fff3e0;border-radius:9px;padding:10px 14px;margin-bottom:14px">
     <div style="font-size:12px;font-weight:700;color:#e65100;margin-bottom:7px">🔔 Nhắc Lịch Khách Này</div>
     ${custRems.map(r=>{
