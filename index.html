@@ -321,13 +321,19 @@ tfoot td{background:#006064!important;color:#fff;font-weight:700;}
 
   <!-- REVENUE -->
   <div id="page-revenue" style="display:none">
-    <div class="rev-controls">
-      <h2>📊 Doanh Thu</h2>
-      <label style="font-size:12px">Từ: <input type="date" id="rev-from" oninput="renderRevenue()" style="margin-left:4px"></label>
-      <label style="font-size:12px">Đến: <input type="date" id="rev-to" oninput="renderRevenue()" style="margin-left:4px"></label>
-      <button class="btn btn-gray btn-sm" onclick="setRevToday()">Hôm nay</button>
-      <button class="btn btn-gray btn-sm" onclick="setRevMonth()">Tháng này</button>
-      <button class="btn btn-gray btn-sm" onclick="setRevLastMonth()">Tháng trước</button>
+    <div class="rev-controls" style="flex-wrap:wrap;gap:6px;align-items:center">
+      <h2 style="margin-right:4px">📊 Doanh Thu</h2>
+      <button class="btn btn-gray btn-sm" onclick="revShiftDay(-1)" title="Lùi 1 ngày">◀ Trước</button>
+      <input type="date" id="rev-from" class="fi" oninput="_rangeBtnActive('rev',null);renderRevenue()" style="width:148px;margin-bottom:0">
+      <span style="font-size:12px;color:#546e7a">→</span>
+      <input type="date" id="rev-to" class="fi" oninput="_rangeBtnActive('rev',null);renderRevenue()" style="width:148px;margin-bottom:0">
+      <button class="btn btn-gray btn-sm" onclick="revShiftDay(1)" title="Tới 1 ngày">Sau ▶</button>
+      <button id="revbtn-today" class="btn btn-gray btn-sm" onclick="setRevRange('today')">Hôm nay</button>
+      <button id="revbtn-yesterday" class="btn btn-gray btn-sm" onclick="setRevRange('yesterday')">Hôm qua</button>
+      <button id="revbtn-7d" class="btn btn-gray btn-sm" onclick="setRevRange('7d')">7 ngày</button>
+      <button id="revbtn-week" class="btn btn-gray btn-sm" onclick="setRevRange('week')">Tuần này</button>
+      <button id="revbtn-month" class="btn btn-teal btn-sm" onclick="setRevRange('month')">Tháng này</button>
+      <button id="revbtn-year" class="btn btn-gray btn-sm" onclick="setRevRange('year')">Năm nay</button>
       <button class="btn btn-gray btn-sm" style="margin-left:auto" onclick="window.print()">🖨️ In</button>
     </div>
     <div id="rev-content"></div>
@@ -429,6 +435,20 @@ tfoot td{background:#006064!important;color:#fff;font-weight:700;}
     <button class="btn btn-green" onclick="showPurchaseModal()">📦 Nhập Hàng</button>
     <button class="btn btn-orange" onclick="showSellCosmModal()">💰 Bán Lẻ</button>
     <input type="text" id="prod-search" class="fi" placeholder="Tìm sản phẩm..." oninput="renderProducts()" style="width:170px;margin-left:auto">
+  </div>
+  <div class="rev-controls" style="flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:11px">
+    <span style="font-size:12px;font-weight:700;color:#006064">💰 Doanh thu mỹ phẩm theo:</span>
+    <button class="btn btn-gray btn-sm" onclick="cosmShiftDay(-1)" title="Lùi 1 ngày">◀ Trước</button>
+    <input type="date" id="cosm-from" class="fi" oninput="_rangeBtnActive('cosm',null);renderProducts()" style="width:145px;margin-bottom:0">
+    <span style="font-size:12px;color:#546e7a">→</span>
+    <input type="date" id="cosm-to" class="fi" oninput="_rangeBtnActive('cosm',null);renderProducts()" style="width:145px;margin-bottom:0">
+    <button class="btn btn-gray btn-sm" onclick="cosmShiftDay(1)" title="Tới 1 ngày">Sau ▶</button>
+    <button id="cosmbtn-today" class="btn btn-gray btn-sm" onclick="setCosmRange('today')">Hôm nay</button>
+    <button id="cosmbtn-7d" class="btn btn-gray btn-sm" onclick="setCosmRange('7d')">7 ngày</button>
+    <button id="cosmbtn-week" class="btn btn-gray btn-sm" onclick="setCosmRange('week')">Tuần này</button>
+    <button id="cosmbtn-month" class="btn btn-teal btn-sm" onclick="setCosmRange('month')">Tháng này</button>
+    <button id="cosmbtn-year" class="btn btn-gray btn-sm" onclick="setCosmRange('year')">Năm nay</button>
+    <button id="cosmbtn-all" class="btn btn-gray btn-sm" onclick="setCosmRange('all')">Tất cả</button>
   </div>
   <div id="cosm-stats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:11px;margin-bottom:14px"></div>
   <div class="rev-table" style="margin-bottom:13px">
@@ -1069,10 +1089,16 @@ function itemComm(item){
   const ap=Math.min(100,Math.max(0,Number(item.advicePct)||0));
   const wa=Math.max(0,Number(item.commAmt)||0);      // số tiền cố định cho NGƯỜI LÀM
   const aa=Math.max(0,Number(item.adviceAmt)||0);    // số tiền cố định cho NGƯỜI TƯ VẤN
-  const staff=(item.staff||'').trim(), advisor=(item.advisor||'').trim();
+  const staff=(item.staff||'').trim(), staff2=(item.staff2||'').trim(), advisor=(item.advisor||'').trim();
+  const workers=[staff,staff2].filter(Boolean);        // 1 hoặc 2 người CÙNG LÀM
+  const workTotal = workers.length ? Math.round(base*wp/100)+wa : 0;   // = %×giá + tiền cố định (gộp cả ca)
+  // 2 người làm → CHIA ĐÔI; người cuối nhận phần dư để tổng khớp tuyệt đối (không lệch 1đ)
+  const per=Math.round(workTotal/(workers.length||1));
+  const workShares=workers.map((nm,idx)=>({nm, amount: idx<workers.length-1 ? per : workTotal-per*(workers.length-1)}));
   return {
-    workPct:wp, advicePct:ap, workAmt:wa, adviceAmt:aa, staff, advisor,
-    work:   staff   ? Math.round(base*wp/100)+wa : 0,   // = %×giá + tiền cố định
+    workPct:wp, advicePct:ap, workAmt:wa, adviceAmt:aa, staff, staff2, advisor, workers,
+    work: workTotal,          // tổng hoa hồng NGƯỜI LÀM (cả 2 cộng lại)
+    workShares,               // [{nm, amount}] — phần của từng người làm
     advice: advisor ? Math.round(base*ap/100)+aa : 0
   };
 }
@@ -1093,12 +1119,12 @@ function showPage(page){
     const n=document.getElementById('nav-'+p);if(n)n.classList.toggle('active',p===page);
   });
   if(page==='customers')renderCustomers();
-  if(page==='revenue'){setRevMonth();renderRevenue();}
+  if(page==='revenue'){if(!document.getElementById('rev-from').value)setRevRange('month');else renderRevenue();}
   if(page==='payroll'){if(!document.getElementById('pay-from').value)setPayRange('month');else renderPayroll();}
   if(page==='home'){renderHomeRecent();renderHomeAlerts();}
   if(page==='settings')renderSettings();
   if(page==='reminders')renderReminders();
-  if(page==='cosmetics')renderProducts();
+  if(page==='cosmetics'){if(!document.getElementById('cosm-from').value)setCosmRange('month');else renderProducts();}
   updateRemBadge();
 }
 
@@ -1419,7 +1445,7 @@ function openCust(custId){
             return`<tr>
             <td class="left"><b>${item.name}</b></td>
             <td><span class="cat-badge ${item.cat==='dv'?'cat-dv':'cat-mp'}">${item.cat==='dv'?'Dịch Vụ':'Mỹ Phẩm'}</span></td>
-            <td style="font-weight:600;color:#006064">${item.staff||'—'}</td>
+            <td style="font-weight:600;color:#006064">${[item.staff,item.staff2].filter(Boolean).join(' + ')||'—'}</td>
             <td>${disc?`<span class="price-orig">${fmt(item.price)}</span>`:fmt(item.price)}</td>
             <td>${disc?`<span class="disc-tag">${discLabel(item)}</span>`:'—'}</td>
             <td><b class="${disc?'price-disc':''}">${fmt(fp)}</b></td>
@@ -1646,10 +1672,10 @@ function saveStaffList(){DB.set('staff_list',document.getElementById('staff-list
 
 // ══ ADD/EDIT VISIT ══
 let pendingPhotos=[];let visitItems=[];let pendingCosm=[];
-function showAddVisit(custId){pendingPhotos=[];pendingCosm=[];visitItems=[{id:DB.id(),name:'',cat:'dv',price:'',staff:'',advisor:'',note:'',svcId:'',discount:0,discountType:'pct'}];renderVisitModal(custId,null);}
+function showAddVisit(custId){pendingPhotos=[];pendingCosm=[];visitItems=[{id:DB.id(),name:'',cat:'dv',price:'',staff:'',staff2:'',advisor:'',note:'',svcId:'',discount:0,discountType:'pct'}];renderVisitModal(custId,null);}
 function showEditVisit(visitId,custId){
   const v=DB.get('visits').find(x=>x.id===visitId);if(!v)return;
-  visitItems=(v.items||[]).map(i=>({staff:'',advisor:'',note:'',svcId:'',...i}));
+  visitItems=(v.items||[]).map(i=>({staff:'',staff2:'',advisor:'',note:'',svcId:'',...i}));
   pendingPhotos=(v.photos||[]).map(p=>({...p}));
   pendingCosm=(v.cosm||[]).map(c=>({...c}));
   renderVisitModal(custId,visitId);
@@ -1708,6 +1734,7 @@ function renderVisitItems(){
       <span id="vfp-${item.id}" style="font-size:11px;font-weight:700;color:#c62828;min-width:60px">${Number(item.discount)?'→ '+fmt(finalPrice(item)):''}</span>
     </div>
     <input id="vs-${item.id}" list="staff-dl" placeholder="👤 Người làm" value="${item.staff||''}" oninput="visitItems[${i}].staff=this.value;updateCommPreview(${i})" style="width:120px">
+    <input id="vs2-${item.id}" list="staff-dl" placeholder="👥 Người làm 2 (nếu có)" value="${item.staff2||''}" oninput="visitItems[${i}].staff2=this.value;updateCommPreview(${i})" style="width:130px">
     <input id="va-${item.id}" list="staff-dl" placeholder="🗣 Người tư vấn" value="${item.advisor||''}" oninput="visitItems[${i}].advisor=this.value;updateCommPreview(${i})" style="width:120px">
     <input id="vo-${item.id}" placeholder="Ghi chú" value="${item.note||''}" oninput="visitItems[${i}].note=this.value" style="flex:1;min-width:80px">
     ${visitItems.length>1?`<button class="btn btn-pink btn-xs" onclick="removeVisitItem(${i})">✕</button>`:''}
@@ -1720,9 +1747,9 @@ function commPreviewText(item){
   if(!c.work && !c.advice) return '';
   const ct=(pct,amt)=>{const a=[];if(pct)a.push(pct+'%');if(amt)a.push(fmt(amt));return a.length?' ('+a.join(' + ')+')':'';};
   const p=[];
-  if(c.work)   p.push(`👤 ${item.staff}: ${fmt(c.work)}${ct(c.workPct,c.workAmt)}`);
+  c.workShares.forEach(w=>{if(w.amount)p.push(`👤 ${w.nm}: ${fmt(w.amount)}`);});
   if(c.advice) p.push(`🗣 ${item.advisor}: ${fmt(c.advice)}${ct(c.advicePct,c.adviceAmt)}`);
-  return '💸 Hoa hồng → '+p.join('  ·  ');
+  return '💸 Hoa hồng → '+p.join('  ·  ')+(c.workShares.length>1?'  ↔ chia đôi':'');
 }
 function updateCommPreview(i){
   const item=visitItems[i];const el=document.getElementById('vhh-'+item.id);
@@ -1744,7 +1771,7 @@ function pickCatalog(idx,sel){
     commAmt:Number(s.commAmt)||0, adviceAmt:Number(s.adviceAmt)||0,
     discount:visitItems[idx].discount||0,discountType:visitItems[idx].discountType||'pct'};renderVisitItems();
 }
-function addVisitItem(){visitItems.push({id:DB.id(),name:'',cat:'dv',price:'',staff:'',advisor:'',note:'',svcId:'',discount:0,discountType:'pct'});renderVisitItems();}
+function addVisitItem(){visitItems.push({id:DB.id(),name:'',cat:'dv',price:'',staff:'',staff2:'',advisor:'',note:'',svcId:'',discount:0,discountType:'pct'});renderVisitItems();}
 function removeVisitItem(i){visitItems.splice(i,1);renderVisitItems();}
 function renderPhotosWrap(){
   const wrap=document.getElementById('photos-wrap');
@@ -1818,8 +1845,9 @@ function saveVisit(custId,editId){
     const vp=document.getElementById('vp-'+id);const vs=document.getElementById('vs-'+id);const vo=document.getElementById('vo-'+id);
     const vd=document.getElementById('vd-'+id);const vdt=document.getElementById('vdt-'+id);
     if(vn)visitItems[i].name=vn.value;if(vc)visitItems[i].cat=vc.value;
-    const va=document.getElementById('va-'+id);
+    const va=document.getElementById('va-'+id);const vs2=document.getElementById('vs2-'+id);
     if(vp)visitItems[i].price=parseInt(vp.value.replace(/[^\d]/g,''),10)||0;if(vs)visitItems[i].staff=vs.value||'';if(vo)visitItems[i].note=vo.value||'';
+    if(vs2)visitItems[i].staff2=vs2.value||'';
     if(va)visitItems[i].advisor=va.value||'';
     if(vd)visitItems[i].discount=Number(vd.value)||0;if(vdt)visitItems[i].discountType=vdt.value||'pct';
     // Nếu sếp gõ tay tên dịch vụ (không bấm chọn từ danh mục) → tra danh mục theo tên để lấy %
@@ -1962,6 +1990,23 @@ function setPayMonth(offset){
 // ── Bộ lọc NGÀY cho Bảng Lương (dùng ngày GIỜ ĐỊA PHƯƠNG, tránh lệch múi giờ) ──
 function _pymd(x){return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`;}
 function _pAddDays(s,n){const [y,m,d]=s.split('-').map(Number);return _pymd(new Date(y,m-1,d+n));}
+// ── Bộ lọc ngày DÙNG CHUNG cho Doanh Thu + Mỹ Phẩm (ngày giờ ĐỊA PHƯƠNG) ──
+function _rangeFor(kind){
+  const d=new Date(); let from,to;
+  if(kind==='today'){from=to=_pymd(d);}
+  else if(kind==='yesterday'){const y=new Date(d.getFullYear(),d.getMonth(),d.getDate()-1);from=to=_pymd(y);}
+  else if(kind==='7d'){from=_pymd(new Date(d.getFullYear(),d.getMonth(),d.getDate()-6));to=_pymd(d);}
+  else if(kind==='week'){const dow=(d.getDay()+6)%7;from=_pymd(new Date(d.getFullYear(),d.getMonth(),d.getDate()-dow));to=_pymd(new Date(d.getFullYear(),d.getMonth(),d.getDate()-dow+6));}
+  else if(kind==='month'){from=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;to=_pymd(new Date(d.getFullYear(),d.getMonth()+1,0));}
+  else if(kind==='year'){from=`${d.getFullYear()}-01-01`;to=`${d.getFullYear()}-12-31`;}
+  else {from='';to='';}   // 'all'
+  return {from,to};
+}
+function _rangeBtnActive(prefix,kind){['today','yesterday','7d','week','month','year','all'].forEach(k=>{const b=document.getElementById(prefix+'btn-'+k);if(b)b.className='btn btn-sm '+(k===kind?'btn-teal':'btn-gray');});}
+function setRevRange(kind){const r=_rangeFor(kind);document.getElementById('rev-from').value=r.from;document.getElementById('rev-to').value=r.to;_rangeBtnActive('rev',kind);renderRevenue();}
+function revShiftDay(delta){const fe=document.getElementById('rev-from'),te=document.getElementById('rev-to');if(!fe.value||!te.value){setRevRange('today');return;}fe.value=_pAddDays(fe.value,delta);te.value=_pAddDays(te.value,delta);_rangeBtnActive('rev',null);renderRevenue();}
+function setCosmRange(kind){const r=_rangeFor(kind);document.getElementById('cosm-from').value=r.from;document.getElementById('cosm-to').value=r.to;_rangeBtnActive('cosm',kind);renderProducts();}
+function cosmShiftDay(delta){const fe=document.getElementById('cosm-from'),te=document.getElementById('cosm-to');if(!fe.value||!te.value){setCosmRange('today');return;}fe.value=_pAddDays(fe.value,delta);te.value=_pAddDays(te.value,delta);_rangeBtnActive('cosm',null);renderProducts();}
 function _payBtnActive(kind){['today','yesterday','3d','7d','week','month'].forEach(k=>{const b=document.getElementById('cbp-'+k);if(b)b.className='btn btn-sm '+(k===kind?'btn-teal':'btn-gray');});}
 function setPayRange(kind){
   _payBtnActive(kind);
@@ -2004,7 +2049,7 @@ function commissionEntries(from,to){
     (v.items||[]).forEach(i=>{
       const c=itemComm(i);
       const money=finalPrice(i);
-      if(c.work)   out.push({date:v.date,nm:c.staff,   role:'work',   svc:i.name,cat:i.cat,money,pct:c.workPct,  comm:c.work,   custId:v.custId});
+      c.workShares.forEach(w=>{if(w.amount)out.push({date:v.date,nm:w.nm,role:'work',svc:i.name,cat:i.cat,money,pct:c.workPct,comm:w.amount,custId:v.custId,chung:c.workShares.length>1});});
       if(c.advice) out.push({date:v.date,nm:c.advisor, role:'advice', svc:i.name,cat:i.cat,money,pct:c.advicePct,comm:c.advice, custId:v.custId});
     });
   });
@@ -2015,9 +2060,10 @@ function payrollRows(month){
   const visits=DB.get('visits').filter(v=>v.date>=from&&v.date<=to);
   // Doanh thu tính theo NGƯỜI LÀM (giữ như tab Doanh Thu đang chạy)
   const revBy={};
-  visits.flatMap(v=>v.items||[]).forEach(i=>{const k=(i.staff||'').trim();if(!k)return;
-    if(!revBy[k])revBy[k]={dv:0,mp:0};
-    if(i.cat==='dv')revBy[k].dv+=finalPrice(i);else revBy[k].mp+=finalPrice(i);});
+  visits.flatMap(v=>v.items||[]).forEach(i=>{
+    const ws=[(i.staff||'').trim(),(i.staff2||'').trim()].filter(Boolean);if(!ws.length)return;
+    const share=finalPrice(i)/ws.length;   // 2 người làm → chia đôi doanh thu
+    ws.forEach(k=>{if(!revBy[k])revBy[k]={dv:0,mp:0};if(i.cat==='dv')revBy[k].dv+=share;else revBy[k].mp+=share;});});
   // Hoa hồng cộng dồn từ từng ca trong tháng
   const commBy={};
   commissionEntries(from,to).forEach(e=>{
@@ -2123,7 +2169,7 @@ ${renderDailyCommission(monthRange(month).from,monthRange(month).to,'Tháng '+m+
 function earningsRows(from,to){
   const visits=DB.get('visits').filter(v=>v.date>=from&&v.date<=to);
   const by={}; const ensure=nm=>by[nm]||(by[nm]={dv:0,mp:0,ca:0,commWork:0,commAdvice:0});
-  visits.forEach(v=>(v.items||[]).forEach(i=>{const nm=(i.staff||'').trim();if(!nm)return;const r=ensure(nm);r.ca++;if(i.cat==='dv')r.dv+=finalPrice(i);else r.mp+=finalPrice(i);}));
+  visits.forEach(v=>(v.items||[]).forEach(i=>{const ws=[(i.staff||'').trim(),(i.staff2||'').trim()].filter(Boolean);if(!ws.length)return;const share=finalPrice(i)/ws.length;ws.forEach(nm=>{const r=ensure(nm);r.ca++;if(i.cat==='dv')r.dv+=share;else r.mp+=share;});}));
   commissionEntries(from,to).forEach(e=>{const r=ensure(e.nm);if(e.role==='work')r.commWork+=e.comm;else r.commAdvice+=e.comm;});
   const names=new Set([...getStaff(),...Object.keys(by)]);
   return [...names].map(nm=>{const r=by[nm]||{dv:0,mp:0,ca:0,commWork:0,commAdvice:0};return {nm,ca:r.ca,dv:r.dv,mp:r.mp,rev:r.dv+r.mp,commWork:r.commWork,commAdvice:r.commAdvice,comm:r.commWork+r.commAdvice};}).sort((a,b)=>b.comm-a.comm);
@@ -2250,16 +2296,20 @@ function renderProducts(){
   const fil=document.getElementById('stock-filter')?.value||'all';
   const purchases=getPurchases();
   const sales=getCosmSales();
-  const totalPurch=purchases.reduce((a,p)=>a+p.qty*p.buyPrice,0);
-  const totalSold=sales.reduce((a,s)=>a+s.qty*s.sellPrice,0);
-  const visitCosmRev=DB.get('visits').reduce((a,v)=>(v.cosm||[]).reduce((b,c)=>b+Number(c.qty||0)*Number(c.price||0),a),0);
+  const cfrom=document.getElementById('cosm-from')?.value||'', cto=document.getElementById('cosm-to')?.value||'';
+  const inR=dt=>(!cfrom||dt>=cfrom)&&(!cto||dt<=cto);   // lọc theo khoảng ngày đã chọn
+  const purchasesR=purchases.filter(p=>inR(p.date)), salesR=sales.filter(s=>inR(s.date));
+  const totalPurch=purchasesR.reduce((a,p)=>a+p.qty*p.buyPrice,0);
+  const totalSold=salesR.reduce((a,s)=>a+s.qty*s.sellPrice,0);
+  const visitCosmRev=DB.get('visits').filter(v=>inR(v.date)).reduce((a,v)=>(v.cosm||[]).reduce((b,c)=>b+Number(c.qty||0)*Number(c.price||0),a),0);
+  const rangeLbl=(cfrom||cto)?((cfrom?new Date(cfrom+'T00:00:00').toLocaleDateString('vi-VN'):'…')+' → '+(cto?new Date(cto+'T00:00:00').toLocaleDateString('vi-VN'):'…')):'Tất cả';
   const totalStock=prods.reduce((a,p)=>a+Number(p.stock||0),0);
   const sc=document.getElementById('cosm-stats');
   if(sc)sc.innerHTML=`
-    <div class="stat-card"><div class="sc-lbl">📦 Sản Phẩm</div><div class="sc-val" style="font-size:20px">${prods.length}</div></div>
-    <div class="stat-card dv"><div class="sc-lbl">📥 Tổng Tiền Nhập</div><div class="sc-val" style="font-size:15px">${fmt(totalPurch)}</div></div>
-    <div class="stat-card mp"><div class="sc-lbl">💰 Doanh Thu Bán</div><div class="sc-val" style="font-size:15px">${fmt(totalSold+visitCosmRev)}</div></div>
-    <div class="stat-card"><div class="sc-lbl">📊 Tổng Tồn Kho</div><div class="sc-val" style="font-size:20px">${totalStock} sp</div></div>`;
+    <div class="stat-card"><div class="sc-lbl">📦 Sản Phẩm</div><div class="sc-val" style="font-size:20px">${prods.length}</div><div style="font-size:10px;color:#90a4ae">hiện có</div></div>
+    <div class="stat-card dv"><div class="sc-lbl">📥 Tiền Nhập</div><div class="sc-val" style="font-size:15px">${fmt(totalPurch)}</div><div style="font-size:10px;color:#90a4ae">${rangeLbl}</div></div>
+    <div class="stat-card mp"><div class="sc-lbl">💰 Doanh Thu Bán</div><div class="sc-val" style="font-size:15px">${fmt(totalSold+visitCosmRev)}</div><div style="font-size:10px;color:#90a4ae">${rangeLbl}</div></div>
+    <div class="stat-card"><div class="sc-lbl">📊 Tồn Kho</div><div class="sc-val" style="font-size:20px">${totalStock} sp</div><div style="font-size:10px;color:#90a4ae">hiện tại</div></div>`;
   let filtered=prods.filter(p=>!q||p.name.toLowerCase().includes(q));
   if(fil==='ok')filtered=filtered.filter(p=>p.stock>5);
   else if(fil==='low')filtered=filtered.filter(p=>p.stock>0&&p.stock<=5);
@@ -2292,13 +2342,13 @@ function renderProducts(){
     </div>`;
   }).join('');
   // Purchase list
-  const pur=getPurchases().slice().reverse().slice(0,20);
+  const pur=purchasesR.slice().reverse().slice(0,20);
   const purEl=document.getElementById('purchase-list');
   if(purEl)purEl.innerHTML=pur.length?`<table><thead><tr><th class="left">Ngày</th><th class="left">Sản Phẩm</th><th>SL</th><th>Giá Nhập</th><th>Tổng</th></tr></thead>
   <tbody>${pur.map(p=>`<tr><td class="left">${p.date}</td><td class="left">${p.productName}</td><td style="text-align:center">${p.qty}</td><td>${fmt(p.buyPrice)}</td><td><b>${fmt(p.qty*p.buyPrice)}</b></td></tr>`).join('')}</tbody></table>`:
   '<div style="text-align:center;padding:16px;color:#90a4ae">Chưa có lần nhập hàng nào</div>';
   // Sale list
-  const sls=getCosmSales().slice().reverse().slice(0,20);
+  const sls=salesR.slice().reverse().slice(0,20);
   const slEl=document.getElementById('cosm-sale-list');
   if(slEl)slEl.innerHTML=sls.length?`<table><thead><tr><th class="left">Ngày</th><th class="left">Sản Phẩm</th><th>SL</th><th>Doanh Thu</th></tr></thead>
   <tbody>${sls.map(s=>`<tr><td class="left">${s.date}</td><td class="left">${s.productName}</td><td style="text-align:center">${s.qty}</td><td><b>${fmt(s.qty*s.sellPrice)}</b></td></tr>`).join('')}</tbody></table>`:
