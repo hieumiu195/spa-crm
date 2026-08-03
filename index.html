@@ -1567,13 +1567,42 @@ function nutMo(k,tong,ham){
     ${!dangMo(k)?`<div style="font-size:11px;color:#90a4ae;margin-top:3px">Đang hiện ${MAC_DINH_HIEN} / ${tong}</div>`:''}
   </div>`;
 }
+// ══ NHÓM DỊCH VỤ ══
+const SVC_GROUPS=[
+  {k:'spa',label:'🧖 Spa'},
+  {k:'phunxam',label:'💉 Phun xăm'},
+  {k:'trietlong',label:'✨ Triệt lông'},
+  {k:'canchinh',label:'⚖️ Cân chỉnh'}
+];
+function groupLabel(k){const g=SVC_GROUPS.find(x=>x.k===k);return g?g.label:'📁 Chưa xếp nhóm';}
+function groupOptions(cur){return `<option value="">📁 Chưa xếp nhóm</option>`+SVC_GROUPS.map(g=>`<option value="${g.k}" ${cur===g.k?'selected':''}>${g.label}</option>`).join('');}
+// Bảng gán nhóm TỰ ĐỘNG theo tên (chạy 1 lần cho dịch vụ chưa có nhóm; sếp đổi lại được sau). Cân chỉnh để TRỐNG.
+const _AUTO_GROUP={
+  'phun mày ombre':'phunxam','điêu khắc chân mày':'phunxam','phun môi':'phunxam','phun mày nano':'phunxam','phun mày natural':'phunxam','phun môi vip 1':'phunxam','phun môi vip 2':'phunxam','phun môi vip 3':'phunxam','sợi thiết kế':'phunxam','sợi độc quyền':'phunxam','mày phun khai vận':'phunxam','phun môi kim cương':'phunxam','phun mày gói member':'phunxam','phun môi gói member':'phunxam','phun hồng nhủ hoa':'phunxam','phun mix sợi':'phunxam','mix sợi độc quyền':'phunxam','xoá chân mày cũ':'phunxam','co2 môi':'phunxam','dặm bảo hành mày môi':'phunxam',
+  'triệt lông nách':'trietlong','triệt mặt':'trietlong','triệt mép môi':'trietlong','triệt râu':'trietlong','triệt nguyên tay':'trietlong','triệt nguyên chân':'trietlong','triệt 1\\2 tay':'trietlong','triệt 1\\2 chân':'trietlong','triệt bi gọn':'trietlong','triệt bi sạch':'trietlong','triệt lưng':'trietlong','triệt bụng':'trietlong','triệt nách nam':'trietlong',
+  'trị nám laser':'spa','trị mụn chuyên sâu':'spa','chăm sóc da cơ bản':'spa','lấy nhân mụn':'spa','peel da pyruvic':'spa','bắn co2 trẻ hoá da':'spa','cấy meso':'spa','tiêm pap 5f':'spa','làm kĩ thuật hôi nách':'spa','thải độc da':'spa','cấy trắng căng bóng':'spa','thải chì':'spa','bắn tàn nhang':'spa'
+};
+function autoAssignGroups(){
+  const svcs=getServices(); let changed=false;
+  svcs.forEach(s=>{ if(s.cat==='dv' && (s.group===undefined||s.group==='')){ const g=_AUTO_GROUP[(s.name||'').trim().toLowerCase()]; if(g){s.group=g;changed=true;} } });
+  if(changed){ DB.set('services',svcs); if(typeof cloudSave==='function') cloudSave('services',svcs); }
+  return changed;
+}
+function setServiceGroup(id,g){
+  const svcs=getServices();const i=svcs.findIndex(x=>x.id===id);if(i<0)return;
+  svcs[i]={...svcs[i],group:g};DB.set('services',svcs);
+  if(typeof cloudSave==='function') cloudSave('services',svcs);
+  renderServiceCatalog();toast('✅ Đã xếp: '+groupLabel(g));
+}
 function renderServiceCatalog(){
+  autoAssignGroups();
   const svcs=getServices();
   const dvList=document.getElementById('svc-dv-list');const mpList=document.getElementById('svc-mp-list');
   if(!dvList||!mpList)return;
   const row=s=>`<div class="svc-row">
     <div><div class="sn">${s.name}</div>${s.remindDays?`<div style="font-size:10px;color:#7b1fa2;margin-top:1px">🔔 Nhắc sau ${s.remindDays} ngày</div>`:'<div style="font-size:10px;color:#90a4ae">Không nhắc</div>'}
-      ${(s.commPct||s.advicePct||s.commAmt||s.adviceAmt)?`<div style="font-size:10px;color:#e65100;margin-top:1px">💸 Làm ${s.commPct||0}%${s.commAmt?` +${fmt(s.commAmt)}`:''}${(s.advicePct||s.adviceAmt)?` · Tư vấn ${s.advicePct||0}%${s.adviceAmt?` +${fmt(s.adviceAmt)}`:''}`:''}</div>`:`<div style="font-size:10px;color:#bbb">💸 Chưa cài hoa hồng</div>`}</div>
+      ${(s.commPct||s.advicePct||s.commAmt||s.adviceAmt)?`<div style="font-size:10px;color:#e65100;margin-top:1px">💸 Làm ${s.commPct||0}%${s.commAmt?` +${fmt(s.commAmt)}`:''}${(s.advicePct||s.adviceAmt)?` · Tư vấn ${s.advicePct||0}%${s.adviceAmt?` +${fmt(s.adviceAmt)}`:''}`:''}</div>`:`<div style="font-size:10px;color:#bbb">💸 Chưa cài hoa hồng</div>`}
+      ${s.cat==='dv'?`<div style="margin-top:3px"><select onchange="setServiceGroup('${s.id}',this.value)" style="font-size:10px;padding:2px 5px;border-radius:6px;border:1px solid #cfd8dc;background:${s.group?'#e0f7fa':'#fff'};color:#006064;font-weight:600;max-width:150px">${groupOptions(s.group||'')}</select></div>`:''}</div>
     <div class="sp">${fmt(s.price)}</div>
     <button class="btn btn-gray btn-xs" onclick="showEditService('${s.id}')">✏️</button>
     <button class="btn btn-pink btn-xs" onclick="deleteService('${s.id}')">✕</button>
@@ -1595,6 +1624,9 @@ function showAddService(defaultCat){
   <div class="form-grid">
     <div><label>Loại</label><select class="fi" id="sv-cat"><option value="dv" ${defaultCat==='dv'?'selected':''}>✨ Dịch Vụ Chính</option><option value="mp" ${defaultCat==='mp'?'selected':''}>💄 Mỹ Phẩm</option></select></div>
     <div><label>🔔 Nhắc Lịch Hẹn Sau (ngày)</label><input class="fi" id="sv-remind" type="number" placeholder="VD: 30 (để trống = không nhắc)" min="0"></div>
+  </div>
+  <div class="form-grid">
+    <div><label>📁 Nhóm dịch vụ</label><select class="fi" id="sv-group">${groupOptions('')}</select></div>
   </div>
   ${isMayTinh()?`<div style="background:#fff8e1;border-radius:8px;padding:11px 12px;margin-bottom:9px">
     <div style="font-size:12px;font-weight:700;color:#e65100;margin-bottom:8px">💸 Hoa hồng cho cái này</div>
@@ -1622,6 +1654,9 @@ function showEditService(id){
     <div><label>Loại</label><select class="fi" id="sv-cat"><option value="dv" ${s.cat==='dv'?'selected':''}>✨ Dịch Vụ Chính</option><option value="mp" ${s.cat==='mp'?'selected':''}>💄 Mỹ Phẩm</option></select></div>
     <div><label>🔔 Nhắc Lịch Hẹn Sau (ngày)</label><input class="fi" id="sv-remind" type="number" value="${s.remindDays||''}" min="0" placeholder="Để trống = không nhắc"></div>
   </div>
+  <div class="form-grid">
+    <div><label>📁 Nhóm dịch vụ</label><select class="fi" id="sv-group">${groupOptions(s.group||'')}</select></div>
+  </div>
   ${isMayTinh()?`<div style="background:#fff8e1;border-radius:8px;padding:11px 12px;margin-bottom:9px">
     <div style="font-size:12px;font-weight:700;color:#e65100;margin-bottom:8px">💸 Hoa hồng cho cái này</div>
     <div class="form-grid">
@@ -1642,13 +1677,14 @@ function saveService(){
   const cat=document.getElementById('sv-cat').value;const remindDays=Number(document.getElementById('sv-remind').value)||0;
   if(!name){toast('Nhập tên dịch vụ! Giá có thể để 0đ (dịch vụ tặng miễn phí).',false);return;}
   const commPct=pctInput('sv-comm'), advicePct=pctInput('sv-adv');
-  const svcs=getServices();svcs.push({id:DB.id(),name,cat,price,remindDays,commPct,advicePct});DB.set('services',svcs);
+  const group=document.getElementById('sv-group')?.value||'';
+  const svcs=getServices();svcs.push({id:DB.id(),name,cat,price,remindDays,commPct,advicePct,group});DB.set('services',svcs);
   closeModal();toast('✅ Đã thêm!');renderServiceCatalog();
 }
 function updateService(id){
   const svcs=getServices();const i=svcs.findIndex(x=>x.id===id);if(i<0)return;
   svcs[i]={...svcs[i],name:document.getElementById('sv-name').value,price:Number(document.getElementById('sv-price').value),cat:document.getElementById('sv-cat').value,remindDays:Number(document.getElementById('sv-remind').value)||0,
-    commPct:pctInput('sv-comm',svcs[i].commPct), advicePct:pctInput('sv-adv',svcs[i].advicePct)};
+    commPct:pctInput('sv-comm',svcs[i].commPct), advicePct:pctInput('sv-adv',svcs[i].advicePct), group:document.getElementById('sv-group')?.value||''};
   DB.set('services',svcs);closeModal();toast('✅ Đã cập nhật!');renderServiceCatalog();
 }
 // Đọc ô %, kẹp về 0–100 để không bao giờ ra hoa hồng âm hoặc quá 100%.
@@ -1907,6 +1943,11 @@ function renderRevenue(){
   const dates=Object.keys(byDate).sort((a,b)=>b.localeCompare(a));
   const svcMap={};dvItems.forEach(i=>{svcMap[i.name]=(svcMap[i.name]||0)+finalPrice(i);});
   const topDv=Object.entries(svcMap).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  // Doanh thu theo NHÓM dịch vụ (tra nhóm của dịch vụ theo svcId hoặc theo tên)
+  autoAssignGroups();
+  const _svcsG=getServices(); const _gById={},_gByName={};
+  _svcsG.forEach(s=>{_gById[s.id]=s.group||''; _gByName[(s.name||'').trim().toLowerCase()]=s.group||'';});
+  const groupMap={}; dvItems.forEach(i=>{const g=_gById[i.svcId]||_gByName[(i.name||'').trim().toLowerCase()]||''; groupMap[g]=(groupMap[g]||0)+finalPrice(i);});
   const prodMap={};mpItems.forEach(i=>{prodMap[i.name]=(prodMap[i.name]||0)+finalPrice(i);});
   const topMp=Object.entries(prodMap).sort((a,b)=>b[1]-a[1]).slice(0,6);
   // Count cosm from visits in period
@@ -1919,6 +1960,12 @@ function renderRevenue(){
   <div class="stat-card dv"><div class="sc-lbl">✨ Dịch Vụ Chính</div><div class="sc-val">${fmt(dvTotal)}</div><div style="font-size:11px;color:#90a4ae;margin-top:3px">${grand?Math.round(dvTotal/grand*100):0}% tổng DT</div></div>
   <div class="stat-card mp"><div class="sc-lbl">💄 Mỹ Phẩm (DV+Kho)</div><div class="sc-val">${fmt(mpTotal+cosmRev)}</div><div style="font-size:11px;color:#90a4ae;margin-top:3px">Trong lượt: ${fmt(mpTotal)} · Kho: ${fmt(cosmRev)}</div></div>
   <div class="stat-card"><div class="sc-lbl">👥 Khách Phục Vụ</div><div class="sc-val" style="color:#1565c0">${custSet.size}</div><div style="font-size:11px;color:#90a4ae;margin-top:3px">TB ${custSet.size?fmt(Math.round(grand/custSet.size)):0}/KH</div></div>
+</div>
+<div class="rev-table" style="margin-bottom:13px">
+  <div class="rev-table-header"><h3>📁 Doanh Thu Theo Nhóm Dịch Vụ</h3></div>
+  <table><thead><tr><th class="left">Nhóm</th><th>Doanh Thu</th><th>%</th></tr></thead>
+  <tbody>${(()=>{const order=[...SVC_GROUPS.map(g=>g.k),''];const rows=order.filter(k=>groupMap[k]).map(k=>`<tr><td class="left"><b>${groupLabel(k)}</b></td><td><b>${fmt(groupMap[k])}</b></td><td>${dvTotal?Math.round(groupMap[k]/dvTotal*100):0}%</td></tr>`);return rows.length?rows.join(''):'<tr><td colspan="3" style="text-align:center;color:#aaa;padding:16px">Chưa có dịch vụ nào trong khoảng này</td></tr>';})()}</tbody>
+  ${dvTotal?`<tfoot><tr><td class="left">TỔNG DỊCH VỤ</td><td>${fmt(dvTotal)}</td><td>100%</td></tr></tfoot>`:''}</table>
 </div>
 <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:13px">
   <div class="rev-table"><div class="rev-table-header"><h3>✨ Theo Dịch Vụ</h3></div>
