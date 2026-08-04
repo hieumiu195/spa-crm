@@ -1089,8 +1089,8 @@ function itemComm(item){
   const ap=Math.min(100,Math.max(0,Number(item.advicePct)||0));
   const wa=Math.max(0,Number(item.commAmt)||0);      // số tiền cố định cho NGƯỜI LÀM
   const aa=Math.max(0,Number(item.adviceAmt)||0);    // số tiền cố định cho NGƯỜI TƯ VẤN
-  const staff=(item.staff||'').trim(), staff2=(item.staff2||'').trim(), advisor=(item.advisor||'').trim();
-  const workers=[staff,staff2].filter(Boolean);        // 1 hoặc 2 người CÙNG LÀM
+  const staff=(item.staff||'').trim(), staff2=(item.staff2||'').trim(), staff3=(item.staff3||'').trim(), staff4=(item.staff4||'').trim(), advisor=(item.advisor||'').trim();
+  const workers=[staff,staff2,staff3,staff4].filter(Boolean);   // 1–4 người CÙNG LÀM (chia đều)
   const workTotal = workers.length ? Math.round(base*wp/100)+wa : 0;   // = %×giá + tiền cố định (gộp cả ca)
   // 2 người làm → CHIA ĐÔI; người cuối nhận phần dư để tổng khớp tuyệt đối (không lệch 1đ)
   const per=Math.round(workTotal/(workers.length||1));
@@ -1445,7 +1445,7 @@ function openCust(custId){
             return`<tr>
             <td class="left"><b>${item.name}</b></td>
             <td><span class="cat-badge ${item.cat==='dv'?'cat-dv':'cat-mp'}">${item.cat==='dv'?'Dịch Vụ':'Mỹ Phẩm'}</span></td>
-            <td style="font-weight:600;color:#006064">${[item.staff,item.staff2].filter(Boolean).join(' + ')||'—'}</td>
+            <td style="font-weight:600;color:#006064">${[item.staff,item.staff2,item.staff3,item.staff4].filter(Boolean).join(' + ')||'—'}</td>
             <td>${disc?`<span class="price-orig">${fmt(item.price)}</span>`:fmt(item.price)}</td>
             <td>${disc?`<span class="disc-tag">${discLabel(item)}</span>`:'—'}</td>
             <td><b class="${disc?'price-disc':''}">${fmt(fp)}</b></td>
@@ -1719,10 +1719,10 @@ function saveStaffList(){DB.set('staff_list',document.getElementById('staff-list
 
 // ══ ADD/EDIT VISIT ══
 let pendingPhotos=[];let visitItems=[];let pendingCosm=[];
-function showAddVisit(custId){pendingPhotos=[];pendingCosm=[];visitItems=[{id:DB.id(),name:'',cat:'dv',price:'',staff:'',staff2:'',advisor:'',note:'',svcId:'',discount:0,discountType:'pct'}];renderVisitModal(custId,null);}
+function showAddVisit(custId){pendingPhotos=[];pendingCosm=[];visitItems=[{id:DB.id(),name:'',cat:'dv',price:'',staff:'',staff2:'',staff3:'',staff4:'',advisor:'',note:'',svcId:'',discount:0,discountType:'pct'}];renderVisitModal(custId,null);}
 function showEditVisit(visitId,custId){
   const v=DB.get('visits').find(x=>x.id===visitId);if(!v)return;
-  visitItems=(v.items||[]).map(i=>({staff:'',staff2:'',advisor:'',note:'',svcId:'',...i}));
+  visitItems=(v.items||[]).map(i=>({staff:'',staff2:'',staff3:'',staff4:'',advisor:'',note:'',svcId:'',...i}));
   pendingPhotos=(v.photos||[]).map(p=>({...p}));
   pendingCosm=(v.cosm||[]).map(c=>({...c}));
   renderVisitModal(custId,visitId);
@@ -1782,6 +1782,8 @@ function renderVisitItems(){
     </div>
     <input id="vs-${item.id}" list="staff-dl" placeholder="👤 Người làm" value="${item.staff||''}" oninput="visitItems[${i}].staff=this.value;updateCommPreview(${i})" style="width:120px">
     <input id="vs2-${item.id}" list="staff-dl" placeholder="👥 Người làm 2 (nếu có)" value="${item.staff2||''}" oninput="visitItems[${i}].staff2=this.value;updateCommPreview(${i})" style="width:130px">
+    <input id="vs3-${item.id}" list="staff-dl" placeholder="👥 Người làm 3 (nếu có)" value="${item.staff3||''}" oninput="visitItems[${i}].staff3=this.value;updateCommPreview(${i})" style="width:130px">
+    <input id="vs4-${item.id}" list="staff-dl" placeholder="👥 Người làm 4 (nếu có)" value="${item.staff4||''}" oninput="visitItems[${i}].staff4=this.value;updateCommPreview(${i})" style="width:130px">
     <input id="va-${item.id}" list="staff-dl" placeholder="🗣 Người tư vấn" value="${item.advisor||''}" oninput="visitItems[${i}].advisor=this.value;updateCommPreview(${i})" style="width:120px">
     <input id="vo-${item.id}" placeholder="Ghi chú" value="${item.note||''}" oninput="visitItems[${i}].note=this.value" style="flex:1;min-width:80px">
     ${visitItems.length>1?`<button class="btn btn-pink btn-xs" onclick="removeVisitItem(${i})">✕</button>`:''}
@@ -1796,7 +1798,7 @@ function commPreviewText(item){
   const p=[];
   c.workShares.forEach(w=>{if(w.amount)p.push(`👤 ${w.nm}: ${fmt(w.amount)}`);});
   if(c.advice) p.push(`🗣 ${item.advisor}: ${fmt(c.advice)}${ct(c.advicePct,c.adviceAmt)}`);
-  return '💸 Hoa hồng → '+p.join('  ·  ')+(c.workShares.length>1?'  ↔ chia đôi':'');
+  return '💸 Hoa hồng → '+p.join('  ·  ')+(c.workShares.length>1?`  ↔ chia đều ${c.workShares.length} người`:'');
 }
 function updateCommPreview(i){
   const item=visitItems[i];const el=document.getElementById('vhh-'+item.id);
@@ -1818,7 +1820,7 @@ function pickCatalog(idx,sel){
     commAmt:Number(s.commAmt)||0, adviceAmt:Number(s.adviceAmt)||0,
     discount:visitItems[idx].discount||0,discountType:visitItems[idx].discountType||'pct'};renderVisitItems();
 }
-function addVisitItem(){visitItems.push({id:DB.id(),name:'',cat:'dv',price:'',staff:'',staff2:'',advisor:'',note:'',svcId:'',discount:0,discountType:'pct'});renderVisitItems();}
+function addVisitItem(){visitItems.push({id:DB.id(),name:'',cat:'dv',price:'',staff:'',staff2:'',staff3:'',staff4:'',advisor:'',note:'',svcId:'',discount:0,discountType:'pct'});renderVisitItems();}
 function removeVisitItem(i){visitItems.splice(i,1);renderVisitItems();}
 function renderPhotosWrap(){
   const wrap=document.getElementById('photos-wrap');
@@ -1892,9 +1894,9 @@ function saveVisit(custId,editId){
     const vp=document.getElementById('vp-'+id);const vs=document.getElementById('vs-'+id);const vo=document.getElementById('vo-'+id);
     const vd=document.getElementById('vd-'+id);const vdt=document.getElementById('vdt-'+id);
     if(vn)visitItems[i].name=vn.value;if(vc)visitItems[i].cat=vc.value;
-    const va=document.getElementById('va-'+id);const vs2=document.getElementById('vs2-'+id);
+    const va=document.getElementById('va-'+id);const vs2=document.getElementById('vs2-'+id);const vs3=document.getElementById('vs3-'+id);const vs4=document.getElementById('vs4-'+id);
     if(vp)visitItems[i].price=parseInt(vp.value.replace(/[^\d]/g,''),10)||0;if(vs)visitItems[i].staff=vs.value||'';if(vo)visitItems[i].note=vo.value||'';
-    if(vs2)visitItems[i].staff2=vs2.value||'';
+    if(vs2)visitItems[i].staff2=vs2.value||'';if(vs3)visitItems[i].staff3=vs3.value||'';if(vs4)visitItems[i].staff4=vs4.value||'';
     if(va)visitItems[i].advisor=va.value||'';
     if(vd)visitItems[i].discount=Number(vd.value)||0;if(vdt)visitItems[i].discountType=vdt.value||'pct';
     // Nếu sếp gõ tay tên dịch vụ (không bấm chọn từ danh mục) → tra danh mục theo tên để lấy %
@@ -2119,8 +2121,8 @@ function payrollRows(month){
   // Doanh thu tính theo NGƯỜI LÀM (giữ như tab Doanh Thu đang chạy)
   const revBy={};
   visits.flatMap(v=>v.items||[]).forEach(i=>{
-    const ws=[(i.staff||'').trim(),(i.staff2||'').trim()].filter(Boolean);if(!ws.length)return;
-    const share=finalPrice(i)/ws.length;   // 2 người làm → chia đôi doanh thu
+    const ws=[(i.staff||'').trim(),(i.staff2||'').trim(),(i.staff3||'').trim(),(i.staff4||'').trim()].filter(Boolean);if(!ws.length)return;
+    const share=finalPrice(i)/ws.length;   // nhiều người làm → chia đều doanh thu
     ws.forEach(k=>{if(!revBy[k])revBy[k]={dv:0,mp:0};if(i.cat==='dv')revBy[k].dv+=share;else revBy[k].mp+=share;});});
   // Hoa hồng cộng dồn từ từng ca trong tháng
   const commBy={};
@@ -2227,7 +2229,7 @@ ${renderDailyCommission(monthRange(month).from,monthRange(month).to,'Tháng '+m+
 function earningsRows(from,to){
   const visits=DB.get('visits').filter(v=>v.date>=from&&v.date<=to);
   const by={}; const ensure=nm=>by[nm]||(by[nm]={dv:0,mp:0,ca:0,commWork:0,commAdvice:0});
-  visits.forEach(v=>(v.items||[]).forEach(i=>{const ws=[(i.staff||'').trim(),(i.staff2||'').trim()].filter(Boolean);if(!ws.length)return;const share=finalPrice(i)/ws.length;ws.forEach(nm=>{const r=ensure(nm);r.ca++;if(i.cat==='dv')r.dv+=share;else r.mp+=share;});}));
+  visits.forEach(v=>(v.items||[]).forEach(i=>{const ws=[(i.staff||'').trim(),(i.staff2||'').trim(),(i.staff3||'').trim(),(i.staff4||'').trim()].filter(Boolean);if(!ws.length)return;const share=finalPrice(i)/ws.length;ws.forEach(nm=>{const r=ensure(nm);r.ca++;if(i.cat==='dv')r.dv+=share;else r.mp+=share;});}));
   commissionEntries(from,to).forEach(e=>{const r=ensure(e.nm);if(e.role==='work')r.commWork+=e.comm;else r.commAdvice+=e.comm;});
   const names=new Set([...getStaff(),...Object.keys(by)]);
   return [...names].map(nm=>{const r=by[nm]||{dv:0,mp:0,ca:0,commWork:0,commAdvice:0};return {nm,ca:r.ca,dv:r.dv,mp:r.mp,rev:r.dv+r.mp,commWork:r.commWork,commAdvice:r.commAdvice,comm:r.commWork+r.commAdvice};}).sort((a,b)=>b.comm-a.comm);
