@@ -1754,14 +1754,16 @@ function renderVisitModal(custId,editId){
 }
 function renderVisitItems(){
   const svcs=getServices();
-  const dvOpts=svcs.filter(s=>s.cat==='dv').map(s=>`<option value="${s.id}">${s.name} – ${fmt(s.price)}${s.remindDays?' 🔔'+s.remindDays+'ng':''}</option>`).join('');
+  const _dvOpt=s=>`<option value="${s.id}">${s.name} – ${fmt(s.price)}${s.remindDays?' 🔔'+s.remindDays+'ng':''}</option>`;
+  const _dvAll=svcs.filter(s=>s.cat==='dv');
+  const dvOpts=[...SVC_GROUPS,{k:'',label:'📁 Chưa xếp nhóm'}].map(g=>{const inG=_dvAll.filter(s=>(s.group||'')===g.k);return inG.length?`<optgroup label="${g.label}">${inG.map(_dvOpt).join('')}</optgroup>`:'';}).join('');
   const mpOpts=svcs.filter(s=>s.cat==='mp').map(s=>`<option value="${s.id}">${s.name} – ${fmt(s.price)}</option>`).join('');
   document.getElementById('visit-items-wrap').innerHTML=staffDatalist()+visitItems.map((item,i)=>`
   <div class="vi-row" id="vi-${item.id}">
     <div style="width:100%;margin-bottom:3px">
       <select class="vi-catalog-select" onchange="pickCatalog(${i},this)">
         <option value="">── Chọn từ danh mục dịch vụ ──</option>
-        <optgroup label="✨ Dịch Vụ Chính">${dvOpts}</optgroup>
+        ${dvOpts}
         <optgroup label="💄 Mỹ Phẩm / Sản Phẩm">${mpOpts}</optgroup>
       </select>
     </div>
@@ -2590,15 +2592,17 @@ function renderCommTable(){
   const svcs=getServices();
   const mayTinh=isMayTinh();
   const suaDuoc=mayTinh&&_commEdit;
-  const grp=(cat,tieuDe,mau,nhan)=>{
-    const full=svcs.filter(s=>s.cat===cat);
-    if(!full.length)return `<div style="font-size:12px;font-weight:700;color:${mau};margin:12px 0 6px">${tieuDe}</div>
+  const grp=(cat,tieuDe,mau,nhan,only)=>{
+    const full=only||svcs.filter(s=>s.cat===cat);
+    if(!full.length)return only?'':`<div style="font-size:12px;font-weight:700;color:${mau};margin:12px 0 6px">${tieuDe}</div>
       <div style="color:#90a4ae;font-size:12px;padding:8px 2px">Chưa có. Thêm ở mục 💼 Danh Mục phía trên.</div>`;
-    // Đang SỬA → hiện hết (nếu thu gọn giữa chừng sẽ mất số sếp đang gõ). Đang XEM → thu gọn cho gọn màn hình.
     const key='comm-'+cat;
-    const list=suaDuoc?full:catBot(full,key);
-    return `<div id="anchor-${key}" style="font-size:12px;font-weight:700;color:${mau};margin:12px 0 6px">${tieuDe}${suaDuoc&&full.length>MAC_DINH_HIEN?` <span style="font-weight:400;color:#90a4ae">— đang hiện hết ${full.length} dòng để sửa</span>`:''}</div>
-    <div style="overflow-x:auto"><table style="min-width:770px">
+    // only = 1 nhóm dịch vụ → hiện HẾT (nhóm nhỏ), không phân trang. Ngược lại: XEM thu gọn 6 dòng.
+    const list=only?full:(suaDuoc?full:catBot(full,key));
+    const header=only
+      ? `<div style="font-size:12px;font-weight:700;color:${mau};margin:12px 0 5px;padding:5px 10px;background:#f7fdfd;border-radius:6px">${tieuDe} <span style="font-weight:400;color:#90a4ae">(${full.length})</span></div>`
+      : `<div id="anchor-${key}" style="font-size:12px;font-weight:700;color:${mau};margin:12px 0 6px">${tieuDe}${suaDuoc&&full.length>MAC_DINH_HIEN?` <span style="font-weight:400;color:#90a4ae">— đang hiện hết ${full.length} dòng để sửa</span>`:''}</div>`;
+    return header+`<div style="overflow-x:auto"><table style="min-width:770px">
       <thead><tr>
         <th class="left">${cat==='dv'?'Dịch Vụ':'Sản Phẩm'}</th>
         <th style="width:90px">Giá</th>
@@ -2627,7 +2631,7 @@ function renderCommTable(){
         <td>${om('adviceAmt',aaa)}</td>
         <td style="font-size:11.5px;font-weight:700">${vd}</td>
       </tr>`;}).join('')}</tbody>
-    </table></div>${suaDuoc?'':nutMo(key,full.length,'settings')}`;
+    </table></div>${only?'':(suaDuoc?'':nutMo(key,full.length,'settings'))}`;
   };
   // Thanh nút trên cùng
   let thanh;
@@ -2650,7 +2654,13 @@ function renderCommTable(){
     </div>`;
   }
   el.innerHTML = thanh
-               + grp('dv','✨ DỊCH VỤ','#e65100','% Người Làm')
+               + (function(){
+                   const dvAll=svcs.filter(s=>s.cat==='dv');
+                   if(!dvAll.length) return grp('dv','✨ DỊCH VỤ','#e65100','% Người Làm');
+                   let h=`<div style="font-size:13px;font-weight:800;color:#e65100;margin:14px 0 2px">✨ DỊCH VỤ CHÍNH — theo nhóm</div>`;
+                   [...SVC_GROUPS,{k:'',label:'📁 Chưa xếp nhóm'}].forEach(g=>{const inG=dvAll.filter(s=>(s.group||'')===g.k);if(inG.length)h+=grp('dv',g.label,'#e65100','% Người Làm',inG);});
+                   return h;
+                 })()
                + grp('mp','💄 SẢN PHẨM / MỸ PHẨM','#2e7d32','% Người Bán')
                + `<div style="font-size:11.5px;color:#78909c;margin-top:10px;line-height:1.6">
     💡 Cột <b style="color:#e65100">% Người Làm / Bán</b> là cho người trực tiếp làm dịch vụ hoặc bán sản phẩm.
