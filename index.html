@@ -1974,7 +1974,7 @@ function renderRevenue(){
   <div class="stat-card"><div class="sc-lbl">💰 Tổng Doanh Thu</div><div class="sc-val">${fmt(grand)}</div><div style="font-size:11px;color:#90a4ae;margin-top:3px">${visits.length} lượt · ${custSet.size} khách</div></div>
   <div class="stat-card dv"><div class="sc-lbl">✨ Dịch Vụ Chính</div><div class="sc-val">${fmt(dvTotal)}</div><div style="font-size:11px;color:#90a4ae;margin-top:3px">${grand?Math.round(dvTotal/grand*100):0}% tổng DT</div></div>
   <div class="stat-card mp"><div class="sc-lbl">💄 Mỹ Phẩm (DV+Kho)</div><div class="sc-val">${fmt(mpTotal+cosmRev)}</div><div style="font-size:11px;color:#90a4ae;margin-top:3px">Trong lượt: ${fmt(mpTotal)} · Kho: ${fmt(cosmRev)}</div></div>
-  <div class="stat-card"><div class="sc-lbl">👥 Khách Phục Vụ</div><div class="sc-val" style="color:#1565c0">${custSet.size}</div><div style="font-size:11px;color:#90a4ae;margin-top:3px">TB ${custSet.size?fmt(Math.round(grand/custSet.size)):0}/KH</div></div>
+  <div class="stat-card" style="cursor:pointer" onclick="showCustDetail()" title="Bấm để xem chi tiết"><div class="sc-lbl">👥 Khách Phục Vụ</div><div class="sc-val" style="color:#1565c0">${custSet.size}</div><div style="font-size:11px;color:#90a4ae;margin-top:3px">TB ${custSet.size?fmt(Math.round(grand/custSet.size)):0}/KH · 👆 Xem chi tiết</div></div>
 </div>
 <div class="rev-table" style="margin-bottom:13px">
   <div class="rev-table-header"><h3>📁 Doanh Thu Theo Nhóm Dịch Vụ</h3></div>
@@ -2022,6 +2022,58 @@ ${(()=>{
 <table><thead><tr><th class="left">Nhân Viên</th><th style="color:#e65100">HH Làm</th><th style="color:#8e24aa">HH Tư Vấn</th><th style="color:#e65100">Tổng HH</th></tr></thead>
 <tbody>${rowsC.map(x=>`<tr><td class="left"><b>${x.nm}</b></td><td style="color:#e65100">${fmt(x.work)}</td><td style="color:#8e24aa">${fmt(x.advice)}</td><td style="color:#e65100;font-weight:700">${fmt(x.tong)}</td></tr>`).join('')}</tbody>
 <tfoot><tr><td class="left">TỔNG</td><td></td><td></td><td style="color:#e65100;font-size:13px">${fmt(totalComm)}</td></tr></tfoot></table></div>`;})()} `;
+}
+
+// ══ CHI TIẾT KHÁCH PHỤC VỤ (bấm vào ô "Khách Phục Vụ" ở tab Doanh Thu) ══
+function showCustDetail(){
+  const from=document.getElementById('rev-from').value;const to=document.getElementById('rev-to').value;if(!from||!to)return;
+  const visits=DB.get('visits').filter(v=>v.date>=from&&v.date<=to);
+  const custs=DB.get('customers');const custById={};custs.forEach(c=>custById[c.id]=c);
+  autoAssignGroups();
+  const _svcsG=getServices();const _gById={},_gByName={};
+  _svcsG.forEach(s=>{_gById[s.id]=s.group||'';_gByName[(s.name||'').trim().toLowerCase()]=s.group||'';});
+  // Bút toán NỘI BỘ spa (bù lương, bù thiếu, tặng csd...) được gõ như 1 "dịch vụ" 0đ vào hồ sơ khách
+  // nhưng KHÔNG phải khách thật tới làm — nhận diện bằng: dịch vụ chưa được xếp vào nhóm nào (Chưa xếp nhóm).
+  // → loại hẳn khỏi mọi số liệu khách hàng ở đây theo yêu cầu của sếp (không tính là 1 lượt ghé).
+  const isRealItem=i=>{ if(i.cat!=='dv')return true; const g=_gById[i.svcId]||_gByName[(i.name||'').trim().toLowerCase()]||''; return g!==''; };
+  const groupCust={};SVC_GROUPS.forEach(g=>groupCust[g.k]=new Set());
+  const custSet=new Set();const freeVisits=[];
+  visits.forEach(v=>{
+    const items=(v.items||[]).filter(isRealItem);
+    if(!items.length)return; // toàn bộ là bút toán nội bộ → bỏ qua, không tính là khách ghé
+    custSet.add(v.custId);
+    const visitTotal=items.reduce((a,i)=>a+finalPrice(i),0);
+    const c=custById[v.custId];
+    if(visitTotal===0&&c){
+      const st=getCustStats(v.custId);
+      if(st.visits>1)freeVisits.push({c,v,names:items.map(i=>i.name).join(', ')});
+    }
+    items.filter(i=>i.cat==='dv').forEach(i=>{
+      const g=_gById[i.svcId]||_gByName[(i.name||'').trim().toLowerCase()]||'';
+      if(groupCust[g])groupCust[g].add(v.custId);
+    });
+  });
+  let newCount=0;
+  custSet.forEach(id=>{const st=getCustStats(id);if(st.visits===1)newCount++;});
+  const statTiles=[
+    {lbl:'👥 Tổng khách ghé',val:custSet.size,color:'#1565c0'},
+    ...SVC_GROUPS.map(g=>({lbl:g.label,val:groupCust[g.k].size,color:'#00838f'})),
+    {lbl:'🌸 Khách mới (lần đầu ghé)',val:newCount,color:'#e65100'}
+  ];
+  const freeRows=freeVisits.sort((a,b)=>b.v.date.localeCompare(a.v.date));
+  const fromDisp=from.split('-').reverse().join('/');const toDisp=to.split('-').reverse().join('/');
+  showModal(`
+  <h3 style="margin:0 0 12px">👥 Chi Tiết Khách Phục Vụ (${fromDisp} → ${toDisp})</h3>
+  <div class="stat-cards" style="grid-template-columns:repeat(3,1fr)">
+    ${statTiles.map(t=>`<div class="stat-card"><div class="sc-lbl">${t.lbl}</div><div class="sc-val" style="color:${t.color}">${t.val}</div></div>`).join('')}
+  </div>
+  <div class="rev-table" style="margin-top:14px">
+    <div class="rev-table-header"><h3>🎁 Khách Cũ Dùng Liệu Trình (Không Mất Tiền) — ${freeRows.length} lượt</h3></div>
+    <table><thead><tr><th class="left">Khách</th><th class="left">SĐT</th><th class="left">Dịch vụ</th><th>Ngày</th></tr></thead>
+    <tbody>${freeRows.length?freeRows.map(r=>`<tr><td class="left"><b>${r.c.name}</b></td><td class="left">${r.c.phone||''}</td><td class="left">${r.names}</td><td>${new Date(r.v.date+'T00:00:00').toLocaleDateString('vi-VN')}</td></tr>`).join(''):'<tr><td colspan="4" style="text-align:center;color:#aaa;padding:16px">Không có lượt nào</td></tr>'}</tbody></table>
+  </div>
+  <div style="margin-top:12px;font-size:11px;color:#90a4ae">* Một khách dùng nhiều nhóm dịch vụ thì tính vào tất cả các nhóm đó, nên tổng các nhóm có thể lớn hơn Tổng khách ghé. "Khách mới" = khách chỉ mới ghé đúng 1 lần từ trước tới nay (tính luôn lượt trong kỳ này). Các bút toán nội bộ (bù lương, bù thiếu, tặng csd...) đã được loại khỏi bảng này, không tính là khách ghé.</div>
+  `);
 }
 
 // ══ COSMETICS DB ══
