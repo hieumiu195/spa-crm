@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Cập nhật 2026-09-06: tách khối Dịch Vụ / Sản Phẩm khi thêm lượt + cảnh báo & chặn nhập nhầm loại mỹ phẩm vào dịch vụ -->
+<!-- Cập nhật 2026-09-06: (1) tách khối Dịch Vụ / Sản Phẩm khi thêm lượt + chặn nhập nhầm loại; (2) Báo Cáo Chi Tiết: bấm số nào trong tab Doanh Thu cũng ra danh sách khách/dịch vụ/nhân viên đứng sau số đó -->
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
@@ -349,6 +349,7 @@ tfoot td{background:#006064!important;color:#fff;font-weight:700;}
       <button id="revbtn-year" class="btn btn-gray btn-sm" onclick="setRevRange('year')">Năm nay</button>
       <button class="btn btn-gray btn-sm" style="margin-left:auto" onclick="window.print()">🖨️ In</button>
     </div>
+    <button class="btn btn-teal" onclick="showRevDrill('all')" style="width:100%;margin:4px 0 10px;font-size:13px;padding:9px">📋 BÁO CÁO CHI TIẾT — xem từng khách · từng dịch vụ · từng nhân viên (theo khoảng ngày đang chọn)</button>
     <div id="rev-content"></div>
   </div>
 
@@ -2046,53 +2047,53 @@ function renderRevenue(){
     byDate[v.date].vCount++;byDate[v.date].custSet.add(v.custId);});
   const dates=Object.keys(byDate).sort((a,b)=>b.localeCompare(a));
   const svcMap={};dvItems.forEach(i=>{svcMap[i.name]=(svcMap[i.name]||0)+finalPrice(i);});
-  const topDv=Object.entries(svcMap).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const topDv=Object.entries(svcMap).sort((a,b)=>b[1]-a[1]).slice(0,12);
   // Doanh thu theo NHÓM dịch vụ (tra nhóm của dịch vụ theo svcId hoặc theo tên)
   autoAssignGroups();
   const _svcsG=getServices(); const _gById={},_gByName={};
   _svcsG.forEach(s=>{_gById[s.id]=s.group||''; _gByName[(s.name||'').trim().toLowerCase()]=s.group||'';});
   const groupMap={}; dvItems.forEach(i=>{const g=_gById[i.svcId]||_gByName[(i.name||'').trim().toLowerCase()]||''; groupMap[g]=(groupMap[g]||0)+finalPrice(i);});
   const prodMap={};mpItems.forEach(i=>{prodMap[i.name]=(prodMap[i.name]||0)+finalPrice(i);});
-  const topMp=Object.entries(prodMap).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const topMp=Object.entries(prodMap).sort((a,b)=>b[1]-a[1]).slice(0,12);
   // Count cosm from visits in period
   const cosmRev=visits.reduce((a,v)=>(v.cosm||[]).reduce((b,c)=>b+Number(c.qty||0)*Number(c.price||0),a),0);
   const staffMap={};allItems.forEach(i=>{const k=i.staff||'Không rõ';staffMap[k]=(staffMap[k]||0)+finalPrice(i);});
   const topStaff=Object.entries(staffMap).sort((a,b)=>b[1]-a[1]);
   document.getElementById('rev-content').innerHTML=`
 <div class="stat-cards">
-  <div class="stat-card"><div class="sc-lbl">💰 Tổng Doanh Thu</div><div class="sc-val">${fmt(grand)}</div><div style="font-size:11px;color:#90a4ae;margin-top:3px">${visits.length} lượt · ${custSet.size} khách</div></div>
-  <div class="stat-card dv"><div class="sc-lbl">✨ Dịch Vụ Chính</div><div class="sc-val">${fmt(dvTotal)}</div><div style="font-size:11px;color:#90a4ae;margin-top:3px">${grand?Math.round(dvTotal/grand*100):0}% tổng DT</div></div>
-  <div class="stat-card mp"><div class="sc-lbl">💄 Mỹ Phẩm (DV+Kho)</div><div class="sc-val">${fmt(mpTotal+cosmRev)}</div><div style="font-size:11px;color:#90a4ae;margin-top:3px">Trong lượt: ${fmt(mpTotal)} · Kho: ${fmt(cosmRev)}</div></div>
+  <div class="stat-card" style="cursor:pointer" onclick="showRevDrill('all')" title="Bấm xem chi tiết từng khách"><div class="sc-lbl">💰 Tổng Doanh Thu</div><div class="sc-val">${fmt(grand)}</div><div style="font-size:11px;color:#90a4ae;margin-top:3px">${visits.length} lượt · ${custSet.size} khách · 👆 xem</div></div>
+  <div class="stat-card dv" style="cursor:pointer" onclick="showRevDrill('dv')" title="Bấm xem chi tiết"><div class="sc-lbl">✨ Dịch Vụ Chính</div><div class="sc-val">${fmt(dvTotal)}</div><div style="font-size:11px;color:#90a4ae;margin-top:3px">${grand?Math.round(dvTotal/grand*100):0}% tổng DT · 👆 xem</div></div>
+  <div class="stat-card mp" style="cursor:pointer" onclick="showRevDrill('mp')" title="Bấm xem chi tiết"><div class="sc-lbl">💄 Mỹ Phẩm (DV+Kho)</div><div class="sc-val">${fmt(mpTotal+cosmRev)}</div><div style="font-size:11px;color:#90a4ae;margin-top:3px">Trong lượt: ${fmt(mpTotal)} · Kho: ${fmt(cosmRev)}</div></div>
   <div class="stat-card" style="cursor:pointer" onclick="showCustDetail()" title="Bấm để xem chi tiết"><div class="sc-lbl">👥 Khách Phục Vụ</div><div class="sc-val" style="color:#1565c0">${custSet.size}</div><div style="font-size:11px;color:#90a4ae;margin-top:3px">TB ${custSet.size?fmt(Math.round(grand/custSet.size)):0}/KH · 👆 Xem chi tiết</div></div>
 </div>
 <div class="rev-table" style="margin-bottom:13px">
-  <div class="rev-table-header"><h3>📁 Doanh Thu Theo Nhóm Dịch Vụ</h3></div>
+  <div class="rev-table-header"><h3>📁 Doanh Thu Theo Nhóm Dịch Vụ</h3><span style="font-size:11px;color:#78909c">👆 bấm 1 dòng để xem khách</span></div>
   <table><thead><tr><th class="left">Nhóm</th><th>Doanh Thu</th><th>%</th></tr></thead>
-  <tbody>${(()=>{const order=[...SVC_GROUPS.map(g=>g.k),''];const rows=order.filter(k=>groupMap[k]).map(k=>`<tr><td class="left"><b>${groupLabel(k)}</b></td><td><b>${fmt(groupMap[k])}</b></td><td>${dvTotal?Math.round(groupMap[k]/dvTotal*100):0}%</td></tr>`);return rows.length?rows.join(''):'<tr><td colspan="3" style="text-align:center;color:#aaa;padding:16px">Chưa có dịch vụ nào trong khoảng này</td></tr>';})()}</tbody>
+  <tbody>${(()=>{const order=[...SVC_GROUPS.map(g=>g.k),''];const rows=order.filter(k=>groupMap[k]).map(k=>`<tr style="cursor:pointer" onclick="showRevDrill('group','${k}')"><td class="left"><b>${groupLabel(k)}</b></td><td><b>${fmt(groupMap[k])}</b></td><td>${dvTotal?Math.round(groupMap[k]/dvTotal*100):0}%</td></tr>`);return rows.length?rows.join(''):'<tr><td colspan="3" style="text-align:center;color:#aaa;padding:16px">Chưa có dịch vụ nào trong khoảng này</td></tr>';})()}</tbody>
   ${dvTotal?`<tfoot><tr><td class="left">TỔNG DỊCH VỤ</td><td>${fmt(dvTotal)}</td><td>100%</td></tr></tfoot>`:''}</table>
 </div>
 <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:13px">
   <div class="rev-table"><div class="rev-table-header"><h3>✨ Theo Dịch Vụ</h3></div>
     <table><thead><tr><th class="left">Dịch Vụ</th><th>Doanh Thu</th><th>%</th></tr></thead>
-    <tbody>${topDv.length?topDv.map(([n,a])=>`<tr><td class="left">${n}</td><td><b>${fmt(a)}</b></td><td>${dvTotal?Math.round(a/dvTotal*100):0}%</td></tr>`).join(''):
+    <tbody>${topDv.length?topDv.map(([n,a])=>`<tr style="cursor:pointer" data-k="${_escAttr(n)}" onclick="showRevDrill('service',this.dataset.k)"><td class="left">${_escHtml(n)}</td><td><b>${fmt(a)}</b></td><td>${dvTotal?Math.round(a/dvTotal*100):0}%</td></tr>`).join(''):
     '<tr><td colspan="3" style="text-align:center;color:#aaa;padding:16px">Chưa có</td></tr>'}</tbody>
     ${dvTotal?`<tfoot><tr><td class="left">TỔNG</td><td>${fmt(dvTotal)}</td><td>100%</td></tr></tfoot>`:''}</table></div>
   <div class="rev-table"><div class="rev-table-header"><h3>💄 Theo Mỹ Phẩm</h3></div>
     <table><thead><tr><th class="left">Sản Phẩm</th><th>Doanh Thu</th><th>%</th></tr></thead>
-    <tbody>${topMp.length?topMp.map(([n,a])=>`<tr><td class="left">${n}</td><td><b>${fmt(a)}</b></td><td>${mpTotal?Math.round(a/mpTotal*100):0}%</td></tr>`).join(''):
+    <tbody>${topMp.length?topMp.map(([n,a])=>`<tr style="cursor:pointer" data-k="${_escAttr(n)}" onclick="showRevDrill('product',this.dataset.k)"><td class="left">${_escHtml(n)}</td><td><b>${fmt(a)}</b></td><td>${mpTotal?Math.round(a/mpTotal*100):0}%</td></tr>`).join(''):
     '<tr><td colspan="3" style="text-align:center;color:#aaa;padding:16px">Chưa có</td></tr>'}</tbody>
     ${mpTotal?`<tfoot><tr><td class="left">TỔNG</td><td>${fmt(mpTotal)}</td><td>100%</td></tr></tfoot>`:''}</table></div>
   <div class="rev-table"><div class="rev-table-header"><h3>👤 Theo Nhân Viên</h3></div>
     <table><thead><tr><th class="left">Nhân Viên</th><th>Doanh Thu</th><th>%</th></tr></thead>
-    <tbody>${topStaff.length?topStaff.map(([n,a])=>`<tr><td class="left"><b>${n}</b></td><td><b>${fmt(a)}</b></td><td>${grand?Math.round(a/grand*100):0}%</td></tr>`).join(''):
+    <tbody>${topStaff.length?topStaff.map(([n,a])=>`<tr style="cursor:pointer" data-k="${_escAttr(n)}" onclick="showRevDrill('staff',this.dataset.k)"><td class="left"><b>${_escHtml(n)}</b></td><td><b>${fmt(a)}</b></td><td>${grand?Math.round(a/grand*100):0}%</td></tr>`).join(''):
     '<tr><td colspan="3" style="text-align:center;color:#aaa;padding:16px">Chưa có</td></tr>'}</tbody>
     ${grand?`<tfoot><tr><td class="left">TỔNG</td><td>${fmt(grand)}</td><td>100%</td></tr></tfoot>`:''}</table></div>
 </div>
-<div class="rev-table"><div class="rev-table-header"><h3>📅 Chi Tiết Theo Ngày</h3></div>
+<div class="rev-table"><div class="rev-table-header"><h3>📅 Chi Tiết Theo Ngày</h3><span style="font-size:11px;color:#78909c">👆 bấm 1 ngày để xem từng khách</span></div>
   <table><thead><tr><th class="left">Ngày</th><th>Khách</th><th>Lượt</th><th style="color:#2e7d32">Dịch Vụ</th><th style="color:#e65100">Mỹ Phẩm</th><th style="background:#006064;color:#fff">Tổng Ngày</th></tr></thead>
   <tbody>${dates.length?dates.map(date=>{
     const d=new Date(date+'T00:00:00');const e=byDate[date];const dt=e.dv+e.mp;
-    return`<tr><td class="left"><b>${WD[d.getDay()]}, ${d.toLocaleDateString('vi-VN')}</b></td><td>${e.custSet.size}</td><td>${e.vCount}</td>
+    return`<tr style="cursor:pointer" onclick="showRevDrill('date','${date}')"><td class="left"><b>${WD[d.getDay()]}, ${d.toLocaleDateString('vi-VN')}</b></td><td>${e.custSet.size}</td><td>${e.vCount}</td>
     <td style="color:#2e7d32;font-weight:700">${fmt(e.dv)}</td><td style="color:#e65100;font-weight:700">${fmt(e.mp)}</td>
     <td style="font-weight:700;color:#006064;font-size:13px">${fmt(dt)}</td></tr>`;
   }).join(''):'<tr><td colspan="6" style="text-align:center;color:#aaa;padding:26px">Không có dữ liệu</td></tr>'}</tbody>
@@ -2111,6 +2112,80 @@ ${(()=>{
 <table><thead><tr><th class="left">Nhân Viên</th><th style="color:#e65100">HH Làm</th><th style="color:#8e24aa">HH Tư Vấn</th><th style="color:#e65100">Tổng HH</th></tr></thead>
 <tbody>${rowsC.map(x=>`<tr><td class="left"><b>${x.nm}</b></td><td style="color:#e65100">${fmt(x.work)}</td><td style="color:#8e24aa">${fmt(x.advice)}</td><td style="color:#e65100;font-weight:700">${fmt(x.tong)}</td></tr>`).join('')}</tbody>
 <tfoot><tr><td class="left">TỔNG</td><td></td><td></td><td style="color:#e65100;font-size:13px">${fmt(totalComm)}</td></tr></tfoot></table></div>`;})()} `;
+}
+
+// ══ BÁO CÁO CHI TIẾT — bấm số nào cũng ra danh sách khách/dịch vụ/nhân viên đứng sau số đó ══
+// kind: 'all' | 'dv' | 'mp' | 'group' | 'service' | 'product' | 'date' | 'staff'
+function showRevDrill(kind,key){
+  const from=document.getElementById('rev-from').value,to=document.getElementById('rev-to').value;
+  if(!from||!to){toast('Chọn khoảng ngày trước đã',false);return;}
+  autoAssignGroups();
+  const svcs=getServices(),_gById={},_gByName={};
+  svcs.forEach(s=>{_gById[s.id]=s.group||'';_gByName[(s.name||'').trim().toLowerCase()]=s.group||'';});
+  const grpOf=i=>_gById[i.svcId]||_gByName[(i.name||'').trim().toLowerCase()]||'';
+  const custs=DB.get('customers'),cById={};custs.forEach(c=>cById[c.id]=c);
+  const visits=DB.get('visits').filter(v=>v.date>=from&&v.date<=to).sort((a,b)=>a.date.localeCompare(b.date));
+  const match=(v,it)=>{
+    if(kind==='all')return true;
+    if(kind==='dv')return it.cat==='dv';
+    if(kind==='mp')return it.cat==='mp';
+    if(kind==='group')return it.cat==='dv'&&grpOf(it)===key;
+    if(kind==='service')return it.cat==='dv'&&it.name===key;
+    if(kind==='product')return it.cat==='mp'&&it.name===key;
+    if(kind==='date')return v.date===key;
+    if(kind==='staff')return (it.staff||'Không rõ')===key;
+    return false;
+  };
+  const days={};let total=0,nItems=0;const custSet=new Set();
+  visits.forEach(v=>{
+    const its=(v.items||[]).filter(it=>match(v,it));
+    if(!its.length)return;
+    (days[v.date]=days[v.date]||[]).push({v,its});
+    its.forEach(it=>{total+=finalPrice(it);nItems++;});
+    custSet.add(v.custId);
+  });
+  const dateKeys=Object.keys(days).sort();
+  const _dmy=s=>String(s||'').split('-').reverse().join('/');
+  const titles={all:'📋 Tất cả doanh thu',dv:'✨ Dịch vụ chính',mp:'💄 Mỹ phẩm / sản phẩm',group:'📁 Nhóm: '+groupLabel(key),service:'✨ Dịch vụ: '+key,product:'💄 Sản phẩm: '+key,date:'📅 Ngày '+_dmy(key),staff:'👤 Nhân viên: '+key};
+  const dispF=_dmy(from),dispT=_dmy(to);
+  const staffLine=it=>{
+    const w=[it.staff,it.staff2,it.staff3,it.staff4].map(x=>(x||'').trim()).filter(Boolean).join(' + ');
+    const a=(it.advisor||'').trim();
+    return _escHtml((w||'—')+(a?'  🗣 '+a:''));
+  };
+  let bodyHtml='';
+  dateKeys.forEach(dk=>{
+    const d=new Date(dk+'T00:00:00');let dayTot=0;const dayCust=new Set();
+    const trs=days[dk].map(({v,its})=>{
+      const c=cById[v.custId]||{};dayCust.add(v.custId);
+      return its.map(it=>{
+        const fp=finalPrice(it);dayTot+=fp;
+        return `<tr>
+          <td class="left"><b>${_escHtml(c.name||'?')}</b>${c.phone?`<div style="font-size:10px;color:#90a4ae">${_escHtml(c.phone)}</div>`:''}</td>
+          <td class="left">${it.cat==='mp'?'💄 ':'✨ '}${_escHtml(it.name)}</td>
+          <td style="text-align:right;white-space:nowrap">${it.discount?`<span style="text-decoration:line-through;color:#b0bec5;font-size:10px">${fmt(it.price)}</span> `:''}<b>${fmt(fp)}</b></td>
+          <td class="left" style="font-size:11px">${staffLine(it)}</td>
+          <td class="left" style="font-size:11px;color:#78909c">${_escHtml(it.note||v.visitNote||'')}</td>
+        </tr>`;
+      }).join('');
+    }).join('');
+    bodyHtml+=`<div class="rev-table" style="margin-bottom:10px">
+      <div class="rev-table-header"><h3>${WD[d.getDay()]}, ${d.toLocaleDateString('vi-VN')} — ${dayCust.size} khách · ${fmt(dayTot)}</h3></div>
+      <div style="overflow-x:auto"><table style="min-width:540px"><thead><tr><th class="left">Khách</th><th class="left">Dịch vụ / Sản phẩm</th><th style="text-align:right">Thành tiền</th><th class="left">Người làm · 🗣 tư vấn</th><th class="left">Ghi chú</th></tr></thead>
+      <tbody>${trs}</tbody></table></div>
+    </div>`;
+  });
+  if(!dateKeys.length)bodyHtml='<div style="text-align:center;color:#aaa;padding:34px">Không có dữ liệu trong khoảng này</div>';
+  showModal(`
+    <h3 style="margin-bottom:6px">${titles[kind]||'📋 Báo cáo'}</h3>
+    <div class="modal-sticky-top" style="display:block;padding-top:6px">
+      <div style="font-size:12px;color:#37474f;line-height:1.7">Khoảng: <b>${dispF} → ${dispT}</b><br>
+      <b>${custSet.size}</b> khách · <b>${nItems}</b> mục · <b style="color:#006064;font-size:13px">Tổng: ${fmt(total)}</b></div>
+      <button class="btn btn-gray btn-sm" onclick="closeModal()" style="margin-top:7px">✕ Đóng</button>
+    </div>
+    ${bodyHtml}
+    <div class="modal-sticky-bot"><button class="btn btn-gray" onclick="closeModal()">Đóng</button></div>
+  `);
 }
 
 // ══ CHI TIẾT KHÁCH PHỤC VỤ (bấm vào ô "Khách Phục Vụ" ở tab Doanh Thu) ══
