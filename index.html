@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Cập nhật 2026-09-06: (1) tách khối Dịch Vụ / Sản Phẩm khi thêm lượt + chặn nhập nhầm loại; (2) Báo Cáo Chi Tiết: bấm số nào trong tab Doanh Thu cũng ra danh sách khách/dịch vụ/nhân viên đứng sau số đó -->
+<!-- Cập nhật 2026-09-06: (A) ô GÕ TÌM dịch vụ nhanh khi thêm lượt; (B) NHẬN TIỀN: ô 'Khách đưa tiền' -> đặt cọc / trả trước / còn nợ; Doanh Thu thêm Tiền Thực Thu + bảng Khách Còn Nợ -->
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
@@ -156,6 +156,23 @@ textarea.fi{resize:vertical;min-height:55px;}
 .vi-cat-sel.is-mp{background:#fff3e0;border-color:#ffb74d!important;color:#e65100;}
 .vi-catwarn{width:100%;margin-top:5px;background:#fff3e0;border:1.5px solid #ffb74d;color:#bf360c;border-radius:7px;padding:6px 9px;font-size:11.5px;font-weight:600;line-height:1.55;}
 .vi-total{text-align:right;font-size:12.5px;color:#455a64;padding:2px 2px 0;font-weight:600;}
+/* Ô GÕ TÌM DỊCH VỤ NHANH */
+.vi-cat-search{width:100%;border:1.5px solid #80cbc4;border-radius:7px;padding:8px 11px;font-size:13px;font-family:inherit;background:#fff;color:#006064;font-weight:600;}
+.vi-cat-search:focus{outline:none;border-color:#00838f;background:#f1fbfb;}
+.vi-cat-drop{display:none;margin-top:3px;border:1.5px solid #b2dfdb;border-radius:8px;background:#fff;max-height:230px;overflow-y:auto;box-shadow:0 6px 20px rgba(0,0,0,.1);}
+.vi-cat-drop.show{display:block;}
+.vi-cat-opt{padding:8px 11px;font-size:12.5px;cursor:pointer;border-bottom:1px solid #f0f4f8;display:flex;justify-content:space-between;align-items:center;gap:8px;}
+.vi-cat-opt:last-child{border-bottom:none;}
+.vi-cat-opt:active,.vi-cat-opt:hover{background:#e0f7fa;}
+.vi-cat-opt .nm{font-weight:600;color:#263238;}
+.vi-cat-opt .pr{color:#00838f;font-weight:700;white-space:nowrap;}
+.vi-cat-opt .tg{font-size:10px;font-weight:700;padding:1px 6px;border-radius:5px;margin-left:5px;}
+.vi-cat-opt .tg.dv{background:#e0f2f1;color:#00695c;}
+.vi-cat-opt .tg.mp{background:#fff3e0;color:#e65100;}
+.vi-cat-none{padding:9px 11px;font-size:12px;color:#90a4ae;}
+/* Ô KHÁCH ĐÃ TRẢ / CÒN NỢ */
+.v-paid-box{background:#f1f8f9;border:1.5px solid #b2ebf2;border-radius:9px;padding:10px 12px;margin-top:6px;}
+.v-paid-box label{margin-bottom:3px;display:block;font-size:12px;font-weight:700;color:#006064;}
 .price-orig{text-decoration:line-through;color:#90a4ae;font-size:11px;}
 .price-disc{color:#c62828;font-weight:700;}
 .disc-tag{background:#ffebee;color:#c62828;border-radius:6px;font-size:10px;font-weight:700;padding:1px 6px;}
@@ -1114,6 +1131,18 @@ function guessCat(name){
 }
 function _escAttr(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
 function _escHtml(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+// Bỏ dấu tiếng Việt để gõ "moi" cũng ra "môi"
+function _noAccent(s){return String(s==null?'':s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[\u0111\u0110]/g,'d').toLowerCase().trim();}
+// ══ TIỀN THỰC THU / CÒN NỢ (theo từng lượt) ══
+// v.paid = số tiền khách ĐÃ ĐƯA cho lượt này. Bỏ trống / lượt cũ = coi như THU ĐỦ → số liệu cũ KHÔNG đổi.
+function visitBill(v){return ((v&&v.items)||[]).reduce((a,i)=>a+finalPrice(i),0);}
+function visitPaid(v){
+  const bill=visitBill(v);
+  if(!v||v.paid===undefined||v.paid===null||v.paid==='') return bill;
+  return Math.max(0,Number(v.paid)||0);
+}
+function visitDebt(v){return Math.max(0, visitBill(v)-visitPaid(v));}
+function hasPaidField(v){return v&&v.paid!==undefined&&v.paid!==null&&v.paid!=='';}
 // ══ HOA HỒNG 1 DÒNG ══
 // % được CHỐT vào từng dòng lúc nhập (commPct/advicePct) → sau này sửa % trong danh mục
 // thì lương các tháng đã chốt KHÔNG bị chạy lại.
@@ -1469,6 +1498,7 @@ function openCust(custId){
         <span>📆</span><span class="vd">${WD[d.getDay()]}, ${d.toLocaleDateString('vi-VN')}</span>
         <span style="font-size:11px;color:#546e7a">${v.items.length} mục</span>
         ${vDisc>0?`<span class="disc-tag">Giảm ${fmt(vDisc)}</span>`:''}
+        ${hasPaidField(v)&&visitDebt(v)>0?`<span class="disc-tag" style="background:#ffebee;color:#c62828">🔴 Nợ ${fmt(visitDebt(v))}</span>`:''}
         <span class="vs">${fmt(vT)}</span>
         <span style="font-size:11px;margin-left:5px;color:#90a4ae">${vi===0?'▼':'▶'}</span>
       </div>
@@ -1491,6 +1521,9 @@ function openCust(custId){
             <td>${vDisc>0?`<span class="disc-tag">-${fmt(vDisc)}</span>`:'—'}</td>
             <td>${fmt(vT)}</td><td></td></tr></tfoot>
         </table>
+        ${hasPaidField(v)?`<div style="margin-top:8px;padding:8px 11px;border-radius:8px;font-size:12.5px;font-weight:700;${visitDebt(v)>0?'background:#ffebee;color:#c62828':(visitPaid(v)>vT?'background:#e3f2fd;color:#1565c0':'background:#e8f5e9;color:#2e7d32')}">
+          💰 Khách đã đưa: ${fmt(visitPaid(v))}${visitDebt(v)>0?` &nbsp;·&nbsp; 🔴 Còn nợ: ${fmt(visitDebt(v))}`:(visitPaid(v)>vT?` &nbsp;·&nbsp; 🔵 Đưa dư / cọc: ${fmt(visitPaid(v)-vT)}`:' &nbsp;·&nbsp; ✓ Thu đủ')}
+        </div>`:''}
         ${v.visitNote?`<div class="visit-note">📝 ${v.visitNote}</div>`:''}
         ${v.photos&&v.photos.length?`<div style="font-size:12px;font-weight:700;color:#006064;margin-top:9px;margin-bottom:5px">📸 Ảnh Trước / Sau</div>
         <div class="photos-row">${v.photos.map((ph,pi)=>`<div class="photo-pair">
@@ -1764,8 +1797,10 @@ function showEditVisit(visitId,custId){
 }
 function renderVisitModal(custId,editId){
   const c=DB.get('customers').find(x=>x.id===custId);
-  const vDate=editId?DB.get('visits').find(x=>x.id===editId)?.date:today();
-  const vNote=editId?DB.get('visits').find(x=>x.id===editId)?.visitNote||'':'';
+  const _ev=editId?DB.get('visits').find(x=>x.id===editId):null;
+  const vDate=_ev?_ev.date:today();
+  const vNote=_ev?(_ev.visitNote||''):'';
+  const vPaidRaw=(_ev&&_ev.paid!==undefined&&_ev.paid!==null&&_ev.paid!=='')?_ev.paid:'';
   showModal(`<h3>${editId?'✏️ Sửa':'➕ Thêm'} Lượt Dịch Vụ${c?' – '+c.name:''}</h3>
   <div class="modal-sticky-top">
     <button class="btn btn-teal" onclick="saveVisit('${custId}','${editId||''}')">💾 Lưu Lượt Dịch Vụ</button>
@@ -1780,21 +1815,37 @@ function renderVisitModal(custId,editId){
   <div style="font-size:12px;font-weight:700;color:#e65100;margin:12px 0 5px">📦 Bán Mỹ Phẩm Có Trừ Kho <span style="font-weight:400;font-size:11px;color:#90a4ae">(tuỳ chọn — dùng khi cần trừ tồn kho)</span></div>
   <div id="cosm-items-wrap"></div>
   <button class="btn btn-gray btn-sm" onclick="addCosmItem()" style="margin-bottom:10px">📦 + Thêm Mỹ Phẩm Trừ Kho</button>
-  <div class="form-grid full" style="margin-top:4px">
+  <div class="v-paid-box">
+    <label>💰 Khách đưa tiền (đ) <span style="font-weight:400;color:#90a4ae">— để TRỐNG nếu khách trả đủ. Nhập số nếu khách cọc / đưa trước / trả thiếu</span></label>
+    <input class="fi" id="v-paid" type="number" inputmode="numeric" placeholder="Để trống = thu đủ" value="${vPaidRaw}" oninput="updatePaidPreview()" style="max-width:240px">
+    <div id="v-paid-preview" style="font-size:12.5px;font-weight:700;margin-top:6px">&nbsp;</div>
+  </div>
+  <div class="form-grid full" style="margin-top:6px">
     <div><label>📝 Ghi Chú</label><textarea class="fi" id="v-note" placeholder="KH hài lòng, hẹn lại sau...">${vNote}</textarea></div>
   </div>
   <div class="modal-sticky-bot"><button class="btn btn-gray" onclick="closeModal()">Huỷ</button><button class="btn btn-teal" onclick="saveVisit('${custId}','${editId||''}')">💾 Lưu</button></div>`);
-  renderVisitItems();renderPhotosWrap();renderCosmWrap();
+  renderVisitItems();renderPhotosWrap();renderCosmWrap();updatePaidPreview();
+}
+function updatePaidPreview(){
+  const el=document.getElementById('v-paid-preview'); if(!el) return;
+  const inp=document.getElementById('v-paid');
+  const bill=(visitItems||[]).reduce((a,it)=>a+finalPrice(it),0);
+  const raw=inp?String(inp.value||'').trim():'';
+  if(raw===''){ el.innerHTML='<span style="color:#2e7d32">✓ Thu đủ '+fmt(bill)+'</span>'; return; }
+  const paid=Math.max(0,parseInt(raw.replace(/[^\d]/g,''),10)||0);
+  const debt=bill-paid;
+  if(debt>0) el.innerHTML='<span style="color:#c62828">🔴 Còn nợ '+fmt(debt)+'</span> <span style="color:#90a4ae">(tổng '+fmt(bill)+' − đã đưa '+fmt(paid)+')</span>';
+  else if(debt<0) el.innerHTML='<span style="color:#1565c0">🔵 Khách đưa DƯ / đặt cọc trước '+fmt(-debt)+'</span> <span style="color:#90a4ae">(bill '+fmt(bill)+')</span>';
+  else el.innerHTML='<span style="color:#2e7d32">✓ Thu đủ '+fmt(bill)+'</span>';
 }
 function _viRowHtml(item,i){
   const bad = item.cat==='dv' && guessCat(item.name)==='mp';
   return `
   <div class="vi-row" id="vi-${item.id}">
-    <div style="width:100%;margin-bottom:3px">
-      <select class="vi-catalog-select" onchange="pickCatalog(${i},this)">
-        <option value="">── Chọn nhanh từ danh mục ──</option>
-        ${_viCatOpts}
-      </select>
+    <div style="width:100%;margin-bottom:3px;position:relative">
+      <input class="vi-cat-search" id="vcs-${item.id}" autocomplete="off" placeholder="🔎 Gõ tên để tìm nhanh — vd: môi, mày, serum, cấy mụn..."
+        oninput="viCatSearch(${i})" onfocus="viCatSearch(${i})" onblur="viCatBlur(${i})">
+      <div class="vi-cat-drop" id="vcd-${item.id}"></div>
     </div>
     <input id="vn-${item.id}" placeholder="Tên dịch vụ / sản phẩm *" value="${_escAttr(item.name)}" oninput="onItemName(${i},this.value)" style="flex:2;min-width:140px">
     <select id="vc-${item.id}" class="vi-cat-sel ${item.cat==='mp'?'is-mp':'is-dv'}" onchange="onItemCat(${i},this.value)" title="Loại — Dịch vụ làm tại spa hay Sản phẩm bán về">
@@ -1822,14 +1873,34 @@ function _viRowHtml(item,i){
     <div id="vhh-${item.id}" style="width:100%;font-size:11px;color:#e65100;font-weight:600;margin-top:2px">${commPreviewText(item)}</div>
   </div>`;
 }
-let _viCatOpts='';
-function _buildViCatOpts(){
+// ── Ô GÕ TÌM DỊCH VỤ NHANH (thay cho dropdown dài) ──
+function viCatSearch(i){
+  const it=visitItems[i]; if(!it) return;
+  const inp=document.getElementById('vcs-'+it.id), dd=document.getElementById('vcd-'+it.id);
+  if(!inp||!dd) return;
+  const q=_noAccent(inp.value);
   const svcs=getServices();
-  const _dvOpt=s=>`<option value="${s.id}">${s.name} – ${fmt(s.price)}${s.remindDays?' 🔔'+s.remindDays+'ng':''}</option>`;
-  const _dvAll=svcs.filter(s=>s.cat==='dv');
-  const dvOpts=[...SVC_GROUPS,{k:'',label:'📁 Chưa xếp nhóm'}].map(g=>{const inG=_dvAll.filter(s=>(s.group||'')===g.k);return inG.length?`<optgroup label="${g.label}">${inG.map(_dvOpt).join('')}</optgroup>`:'';}).join('');
-  const mpOpts=svcs.filter(s=>s.cat==='mp').map(s=>`<option value="${s.id}">${s.name} – ${fmt(s.price)}</option>`).join('');
-  _viCatOpts=`${dvOpts}<optgroup label="💄 Mỹ Phẩm / Sản Phẩm">${mpOpts}</optgroup>`;
+  let list = q ? svcs.filter(s=>_noAccent(s.name).includes(q)) : svcs.slice();
+  // ưu tiên: bắt đầu bằng từ khoá lên trước, rồi theo bảng giá
+  list.sort((a,b)=>{
+    const as=_noAccent(a.name).startsWith(q)?0:1, bs=_noAccent(b.name).startsWith(q)?0:1;
+    if(as!==bs) return as-bs;
+    return (a.cat===b.cat) ? (b.price-a.price) : (a.cat==='dv'?-1:1);
+  });
+  list=list.slice(0,20);
+  if(!list.length){ dd.innerHTML='<div class="vi-cat-none">Không có dịch vụ nào khớp — cứ gõ thẳng tên vào ô bên dưới.</div>'; dd.classList.add('show'); return; }
+  dd.innerHTML=list.map(s=>`<div class="vi-cat-opt" onmousedown="viCatPick(${i},'${s.id}')"><span class="nm">${_escHtml(s.name)}<span class="tg ${s.cat}">${s.cat==='mp'?'Mỹ phẩm':'Dịch vụ'}</span></span><span class="pr">${fmt(s.price)}</span></div>`).join('');
+  dd.classList.add('show');
+}
+function viCatBlur(i){ const it=visitItems[i]; if(!it) return; setTimeout(()=>{const dd=document.getElementById('vcd-'+it.id); if(dd) dd.classList.remove('show');}, 180); }
+function viCatPick(i, svcId){
+  const s=getServices().find(x=>x.id===svcId); if(!s) return;
+  visitItems[i]={...visitItems[i],name:s.name,cat:s.cat,price:s.price,svcId:s.id,_catTouched:true,
+    commPct:Number(s.commPct)||0, advicePct:Number(s.advicePct)||0,
+    commAmt:Number(s.commAmt)||0, adviceAmt:Number(s.adviceAmt)||0,
+    discount:visitItems[i].discount||0, discountType:visitItems[i].discountType||'pct'};
+  renderVisitItems();
+  if(typeof updatePaidPreview==='function') updatePaidPreview();
 }
 function _catWarnHtml(item,i){
   return `⚠️ "<b>${_escHtml(item.name)}</b>" nhìn giống <b>SẢN PHẨM bán về</b> chứ không phải dịch vụ. <button type="button" class="btn btn-xs" style="background:#e65100;color:#fff;margin-left:4px" onclick="fixItemCat(${i})">Đổi sang 💄 Mỹ Phẩm</button>`;
@@ -1848,7 +1919,6 @@ function onItemName(i,val){ visitItems[i].name=val; refreshCatWarn(i); }
 function onItemCat(i,val){ visitItems[i].cat=val; visitItems[i]._catTouched=true; renderVisitItems(); }
 function fixItemCat(i){ visitItems[i].cat='mp'; visitItems[i]._catTouched=true; renderVisitItems(); }
 function renderVisitItems(){
-  _buildViCatOpts();
   const idx=visitItems.map((it,i)=>[it,i]);
   const dvR=idx.filter(([it])=>it.cat!=='mp');
   const mpR=idx.filter(([it])=>it.cat==='mp');
@@ -1868,10 +1938,12 @@ function renderVisitItems(){
   updateVisitTotal();
 }
 function updateVisitTotal(){
-  const el=document.getElementById('vi-total'); if(!el) return;
-  let dv=0,mp=0;
-  visitItems.forEach(it=>{ if(!it.name||!String(it.name).trim())return; const v=finalPrice(it); if(it.cat==='mp')mp+=v; else dv+=v; });
-  el.innerHTML=`Dịch vụ: <b>${fmt(dv)}</b> &nbsp;·&nbsp; Sản phẩm: <b>${fmt(mp)}</b> &nbsp;·&nbsp; <b style="color:#006064">Tổng lượt: ${fmt(dv+mp)}</b>`;
+  const el=document.getElementById('vi-total'); if(el){
+    let dv=0,mp=0;
+    visitItems.forEach(it=>{ if(!it.name||!String(it.name).trim())return; const v=finalPrice(it); if(it.cat==='mp')mp+=v; else dv+=v; });
+    el.innerHTML=`Dịch vụ: <b>${fmt(dv)}</b> &nbsp;·&nbsp; Sản phẩm: <b>${fmt(mp)}</b> &nbsp;·&nbsp; <b style="color:#006064">Tổng lượt: ${fmt(dv+mp)}</b>`;
+  }
+  if(typeof updatePaidPreview==='function') updatePaidPreview();
 }
 // Dòng nhỏ hiện ngay: ai được bao nhiêu hoa hồng cho dòng này
 function commPreviewText(item){
@@ -2017,7 +2089,9 @@ function saveVisit(custId,editId){
   }
   const visits=DB.get('visits');
   const rec={date:document.getElementById('v-date').value,items,photos:pendingPhotos,cosm,visitNote:document.getElementById('v-note').value};
-  if(editId){const i=visits.findIndex(x=>x.id===editId);if(i<0)return;visits[i]={...visits[i],...rec};}
+  const _paidStr=String((document.getElementById('v-paid')||{}).value||'').trim();
+  if(_paidStr!=='') rec.paid=Math.max(0,parseInt(_paidStr.replace(/[^\d]/g,''),10)||0);
+  if(editId){const i=visits.findIndex(x=>x.id===editId);if(i<0)return;const merged={...visits[i],...rec};if(_paidStr==='')delete merged.paid;visits[i]=merged;}
   else{visits.push({id:DB.id(),custId,...rec,createdAt:today()});}
   DB.set('visits',visits);closeModal();toast('✅ Đã lưu!');openCust(custId);renderHomeRecent();updateRemBadge();
 }
@@ -2041,10 +2115,17 @@ function renderRevenue(){
   const dvItems=allItems.filter(i=>i.cat==='dv');const mpItems=allItems.filter(i=>i.cat==='mp');
   const dvTotal=dvItems.reduce((a,i)=>a+finalPrice(i),0);const mpTotal=mpItems.reduce((a,i)=>a+finalPrice(i),0);const grand=dvTotal+mpTotal;
   const custSet=new Set(visits.map(v=>v.custId));
+  // ── Tiền thực thu / còn nợ ──
+  const _custByIdR={};DB.get('customers').forEach(c=>_custByIdR[c.id]=c);
+  const debtList=visits.filter(v=>hasPaidField(v)&&visitDebt(v)>0)
+    .map(v=>({v,bill:visitBill(v),paid:visitPaid(v),debt:visitDebt(v)})).sort((a,b)=>b.debt-a.debt);
+  const debtTotal=debtList.reduce((a,x)=>a+x.debt,0);
+  const thucThu=grand-debtTotal;
   const byDate={};
-  visits.forEach(v=>{if(!byDate[v.date])byDate[v.date]={dv:0,mp:0,vCount:0,custSet:new Set()};
+  visits.forEach(v=>{if(!byDate[v.date])byDate[v.date]={dv:0,mp:0,vCount:0,custSet:new Set(),debt:0};
     v.items.forEach(i=>{if(i.cat==='dv')byDate[v.date].dv+=finalPrice(i);else byDate[v.date].mp+=finalPrice(i);});
-    byDate[v.date].vCount++;byDate[v.date].custSet.add(v.custId);});
+    byDate[v.date].vCount++;byDate[v.date].custSet.add(v.custId);
+    if(hasPaidField(v))byDate[v.date].debt+=visitDebt(v);});
   const dates=Object.keys(byDate).sort((a,b)=>b.localeCompare(a));
   const svcMap={};dvItems.forEach(i=>{svcMap[i.name]=(svcMap[i.name]||0)+finalPrice(i);});
   const topDv=Object.entries(svcMap).sort((a,b)=>b[1]-a[1]).slice(0,12);
@@ -2061,11 +2142,19 @@ function renderRevenue(){
   const topStaff=Object.entries(staffMap).sort((a,b)=>b[1]-a[1]);
   document.getElementById('rev-content').innerHTML=`
 <div class="stat-cards">
-  <div class="stat-card" style="cursor:pointer" onclick="showRevDrill('all')" title="Bấm xem chi tiết từng khách"><div class="sc-lbl">💰 Tổng Doanh Thu</div><div class="sc-val">${fmt(grand)}</div><div style="font-size:11px;color:#90a4ae;margin-top:3px">${visits.length} lượt · ${custSet.size} khách · 👆 xem</div></div>
+  <div class="stat-card" style="cursor:pointer" onclick="showRevDrill('all')" title="Bấm xem chi tiết từng khách"><div class="sc-lbl">💰 Doanh Thu (ghi nhận)</div><div class="sc-val">${fmt(grand)}</div><div style="font-size:11px;color:#90a4ae;margin-top:3px">${visits.length} lượt · ${custSet.size} khách · 👆 xem</div></div>
+  <div class="stat-card dv" style="cursor:pointer;border-left-color:#2e7d32" onclick="showRevDrill('debt')" title="Bấm xem khách còn nợ"><div class="sc-lbl">💵 Tiền Thực Thu</div><div class="sc-val" style="color:#2e7d32">${fmt(thucThu)}</div><div style="font-size:11px;color:#90a4ae;margin-top:3px">= ghi nhận − còn nợ</div></div>
+  <div class="stat-card" style="cursor:pointer;border-left-color:${debtTotal?'#c62828':'#b0bec5'}" onclick="showRevDrill('debt')" title="Bấm xem khách còn nợ"><div class="sc-lbl">🔴 Còn Nợ</div><div class="sc-val" style="color:${debtTotal?'#c62828':'#90a4ae'}">${fmt(debtTotal)}</div><div style="font-size:11px;color:#90a4ae;margin-top:3px">${debtList.length?debtList.length+' lượt chưa trả đủ · 👆 xem':'chưa có ai ghi nợ'}</div></div>
+  <div class="stat-card" style="cursor:pointer" onclick="showCustDetail()" title="Bấm để xem chi tiết"><div class="sc-lbl">👥 Khách Phục Vụ</div><div class="sc-val" style="color:#1565c0">${custSet.size}</div><div style="font-size:11px;color:#90a4ae;margin-top:3px">TB ${custSet.size?fmt(Math.round(grand/custSet.size)):0}/KH · 👆 xem</div></div>
   <div class="stat-card dv" style="cursor:pointer" onclick="showRevDrill('dv')" title="Bấm xem chi tiết"><div class="sc-lbl">✨ Dịch Vụ Chính</div><div class="sc-val">${fmt(dvTotal)}</div><div style="font-size:11px;color:#90a4ae;margin-top:3px">${grand?Math.round(dvTotal/grand*100):0}% tổng DT · 👆 xem</div></div>
   <div class="stat-card mp" style="cursor:pointer" onclick="showRevDrill('mp')" title="Bấm xem chi tiết"><div class="sc-lbl">💄 Mỹ Phẩm (DV+Kho)</div><div class="sc-val">${fmt(mpTotal+cosmRev)}</div><div style="font-size:11px;color:#90a4ae;margin-top:3px">Trong lượt: ${fmt(mpTotal)} · Kho: ${fmt(cosmRev)}</div></div>
-  <div class="stat-card" style="cursor:pointer" onclick="showCustDetail()" title="Bấm để xem chi tiết"><div class="sc-lbl">👥 Khách Phục Vụ</div><div class="sc-val" style="color:#1565c0">${custSet.size}</div><div style="font-size:11px;color:#90a4ae;margin-top:3px">TB ${custSet.size?fmt(Math.round(grand/custSet.size)):0}/KH · 👆 Xem chi tiết</div></div>
 </div>
+${debtList.length?`<div class="rev-table" style="margin-bottom:13px;border:1.5px solid #ffcdd2">
+  <div class="rev-table-header" style="background:#c62828"><h3 style="color:#fff">🔴 Khách Còn Nợ — ${debtList.length} lượt · ${fmt(debtTotal)}</h3></div>
+  <div style="overflow-x:auto"><table style="min-width:600px"><thead><tr><th class="left">Khách</th><th class="left">SĐT</th><th class="left">Dịch vụ</th><th>Tổng bill</th><th>Đã đưa</th><th style="color:#c62828">Còn nợ</th><th>Ngày</th></tr></thead>
+  <tbody>${debtList.map(x=>{const c=_custByIdR[x.v.custId]||{};return `<tr><td class="left"><b>${_escHtml(c.name||'?')}</b></td><td class="left">${_escHtml(c.phone||'')}</td><td class="left" style="font-size:11px">${_escHtml((x.v.items||[]).map(i=>i.name).join(', '))}</td><td>${fmt(x.bill)}</td><td>${fmt(x.paid)}</td><td style="color:#c62828;font-weight:700">${fmt(x.debt)}</td><td>${new Date(x.v.date+'T00:00:00').toLocaleDateString('vi-VN')}</td></tr>`;}).join('')}</tbody>
+  <tfoot><tr><td class="left" colspan="5">TỔNG CÒN NỢ</td><td style="color:#ffcdd2;font-weight:700">${fmt(debtTotal)}</td><td></td></tr></tfoot></table></div>
+</div>`:''}
 <div class="rev-table" style="margin-bottom:13px">
   <div class="rev-table-header"><h3>📁 Doanh Thu Theo Nhóm Dịch Vụ</h3><span style="font-size:11px;color:#78909c">👆 bấm 1 dòng để xem khách</span></div>
   <table><thead><tr><th class="left">Nhóm</th><th>Doanh Thu</th><th>%</th></tr></thead>
@@ -2090,15 +2179,18 @@ function renderRevenue(){
     ${grand?`<tfoot><tr><td class="left">TỔNG</td><td>${fmt(grand)}</td><td>100%</td></tr></tfoot>`:''}</table></div>
 </div>
 <div class="rev-table"><div class="rev-table-header"><h3>📅 Chi Tiết Theo Ngày</h3><span style="font-size:11px;color:#78909c">👆 bấm 1 ngày để xem từng khách</span></div>
-  <table><thead><tr><th class="left">Ngày</th><th>Khách</th><th>Lượt</th><th style="color:#2e7d32">Dịch Vụ</th><th style="color:#e65100">Mỹ Phẩm</th><th style="background:#006064;color:#fff">Tổng Ngày</th></tr></thead>
+  <div style="overflow-x:auto"><table style="min-width:620px"><thead><tr><th class="left">Ngày</th><th>Khách</th><th>Lượt</th><th style="color:#2e7d32">Dịch Vụ</th><th style="color:#e65100">Mỹ Phẩm</th><th style="background:#006064;color:#fff">Tổng Ngày</th><th style="color:#c62828">Còn Nợ</th><th style="background:#2e7d32;color:#fff">Thực Thu</th></tr></thead>
   <tbody>${dates.length?dates.map(date=>{
     const d=new Date(date+'T00:00:00');const e=byDate[date];const dt=e.dv+e.mp;
     return`<tr style="cursor:pointer" onclick="showRevDrill('date','${date}')"><td class="left"><b>${WD[d.getDay()]}, ${d.toLocaleDateString('vi-VN')}</b></td><td>${e.custSet.size}</td><td>${e.vCount}</td>
     <td style="color:#2e7d32;font-weight:700">${fmt(e.dv)}</td><td style="color:#e65100;font-weight:700">${fmt(e.mp)}</td>
-    <td style="font-weight:700;color:#006064;font-size:13px">${fmt(dt)}</td></tr>`;
-  }).join(''):'<tr><td colspan="6" style="text-align:center;color:#aaa;padding:26px">Không có dữ liệu</td></tr>'}</tbody>
+    <td style="font-weight:700;color:#006064;font-size:13px">${fmt(dt)}</td>
+    <td style="color:#c62828;font-weight:700">${e.debt?fmt(e.debt):'—'}</td>
+    <td style="font-weight:700;color:#2e7d32;font-size:13px">${fmt(dt-e.debt)}</td></tr>`;
+  }).join(''):'<tr><td colspan="8" style="text-align:center;color:#aaa;padding:26px">Không có dữ liệu</td></tr>'}</tbody>
   <tfoot><tr><td class="left">TỔNG CỘNG</td><td>${custSet.size}</td><td>${visits.length}</td>
-    <td>${fmt(dvTotal)}</td><td>${fmt(mpTotal)}</td><td style="font-size:14px">${fmt(grand)}</td></tr></tfoot></table>
+    <td>${fmt(dvTotal)}</td><td>${fmt(mpTotal)}</td><td style="font-size:14px">${fmt(grand)}</td>
+    <td style="color:#ffcdd2">${debtTotal?fmt(debtTotal):'—'}</td><td style="font-size:14px;color:#b9f6ca">${fmt(thucThu)}</td></tr></tfoot></table></div>
 </div>
 ${(()=>{
   // Dùng CHUNG cách tính với tab Bảng Lương (cộng từ từng ca) để 2 nơi không bao giờ lệch số
@@ -2129,6 +2221,7 @@ function showRevDrill(kind,key){
     if(kind==='all')return true;
     if(kind==='dv')return it.cat==='dv';
     if(kind==='mp')return it.cat==='mp';
+    if(kind==='debt')return hasPaidField(v)&&visitDebt(v)>0;
     if(kind==='group')return it.cat==='dv'&&grpOf(it)===key;
     if(kind==='service')return it.cat==='dv'&&it.name===key;
     if(kind==='product')return it.cat==='mp'&&it.name===key;
@@ -2146,7 +2239,7 @@ function showRevDrill(kind,key){
   });
   const dateKeys=Object.keys(days).sort();
   const _dmy=s=>String(s||'').split('-').reverse().join('/');
-  const titles={all:'📋 Tất cả doanh thu',dv:'✨ Dịch vụ chính',mp:'💄 Mỹ phẩm / sản phẩm',group:'📁 Nhóm: '+groupLabel(key),service:'✨ Dịch vụ: '+key,product:'💄 Sản phẩm: '+key,date:'📅 Ngày '+_dmy(key),staff:'👤 Nhân viên: '+key};
+  const titles={all:'📋 Tất cả doanh thu',dv:'✨ Dịch vụ chính',mp:'💄 Mỹ phẩm / sản phẩm',debt:'🔴 Khách còn nợ',group:'📁 Nhóm: '+groupLabel(key),service:'✨ Dịch vụ: '+key,product:'💄 Sản phẩm: '+key,date:'📅 Ngày '+_dmy(key),staff:'👤 Nhân viên: '+key};
   const dispF=_dmy(from),dispT=_dmy(to);
   const staffLine=it=>{
     const w=[it.staff,it.staff2,it.staff3,it.staff4].map(x=>(x||'').trim()).filter(Boolean).join(' + ');
@@ -2158,7 +2251,7 @@ function showRevDrill(kind,key){
     const d=new Date(dk+'T00:00:00');let dayTot=0;const dayCust=new Set();
     const trs=days[dk].map(({v,its})=>{
       const c=cById[v.custId]||{};dayCust.add(v.custId);
-      return its.map(it=>{
+      const itemRows=its.map(it=>{
         const fp=finalPrice(it);dayTot+=fp;
         return `<tr>
           <td class="left"><b>${_escHtml(c.name||'?')}</b>${c.phone?`<div style="font-size:10px;color:#90a4ae">${_escHtml(c.phone)}</div>`:''}</td>
@@ -2168,6 +2261,12 @@ function showRevDrill(kind,key){
           <td class="left" style="font-size:11px;color:#78909c">${_escHtml(it.note||v.visitNote||'')}</td>
         </tr>`;
       }).join('');
+      let payRow='';
+      if(hasPaidField(v)){
+        const dbt=visitDebt(v),pd=visitPaid(v),bl=visitBill(v);
+        payRow=`<tr><td colspan="5" style="font-size:11.5px;font-weight:700;padding:3px 8px;${dbt>0?'background:#ffebee;color:#c62828':(pd>bl?'background:#e3f2fd;color:#1565c0':'background:#e8f5e9;color:#2e7d32')}">💰 Khách đưa ${fmt(pd)}${dbt>0?' · 🔴 còn nợ '+fmt(dbt):(pd>bl?' · 🔵 dư/cọc '+fmt(pd-bl):' · ✓ đủ')}</td></tr>`;
+      }
+      return itemRows+payRow;
     }).join('');
     bodyHtml+=`<div class="rev-table" style="margin-bottom:10px">
       <div class="rev-table-header"><h3>${WD[d.getDay()]}, ${d.toLocaleDateString('vi-VN')} — ${dayCust.size} khách · ${fmt(dayTot)}</h3></div>
@@ -2175,12 +2274,13 @@ function showRevDrill(kind,key){
       <tbody>${trs}</tbody></table></div>
     </div>`;
   });
-  if(!dateKeys.length)bodyHtml='<div style="text-align:center;color:#aaa;padding:34px">Không có dữ liệu trong khoảng này</div>';
+  if(!dateKeys.length)bodyHtml='<div style="text-align:center;color:#aaa;padding:34px">'+(kind==='debt'?'Chưa có khách nào ghi nợ trong khoảng này 🎉':'Không có dữ liệu trong khoảng này')+'</div>';
+  const _debtSum=kind==='debt'?visits.filter(v=>hasPaidField(v)&&visitDebt(v)>0).reduce((a,v)=>a+visitDebt(v),0):0;
   showModal(`
     <h3 style="margin-bottom:6px">${titles[kind]||'📋 Báo cáo'}</h3>
     <div class="modal-sticky-top" style="display:block;padding-top:6px">
       <div style="font-size:12px;color:#37474f;line-height:1.7">Khoảng: <b>${dispF} → ${dispT}</b><br>
-      <b>${custSet.size}</b> khách · <b>${nItems}</b> mục · <b style="color:#006064;font-size:13px">Tổng: ${fmt(total)}</b></div>
+      <b>${custSet.size}</b> khách · <b>${nItems}</b> mục · <b style="color:#006064;font-size:13px">${kind==='debt'?'Tổng còn nợ: '+fmt(_debtSum):'Tổng: '+fmt(total)}</b></div>
       <button class="btn btn-gray btn-sm" onclick="closeModal()" style="margin-top:7px">✕ Đóng</button>
     </div>
     ${bodyHtml}
