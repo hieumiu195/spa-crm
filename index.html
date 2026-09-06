@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- Cập nhật 2026-09-06: tách khối Dịch Vụ / Sản Phẩm khi thêm lượt + cảnh báo & chặn nhập nhầm loại mỹ phẩm vào dịch vụ -->
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
@@ -143,6 +144,18 @@ textarea.fi{resize:vertical;min-height:55px;}
 .disc-row input{width:80px;border:1.5px solid #ffcc02;border-radius:6px;padding:5px 7px;font-size:12px;font-family:inherit;background:#fffde7;}
 .disc-row input:focus{outline:none;border-color:#e65100;}
 .disc-row select{border:1.5px solid #ffcc02;border-radius:6px;padding:5px 7px;font-size:12px;font-family:inherit;background:#fffde7;}
+/* VISIT: KHỐI DỊCH VỤ / SẢN PHẨM + CẢNH BÁO LOẠI */
+.vi-sec{border:1.5px solid #e0f2f1;border-radius:10px;padding:9px 10px 11px;margin-bottom:10px;}
+.vi-sec-dv{background:#f5fbfb;}
+.vi-sec-mp{border-color:#ffe0b2;background:#fffaf3;}
+.vi-sec-hd{font-size:11.5px;font-weight:800;letter-spacing:.3px;color:#00695c;margin-bottom:7px;}
+.vi-sec-mp .vi-sec-hd{color:#e65100;}
+.vi-empty{font-size:11.5px;color:#90a4ae;padding:3px 2px 6px;}
+.vi-cat-sel{width:106px;font-weight:700;}
+.vi-cat-sel.is-dv{background:#e0f2f1;border-color:#80cbc4!important;color:#00695c;}
+.vi-cat-sel.is-mp{background:#fff3e0;border-color:#ffb74d!important;color:#e65100;}
+.vi-catwarn{width:100%;margin-top:5px;background:#fff3e0;border:1.5px solid #ffb74d;color:#bf360c;border-radius:7px;padding:6px 9px;font-size:11.5px;font-weight:600;line-height:1.55;}
+.vi-total{text-align:right;font-size:12.5px;color:#455a64;padding:2px 2px 0;font-weight:600;}
 .price-orig{text-decoration:line-through;color:#90a4ae;font-size:11px;}
 .price-disc{color:#c62828;font-weight:700;}
 .disc-tag{background:#ffebee;color:#c62828;border-radius:6px;font-size:10px;font-weight:700;padding:1px 6px;}
@@ -1079,6 +1092,27 @@ function discLabel(item){
   const d=Number(item.discount)||0;if(!d)return'';
   return item.discountType==='pct'?`-${d}%`:'-'+fmt(d);
 }
+// ══ ĐOÁN LOẠI (Dịch Vụ / Mỹ Phẩm) THEO TÊN — chặn nhập nhầm khi thêm lượt ══
+const _PROD_KW=['sản phẩm','san pham','mỹ phẩm','my pham','son ','serum','kem ','tế bào','te bao','nạ ','na ','mặt nạ','mat na','chống nắng','chong nang','tẩy trang','tay trang','toner','xịt khoáng','xit khoang','sữa rửa mặt','sua rua mat','habobi','abutin','retinol','vitamin c',' g8',' g10',' g12',' g13','aha bha','bột ','bot ','lọ ','hũ ','combo sp'];
+const _SVC_KW=['phun','xăm','xam','mày','may ','môi','moi','sợi','soi','triệt','triet','cấy','cay','peel','co2','lấy nhân mụn','lay nhan mun','lấy mụn','lay mun','thải độc','thai doc','thải chì','thai chi','tiêm','tiem','điêu khắc','dieu khac','xoá','xoa ','nhũ hoa','nhu hoa','hôi nách','hoi nach','căng bóng','cang bong','tàn nhang','tan nhang','nám','nam ','trị mụn','tri mun','chăm sóc da','cham soc da','gói','goi','member','dặm','dam ','bảo hành','bao hanh'];
+// Trả 'mp' | 'dv' | '' (không chắc → không đụng). Chỉ dùng để GỢI Ý, không tự ép.
+function guessCat(name){
+  const n=(' '+(name||'').trim().toLowerCase()+' ').replace(/\s+/g,' ');
+  const raw=n.trim();
+  if(!raw) return '';
+  // 1) khớp đúng tên trong danh mục
+  const svcs=(typeof getServices==='function')?getServices():[];
+  for(const s of svcs){ if((s.name||'').trim().toLowerCase()===raw) return s.cat; }
+  // 2) tên gõ chung chung = sản phẩm
+  if(['sản phẩm','san pham','sp','mỹ phẩm','my pham','sản phẩm lẻ','san pham le','sp le'].includes(raw)) return 'mp';
+  // 3) có từ khoá dịch vụ → coi là dịch vụ (ưu tiên, tránh nhầm "cấy meso" vs "nạ meso")
+  if(_SVC_KW.some(k=>n.includes(k))) return 'dv';
+  // 4) có từ khoá sản phẩm → mỹ phẩm
+  if(_PROD_KW.some(k=>n.includes(k))) return 'mp';
+  return '';
+}
+function _escAttr(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
+function _escHtml(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 // ══ HOA HỒNG 1 DÒNG ══
 // % được CHỐT vào từng dòng lúc nhập (commPct/advicePct) → sau này sửa % trong danh mục
 // thì lương các tháng đã chốt KHÔNG bị chạy lại.
@@ -1722,7 +1756,7 @@ let pendingPhotos=[];let visitItems=[];let pendingCosm=[];
 function showAddVisit(custId){pendingPhotos=[];pendingCosm=[];visitItems=[{id:DB.id(),name:'',cat:'dv',price:'',staff:'',staff2:'',staff3:'',staff4:'',advisor:'',note:'',svcId:'',discount:0,discountType:'pct'}];renderVisitModal(custId,null);}
 function showEditVisit(visitId,custId){
   const v=DB.get('visits').find(x=>x.id===visitId);if(!v)return;
-  visitItems=(v.items||[]).map(i=>({staff:'',staff2:'',staff3:'',staff4:'',advisor:'',note:'',svcId:'',...i}));
+  visitItems=(v.items||[]).map(i=>({staff:'',staff2:'',staff3:'',staff4:'',advisor:'',note:'',svcId:'',...i,id:i.id||DB.id()}));
   pendingPhotos=(v.photos||[]).map(p=>({...p}));
   pendingCosm=(v.cosm||[]).map(c=>({...c}));
   renderVisitModal(custId,visitId);
@@ -1737,38 +1771,32 @@ function renderVisitModal(custId,editId){
     <button class="btn btn-gray" onclick="closeModal()">Huỷ</button>
     <div><label style="margin-bottom:0;font-size:11px">📅 Ngày Làm *</label><input class="fi" id="v-date" type="date" value="${vDate}" style="width:150px;padding:5px 8px;margin-top:2px"></div>
   </div>
-  <div style="font-size:12px;font-weight:700;color:#006064;margin-bottom:6px;margin-top:4px">📋 Dịch Vụ & Sản Phẩm</div>
-  <div id="visit-items-wrap"></div>
-  <button class="btn btn-gray btn-sm" onclick="addVisitItem()" style="margin-bottom:12px">+ Thêm Dòng</button>
+  <div style="font-size:12px;font-weight:700;color:#006064;margin-bottom:6px;margin-top:4px">📋 Dịch Vụ Làm & Sản Phẩm Bán Về</div>
+  <div id="visit-items-wrap" style="margin-bottom:12px"></div>
   <div style="font-size:12px;font-weight:700;color:#006064;margin-bottom:6px">📸 Ảnh Trước / Sau (tuỳ chọn)</div>
   <div id="photos-wrap"></div>
   <div class="add-photo-pair" onclick="addPhotoPair()">📷 + Thêm Bộ Ảnh Trước / Sau</div>
-  <div style="font-size:12px;font-weight:700;color:#e65100;margin:12px 0 5px">💄 Mỹ Phẩm Bán Kèm <span style="font-weight:400;font-size:11px;color:#90a4ae">(tuỳ chọn)</span></div>
+  <div style="font-size:12px;font-weight:700;color:#e65100;margin:12px 0 5px">📦 Bán Mỹ Phẩm Có Trừ Kho <span style="font-weight:400;font-size:11px;color:#90a4ae">(tuỳ chọn — dùng khi cần trừ tồn kho)</span></div>
   <div id="cosm-items-wrap"></div>
-  <button class="btn btn-gray btn-sm" onclick="addCosmItem()" style="margin-bottom:10px">+ Thêm Mỹ Phẩm Bán Kèm</button>
+  <button class="btn btn-gray btn-sm" onclick="addCosmItem()" style="margin-bottom:10px">📦 + Thêm Mỹ Phẩm Trừ Kho</button>
   <div class="form-grid full" style="margin-top:4px">
     <div><label>📝 Ghi Chú</label><textarea class="fi" id="v-note" placeholder="KH hài lòng, hẹn lại sau...">${vNote}</textarea></div>
   </div>
   <div class="modal-sticky-bot"><button class="btn btn-gray" onclick="closeModal()">Huỷ</button><button class="btn btn-teal" onclick="saveVisit('${custId}','${editId||''}')">💾 Lưu</button></div>`);
   renderVisitItems();renderPhotosWrap();renderCosmWrap();
 }
-function renderVisitItems(){
-  const svcs=getServices();
-  const _dvOpt=s=>`<option value="${s.id}">${s.name} – ${fmt(s.price)}${s.remindDays?' 🔔'+s.remindDays+'ng':''}</option>`;
-  const _dvAll=svcs.filter(s=>s.cat==='dv');
-  const dvOpts=[...SVC_GROUPS,{k:'',label:'📁 Chưa xếp nhóm'}].map(g=>{const inG=_dvAll.filter(s=>(s.group||'')===g.k);return inG.length?`<optgroup label="${g.label}">${inG.map(_dvOpt).join('')}</optgroup>`:'';}).join('');
-  const mpOpts=svcs.filter(s=>s.cat==='mp').map(s=>`<option value="${s.id}">${s.name} – ${fmt(s.price)}</option>`).join('');
-  document.getElementById('visit-items-wrap').innerHTML=staffDatalist()+visitItems.map((item,i)=>`
+function _viRowHtml(item,i){
+  const bad = item.cat==='dv' && guessCat(item.name)==='mp';
+  return `
   <div class="vi-row" id="vi-${item.id}">
     <div style="width:100%;margin-bottom:3px">
       <select class="vi-catalog-select" onchange="pickCatalog(${i},this)">
-        <option value="">── Chọn từ danh mục dịch vụ ──</option>
-        ${dvOpts}
-        <optgroup label="💄 Mỹ Phẩm / Sản Phẩm">${mpOpts}</optgroup>
+        <option value="">── Chọn nhanh từ danh mục ──</option>
+        ${_viCatOpts}
       </select>
     </div>
-    <input id="vn-${item.id}" placeholder="Tên dịch vụ / sản phẩm *" value="${item.name}" oninput="visitItems[${i}].name=this.value" style="flex:2;min-width:140px">
-    <select id="vc-${item.id}" onchange="visitItems[${i}].cat=this.value" style="width:100px">
+    <input id="vn-${item.id}" placeholder="Tên dịch vụ / sản phẩm *" value="${_escAttr(item.name)}" oninput="onItemName(${i},this.value)" style="flex:2;min-width:140px">
+    <select id="vc-${item.id}" class="vi-cat-sel ${item.cat==='mp'?'is-mp':'is-dv'}" onchange="onItemCat(${i},this.value)" title="Loại — Dịch vụ làm tại spa hay Sản phẩm bán về">
       <option value="dv" ${item.cat==='dv'?'selected':''}>✨ Dịch Vụ</option>
       <option value="mp" ${item.cat==='mp'?'selected':''}>💄 Mỹ Phẩm</option>
     </select>
@@ -1782,15 +1810,67 @@ function renderVisitItems(){
       </select>
       <span id="vfp-${item.id}" style="font-size:11px;font-weight:700;color:#c62828;min-width:60px">${Number(item.discount)?'→ '+fmt(finalPrice(item)):''}</span>
     </div>
-    <input id="vs-${item.id}" list="staff-dl" placeholder="👤 Người làm" value="${item.staff||''}" oninput="visitItems[${i}].staff=this.value;updateCommPreview(${i})" style="width:120px">
-    <input id="vs2-${item.id}" list="staff-dl" placeholder="👥 Người làm 2 (nếu có)" value="${item.staff2||''}" oninput="visitItems[${i}].staff2=this.value;updateCommPreview(${i})" style="width:130px">
-    <input id="vs3-${item.id}" list="staff-dl" placeholder="👥 Người làm 3 (nếu có)" value="${item.staff3||''}" oninput="visitItems[${i}].staff3=this.value;updateCommPreview(${i})" style="width:130px">
-    <input id="vs4-${item.id}" list="staff-dl" placeholder="👥 Người làm 4 (nếu có)" value="${item.staff4||''}" oninput="visitItems[${i}].staff4=this.value;updateCommPreview(${i})" style="width:130px">
-    <input id="va-${item.id}" list="staff-dl" placeholder="🗣 Người tư vấn" value="${item.advisor||''}" oninput="visitItems[${i}].advisor=this.value;updateCommPreview(${i})" style="width:120px">
-    <input id="vo-${item.id}" placeholder="Ghi chú" value="${item.note||''}" oninput="visitItems[${i}].note=this.value" style="flex:1;min-width:80px">
+    <input id="vs-${item.id}" list="staff-dl" placeholder="👤 Người làm" value="${_escAttr(item.staff)}" oninput="visitItems[${i}].staff=this.value;updateCommPreview(${i})" style="width:120px">
+    <input id="vs2-${item.id}" list="staff-dl" placeholder="👥 Người làm 2 (nếu có)" value="${_escAttr(item.staff2)}" oninput="visitItems[${i}].staff2=this.value;updateCommPreview(${i})" style="width:130px">
+    <input id="vs3-${item.id}" list="staff-dl" placeholder="👥 Người làm 3 (nếu có)" value="${_escAttr(item.staff3)}" oninput="visitItems[${i}].staff3=this.value;updateCommPreview(${i})" style="width:130px">
+    <input id="vs4-${item.id}" list="staff-dl" placeholder="👥 Người làm 4 (nếu có)" value="${_escAttr(item.staff4)}" oninput="visitItems[${i}].staff4=this.value;updateCommPreview(${i})" style="width:130px">
+    <input id="va-${item.id}" list="staff-dl" placeholder="🗣 Người tư vấn" value="${_escAttr(item.advisor)}" oninput="visitItems[${i}].advisor=this.value;updateCommPreview(${i})" style="width:120px">
+    <input id="vo-${item.id}" placeholder="Ghi chú" value="${_escAttr(item.note)}" oninput="visitItems[${i}].note=this.value" style="flex:1;min-width:80px">
     ${visitItems.length>1?`<button class="btn btn-pink btn-xs" onclick="removeVisitItem(${i})">✕</button>`:''}
+    <div id="vcatwarn-${item.id}" class="vi-catwarn" style="${bad?'':'display:none'}">${bad?_catWarnHtml(item,i):''}</div>
     <div id="vhh-${item.id}" style="width:100%;font-size:11px;color:#e65100;font-weight:600;margin-top:2px">${commPreviewText(item)}</div>
-  </div>`).join('');
+  </div>`;
+}
+let _viCatOpts='';
+function _buildViCatOpts(){
+  const svcs=getServices();
+  const _dvOpt=s=>`<option value="${s.id}">${s.name} – ${fmt(s.price)}${s.remindDays?' 🔔'+s.remindDays+'ng':''}</option>`;
+  const _dvAll=svcs.filter(s=>s.cat==='dv');
+  const dvOpts=[...SVC_GROUPS,{k:'',label:'📁 Chưa xếp nhóm'}].map(g=>{const inG=_dvAll.filter(s=>(s.group||'')===g.k);return inG.length?`<optgroup label="${g.label}">${inG.map(_dvOpt).join('')}</optgroup>`:'';}).join('');
+  const mpOpts=svcs.filter(s=>s.cat==='mp').map(s=>`<option value="${s.id}">${s.name} – ${fmt(s.price)}</option>`).join('');
+  _viCatOpts=`${dvOpts}<optgroup label="💄 Mỹ Phẩm / Sản Phẩm">${mpOpts}</optgroup>`;
+}
+function _catWarnHtml(item,i){
+  return `⚠️ "<b>${_escHtml(item.name)}</b>" nhìn giống <b>SẢN PHẨM bán về</b> chứ không phải dịch vụ. <button type="button" class="btn btn-xs" style="background:#e65100;color:#fff;margin-left:4px" onclick="fixItemCat(${i})">Đổi sang 💄 Mỹ Phẩm</button>`;
+}
+function refreshCatWarn(i){
+  const it=visitItems[i]; if(!it) return;
+  const el=document.getElementById('vcatwarn-'+it.id);
+  const sel=document.getElementById('vc-'+it.id);
+  if(sel){ sel.className='vi-cat-sel '+(it.cat==='mp'?'is-mp':'is-dv'); }
+  if(!el) return;
+  const bad = it.cat==='dv' && guessCat(it.name)==='mp';
+  el.style.display = bad ? 'block' : 'none';
+  el.innerHTML = bad ? _catWarnHtml(it,i) : '';
+}
+function onItemName(i,val){ visitItems[i].name=val; refreshCatWarn(i); }
+function onItemCat(i,val){ visitItems[i].cat=val; visitItems[i]._catTouched=true; renderVisitItems(); }
+function fixItemCat(i){ visitItems[i].cat='mp'; visitItems[i]._catTouched=true; renderVisitItems(); }
+function renderVisitItems(){
+  _buildViCatOpts();
+  const idx=visitItems.map((it,i)=>[it,i]);
+  const dvR=idx.filter(([it])=>it.cat!=='mp');
+  const mpR=idx.filter(([it])=>it.cat==='mp');
+  const emptyLn='<div class="vi-empty">Chưa có dòng nào — bấm nút bên dưới để thêm.</div>';
+  document.getElementById('visit-items-wrap').innerHTML=staffDatalist()+`
+  <div class="vi-sec vi-sec-dv">
+    <div class="vi-sec-hd">✨ DỊCH VỤ LÀM TẠI SPA</div>
+    ${dvR.length?dvR.map(([it,i])=>_viRowHtml(it,i)).join(''):emptyLn}
+    <button type="button" class="btn btn-teal btn-sm" onclick="addVisitItem('dv')" style="margin-top:4px">✨ + Thêm dịch vụ</button>
+  </div>
+  <div class="vi-sec vi-sec-mp">
+    <div class="vi-sec-hd">💄 SẢN PHẨM BÁN VỀ (mỹ phẩm, thuốc, serum...)</div>
+    ${mpR.length?mpR.map(([it,i])=>_viRowHtml(it,i)).join(''):emptyLn}
+    <button type="button" class="btn btn-green btn-sm" onclick="addVisitItem('mp')" style="margin-top:4px">💄 + Thêm sản phẩm bán về</button>
+  </div>
+  <div class="vi-total" id="vi-total"></div>`;
+  updateVisitTotal();
+}
+function updateVisitTotal(){
+  const el=document.getElementById('vi-total'); if(!el) return;
+  let dv=0,mp=0;
+  visitItems.forEach(it=>{ if(!it.name||!String(it.name).trim())return; const v=finalPrice(it); if(it.cat==='mp')mp+=v; else dv+=v; });
+  el.innerHTML=`Dịch vụ: <b>${fmt(dv)}</b> &nbsp;·&nbsp; Sản phẩm: <b>${fmt(mp)}</b> &nbsp;·&nbsp; <b style="color:#006064">Tổng lượt: ${fmt(dv+mp)}</b>`;
 }
 // Dòng nhỏ hiện ngay: ai được bao nhiêu hoa hồng cho dòng này
 function commPreviewText(item){
@@ -1807,22 +1887,23 @@ function updateCommPreview(i){
   if(el)el.innerHTML=commPreviewText(item);
 }
 function updateDiscPreview(itemId, idx){
-  const el=document.getElementById('vfp-'+itemId);if(!el)return;
-  const p=Number(visitItems[idx].price)||0;
-  const d=Number(visitItems[idx].discount)||0;
-  if(!d||!p){el.textContent='';return;}
-  const fp=finalPrice(visitItems[idx]);
-  el.textContent='→ '+fmt(fp);
+  const el=document.getElementById('vfp-'+itemId);
+  if(el){
+    const p=Number(visitItems[idx].price)||0;
+    const d=Number(visitItems[idx].discount)||0;
+    if(!d||!p)el.textContent=''; else el.textContent='→ '+fmt(finalPrice(visitItems[idx]));
+  }
+  updateVisitTotal();
 }
 function pickCatalog(idx,sel){
   const id=sel.value;if(!id)return;const s=getServices().find(x=>x.id===id);if(!s)return;
   // CHỐT % hoa hồng của dịch vụ vào ngay lượt này. Sau sếp đổi % thì lượt cũ vẫn giữ số đã chốt.
-  visitItems[idx]={...visitItems[idx],name:s.name,cat:s.cat,price:s.price,svcId:s.id,
+  visitItems[idx]={...visitItems[idx],name:s.name,cat:s.cat,price:s.price,svcId:s.id,_catTouched:true,
     commPct:Number(s.commPct)||0, advicePct:Number(s.advicePct)||0,
     commAmt:Number(s.commAmt)||0, adviceAmt:Number(s.adviceAmt)||0,
     discount:visitItems[idx].discount||0,discountType:visitItems[idx].discountType||'pct'};renderVisitItems();
 }
-function addVisitItem(){visitItems.push({id:DB.id(),name:'',cat:'dv',price:'',staff:'',staff2:'',staff3:'',staff4:'',advisor:'',note:'',svcId:'',discount:0,discountType:'pct'});renderVisitItems();}
+function addVisitItem(cat){cat=(cat==='mp')?'mp':'dv';visitItems.push({id:DB.id(),name:'',cat:cat,_catTouched:(cat==='mp'),price:'',staff:'',staff2:'',staff3:'',staff4:'',advisor:'',note:'',svcId:'',discount:0,discountType:'pct'});renderVisitItems();}
 function removeVisitItem(i){visitItems.splice(i,1);renderVisitItems();}
 function renderPhotosWrap(){
   const wrap=document.getElementById('photos-wrap');
@@ -1908,6 +1989,14 @@ function saveVisit(custId,editId){
       if(s){visitItems[i].commPct=Number(s.commPct)||0;visitItems[i].advicePct=Number(s.advicePct)||0;visitItems[i].commAmt=Number(s.commAmt)||0;visitItems[i].adviceAmt=Number(s.adviceAmt)||0;}
     }
   }
+  // ── CHẶN: sản phẩm bán về bị để nhầm loại ✨ Dịch Vụ ──
+  const _mislbl=visitItems.filter(it=>it.name&&String(it.name).trim()&&it.cat==='dv'&&guessCat(it.name)==='mp');
+  if(_mislbl.length){
+    const _lst=_mislbl.map(it=>'  • '+it.name+' – '+fmt(finalPrice(it))).join('\n');
+    const _ok=confirm('Các dòng sau đang để loại ✨ DỊCH VỤ nhưng nhìn giống SẢN PHẨM bán về:\n\n'+_lst+'\n\n[OK] = Đổi sang 💄 Mỹ Phẩm rồi lưu (nên chọn)\n[Huỷ] = Giữ nguyên loại Dịch Vụ');
+    if(_ok) _mislbl.forEach(it=>{it.cat='mp';it._catTouched=true;});
+  }
+  visitItems.forEach(it=>{delete it._catTouched;});
   const items=visitItems.filter(i=>i.name&&String(i.name).trim());
   if(!items.length){toast('Nhập ít nhất 1 dịch vụ (có tên)! Giá có thể để 0đ nếu tặng miễn phí.',false);return;}
   // Handle cosm items: validate and deduct stock
