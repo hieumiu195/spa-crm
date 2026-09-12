@@ -528,11 +528,30 @@ if (!localStorage.getItem('spa_cloud_url')) {
 }
 let CLOUD_URL = localStorage.getItem('spa_cloud_url') || _HARDCODED_CLOUD;
 
-// fetch có giới hạn thời gian chờ — tránh app bị treo mãi khi cloud phản hồi chậm/lỗi
-function fetchCloud(url, opts) {
+// fetch có giới hạn thời gian chờ + TỰ THỬ LẠI — Google đôi khi chập chờn/trả trang lỗi tạm thời,
+// nên thử lại vài lần trước khi báo lỗi, giúp đồng bộ nhiều máy đáng tin cậy hơn
+async function fetchCloud(url, opts, retriesLeft) {
+  if (retriesLeft === undefined) retriesLeft = 2;
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 8000);
-  return fetch(url, {...(opts||{}), signal: ctrl.signal}).finally(() => clearTimeout(timer));
+  try {
+    const res = await fetch(url, {...(opts||{}), signal: ctrl.signal});
+    clearTimeout(timer);
+    // Google thỉnh thoảng trả về 1 trang HTML lỗi thay vì JSON thật → coi là lỗi tạm thời, thử lại
+    const ct = res.headers.get('content-type') || '';
+    if ((!res.ok || ct.includes('text/html')) && retriesLeft > 0) {
+      await new Promise(r => setTimeout(r, 1500));
+      return fetchCloud(url, opts, retriesLeft - 1);
+    }
+    return res;
+  } catch (e) {
+    clearTimeout(timer);
+    if (retriesLeft > 0) {
+      await new Promise(r => setTimeout(r, 1500));
+      return fetchCloud(url, opts, retriesLeft - 1);
+    }
+    throw e;
+  }
 }
 
 // ── Tự động cấu hình cloud từ link setup (khi mở trên thiết bị mới) ──
