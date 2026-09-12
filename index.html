@@ -528,6 +528,13 @@ if (!localStorage.getItem('spa_cloud_url')) {
 }
 let CLOUD_URL = localStorage.getItem('spa_cloud_url') || _HARDCODED_CLOUD;
 
+// fetch có giới hạn thời gian chờ — tránh app bị treo mãi khi cloud phản hồi chậm/lỗi
+function fetchCloud(url, opts) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 8000);
+  return fetch(url, {...(opts||{}), signal: ctrl.signal}).finally(() => clearTimeout(timer));
+}
+
 // ── Tự động cấu hình cloud từ link setup (khi mở trên thiết bị mới) ──
 (function(){
   try {
@@ -576,7 +583,7 @@ function sendNotif(title, body) {
 async function checkCloudUpdates() {
   if (!CLOUD_URL) return;
   try {
-    const res = await fetch(CLOUD_URL + '?action=getAll&_t=' + Date.now(), {cache:'no-store'});
+    const res = await fetchCloud(CLOUD_URL + '?action=getAll&_t=' + Date.now(), {cache:'no-store'});
     const json = await res.json();
     if (!json.ok || !json.data) return;
     const cloudCusts = json.data.customers || [];
@@ -660,7 +667,7 @@ function cloudSave(key, value) {
   // Nếu key là visits → strip ảnh trước khi lưu cloud
   const safeValue = (key === 'visits') ? stripPhotosForCloud(value) : value;
   const body = 'data=' + encodeURIComponent(JSON.stringify({key, value: safeValue}));
-  fetch(CLOUD_URL, {
+  fetchCloud(CLOUD_URL, {
     method: 'POST',
     headers: {'Content-Type':'application/x-www-form-urlencoded'},
     body
@@ -680,7 +687,7 @@ async function cloudLoad() {
   if (!CLOUD_URL) { setSyncStatus('offline'); return false; }
   setSyncStatus('loading');
   try {
-    const res = await fetch(CLOUD_URL + '?action=getAll&_t=' + Date.now(), {cache:'no-store'});
+    const res = await fetchCloud(CLOUD_URL + '?action=getAll&_t=' + Date.now(), {cache:'no-store'});
     const json = await res.json();
     if (json.ok && json.data) {
       const d = json.data;
@@ -825,7 +832,7 @@ async function cloudSaveAll() {
       rem_done: getRemDone()
     };
     const body = 'data=' + encodeURIComponent(JSON.stringify({allData}));
-    const r = await fetch(CLOUD_URL, {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body});
+    const r = await fetchCloud(CLOUD_URL, {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body});
     const j = await r.json();
     setSyncStatus(j.ok ? 'ok' : 'error', j.error||'');
   } catch(e) {
@@ -852,7 +859,7 @@ async function connectCloud() {
   localStorage.setItem('spa_cloud_url', url);
   setSyncStatus('loading');
   try {
-    const res = await fetch(url + '?action=getAll', {cache:'no-cache'});
+    const res = await fetchCloud(url + '?action=getAll', {cache:'no-cache'});
     const json = await res.json();
     if (!json.ok) throw new Error('bad');
     const hasData = json.data && Array.isArray(json.data.customers) && json.data.customers.length > 0;
@@ -924,7 +931,7 @@ async function connectCloud() {
         services:  DB.get('services'),  staff_list: DB.get('staff_list')
       };
       const body = 'data=' + encodeURIComponent(JSON.stringify({allData}));
-      const pr = await fetch(url, {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body});
+      const pr = await fetchCloud(url, {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body});
       const pj = await pr.json();
       if (!pj.ok) throw new Error('upload fail');
       setSyncStatus('ok');
