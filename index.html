@@ -1247,6 +1247,7 @@ function getAllReminders(){
   custs.forEach(c=>{
     if(!c.birthday)return;
     const bd=new Date(c.birthday+'T00:00:00');
+    if(isNaN(bd.getTime()))return; // ngày sinh nhập sai định dạng → bỏ qua, không làm sập trang
     const now=new Date();
     let nextBd=new Date(now.getFullYear(),bd.getMonth(),bd.getDate());
     if(nextBd<now)nextBd=new Date(now.getFullYear()+1,bd.getMonth(),bd.getDate());
