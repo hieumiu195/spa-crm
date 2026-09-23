@@ -340,6 +340,7 @@ tfoot td{background:#006064!important;color:#fff;font-weight:700;}
         <option value="overdue">⚠️ Đã quá hạn</option>
         <option value="7">🔥 Trong 7 ngày</option>
         <option value="30">📅 Trong 30 ngày</option>
+        <option value="cskh">💌 Chăm sóc sau dịch vụ</option>
         <option value="birthday">🎂 Sinh nhật</option>
         <option value="done">✅ Đã gọi rồi (đã ẩn)</option>
       </select>
@@ -1222,7 +1223,24 @@ function showPage(page){
 // ══ ĐÃ GỌI (ẩn hẹn đã liên hệ cho gọn) ══
 function getRemDone(){try{return JSON.parse(localStorage.getItem('spa_rem_done')||'[]');}catch(_){return[];}}
 function saveRemDone(a){localStorage.setItem('spa_rem_done',JSON.stringify(a));}
-function remKey(r){return r.type==='birthday'?('bd|'+r.custId+'|'+r.nextBd):('sv|'+r.custId+'|'+(r.svcName||'')+'|'+r.remindDate);}
+function remKey(r){if(r.type==='birthday')return 'bd|'+r.custId+'|'+r.nextBd;if(r.type==='cskh')return 'cskh|'+r.custId+'|'+r.visitId+'|'+r.mocIdx;return 'sv|'+r.custId+'|'+(r.svcName||'')+'|'+r.remindDate;}
+function _dvWord(dv){dv=(dv||'').toLowerCase();if(dv.includes('mày'))return 'mày';if(dv.includes('môi'))return 'môi';return dv||'dịch vụ';}
+function cskhMsg(mocIdx,name,dvNames,isPhunXam){
+  const dv=_dvWord(dvNames);
+  if(isPhunXam){
+    if(mocIdx===1)return `Cảm ơn chị ${name} đã tin tưởng Hiếu nha 🥰 Hiếu gửi chị cách chăm ${dv} mấy ngày đầu nè, chị làm theo là lên màu đẹp lắm. Có gì cứ nhắn Hiếu bất cứ lúc nào ạ.`;
+    if(mocIdx===2)return `Chị ${name} ơi, mấy nay ${dv} bắt đầu bong nhẹ và trông hơi nhạt màu đúng không ạ? Đó là bình thường nha chị, qua giai đoạn này màu lên tự nhiên là đẹp liền. Chị đừng bóc nha 😊`;
+    if(mocIdx===3)return `Chị ${name} ơi ${dv} chị bong xong chưa ạ? Hiếu mong lên màu ưng ý chị lắm 🥰 Nếu chị thấy hài lòng, chị dành 1 phút thả cho Hiếu vài dòng cảm nhận/ảnh nha, quý lắm ạ!`;
+    return `Chị ${name} lên màu xinh chưa nè 😍 Nếu chị có bạn bè cũng muốn làm, chị giới thiệu giúp Hiếu nha — cả chị và bạn đều được ưu đãi luôn ạ.`;
+  }
+  if(mocIdx===1)return `Cảm ơn chị ${name} đã tin tưởng Hiếu nha 🥰 Có gì trong quá trình dùng chị cứ nhắn Hiếu liền nha ạ.`;
+  if(mocIdx===2)return `Chị ${name} ơi, ${dvNames} được vài hôm rồi, chị thấy ổn không ạ? Có gì cứ nhắn Hiếu nha 😊`;
+  if(mocIdx===3)return `Chị ${name} ơi Hiếu hỏi thăm xíu, ${dvNames} chị thấy ưng ý không ạ? Nếu hài lòng chị dành chút thời gian để lại vài dòng cảm nhận giúp Hiếu nha, quý lắm ạ 🥰`;
+  return `Chị ${name} ơi, thấm thoắt cũng gần 1 tháng từ lần chị ghé rồi nè 😍 Nếu chị có bạn bè cần ${dvNames}, chị giới thiệu giúp Hiếu nha — cả chị và bạn đều có ưu đãi luôn ạ.`;
+}
+function _zaloPhone(p){p=(p||'').replace(/[^\d]/g,'');if(p.startsWith('0'))p='84'+p.slice(1);return p;}
+function cskhCopy(i){const r=_remsShown[i];if(!r||!r.message)return;navigator.clipboard.writeText(r.message).then(()=>toast('✅ Đã copy tin nhắn, dán vào Zalo/Messenger gửi khách nha!')).catch(()=>toast('Không copy được, sếp bôi đen tin nhắn rồi copy tay nha',false));}
+function cskhOpenZalo(i){const r=_remsShown[i];if(!r)return;window.open('https://zalo.me/'+_zaloPhone(r.custPhone),'_blank');}
 function markRemDone(key){const a=getRemDone();if(!a.includes(key)){a.push(key);saveRemDone(a);if(typeof cloudSave==='function')cloudSave('rem_done',a);}}
 function unmarkRemDone(key){const a=getRemDone().filter(k=>k!==key);saveRemDone(a);if(typeof cloudSave==='function')cloudSave('rem_done',a);}
 let _remsShown=[];
@@ -1235,8 +1253,8 @@ function getAllReminders(){
   const todayStr=today();
 
   // Build svc lookup by id and by name
-  const svcById={};const svcByName={};
-  svcs.forEach(s=>{svcById[s.id]=s;if(s.remindDays>0)svcByName[s.name]=s;});
+  const svcById={};const svcByName={};const svcByNameAll={};
+  svcs.forEach(s=>{svcById[s.id]=s;if(s.remindDays>0)svcByName[s.name]=s;svcByNameAll[(s.name||'').trim().toLowerCase()]=s;});
 
   // For each customer, for each service with remindDays, find latest visit date
   const custSvcLatest={};
@@ -1260,6 +1278,28 @@ function getAllReminders(){
     let urgency=dUntil<0?'overdue':dUntil<=7?'urgent':'soon';
     reminders.push({type:'service',custId:r.custId,custName:cust.name,custPhone:cust.phone,
       svcName:r.svcName,lastDate:r.date,remindDate:remDate,daysUntil:dUntil,urgency});
+  });
+
+  // CSKH reminders – 4 mốc chăm sóc sau dịch vụ (chỉ xét lượt trong ~33 ngày gần đây để khỏi tràn ngập lượt cũ)
+  visits.forEach(v=>{
+    if(!v.date)return;
+    const ageDays=daysDiff(v.date); // âm = đã qua
+    if(ageDays<-33||ageDays>0)return;
+    const dvItems=(v.items||[]).filter(it=>it.cat==='dv'&&it.name&&String(it.name).trim());
+    if(!dvItems.length)return;
+    const cust=custs.find(c=>c.id===v.custId);
+    if(!cust)return;
+    const dvNames=dvItems.map(it=>it.name).join(', ');
+    const isPhunXam=dvItems.some(it=>{const s=svcById[it.svcId]||svcByNameAll[(it.name||'').trim().toLowerCase()];return s&&s.group==='phunxam';});
+    [{idx:1,days:0},{idx:2,days:2},{idx:3,days:6},{idx:4,days:25}].forEach(m=>{
+      const mocDate=addDays(v.date,m.days);
+      const dUntil=daysDiff(mocDate);
+      if(dUntil<-2||dUntil>3)return; // chỉ hiện gần đúng ngày (tránh tràn ngập lượt cũ đã nhắn tay rồi)
+      const urgency=dUntil<0?'overdue':dUntil<=1?'urgent':'soon';
+      reminders.push({type:'cskh',mocIdx:m.idx,custId:v.custId,visitId:v.id,custName:cust.name,custPhone:cust.phone,
+        svcName:dvNames,visitDate:v.date,remindDate:mocDate,daysUntil:dUntil,urgency,
+        message:cskhMsg(m.idx,cust.name,dvNames,isPhunXam)});
+    });
   });
 
   // Birthday reminders – show up to 7 days ahead and 0 days (today)
@@ -1300,6 +1340,7 @@ function renderReminders(){
     if(filter==='overdue')rems=rems.filter(r=>r.daysUntil<0);
     else if(filter==='7')rems=rems.filter(r=>r.daysUntil>=0&&r.daysUntil<=7);
     else if(filter==='30')rems=rems.filter(r=>r.daysUntil>=0&&r.daysUntil<=30);
+    else if(filter==='cskh')rems=rems.filter(r=>r.type==='cskh');
     else if(filter==='birthday')rems=rems.filter(r=>r.type==='birthday');
   }
   _remsShown=rems;
@@ -1321,6 +1362,25 @@ function renderReminders(){
           💡 Hãy gửi lời chúc và ưu đãi sinh nhật cho khách!
         </div>
         <div style="margin-top:8px;text-align:right"><button class="btn ${r.done?'btn-gray':'btn-teal'} btn-sm" onclick="event.stopPropagation();remToggleDone(${i})">${r.done?'↩️ Bỏ đánh dấu':'✅ Đã gọi'}</button></div>
+      </div>`;
+    }
+    if(r.type==='cskh'){
+      const mocLabel=['','① Ngay sau khi làm','② Bong vảy (hỏi thăm)','③ Xin cảm nhận/review','④ Xin giới thiệu'][r.mocIdx];
+      return`<div class="rem-card ${r.urgency}" style="border-left:4px solid #ad1457">
+        <div class="rem-card-top" style="cursor:pointer" onclick="openCust('${r.custId}')"><div class="rem-icon">💌</div>
+          <div><div class="rem-name">${r.custName}</div><div class="rem-phone">📱 ${r.custPhone}</div></div>
+          <span class="rem-badge ${r.urgency}">${r.urgency==='overdue'?'⚠️ '+dayLabel:dayLabel}</span>
+        </div>
+        <div class="rem-detail">
+          💌 CSKH — <b>${mocLabel}</b><br>
+          🔧 Dịch vụ: <b>${r.svcName}</b> · Làm ngày ${new Date(r.visitDate+'T00:00:00').toLocaleDateString('vi-VN')}
+        </div>
+        <div style="margin-top:8px;padding:10px;background:#fce4ec;border-radius:10px;font-size:13px;color:#4a148c;white-space:pre-wrap">${r.message}</div>
+        <div style="margin-top:8px;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+          <button class="btn btn-sm" style="background:#fff;border:1px solid #ad1457;color:#ad1457" onclick="cskhCopy(${i})">📋 Copy tin nhắn</button>
+          <button class="btn btn-sm" style="background:#0068ff;color:#fff" onclick="cskhOpenZalo(${i})">💬 Mở Zalo</button>
+          <button class="btn ${r.done?'btn-gray':'btn-teal'} btn-sm" onclick="remToggleDone(${i})">${r.done?'↩️ Bỏ đánh dấu':'✅ Đã gửi'}</button>
+        </div>
       </div>`;
     }
     const icon=r.svcName.includes('môi')?'💋':r.svcName.includes('mày')||r.svcName.includes('mày')?'👁':r.svcName.includes('nám')||r.svcName.includes('mụn')?'✨':'💆';
