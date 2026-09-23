@@ -345,6 +345,7 @@ tfoot td{background:#006064!important;color:#fff;font-weight:700;}
         <option value="done">✅ Đã gọi rồi (đã ẩn)</option>
       </select>
       <span id="rem-count" style="color:#546e7a;font-size:12px;margin-left:4px"></span>
+      <button id="rem-markall-btn" class="btn btn-gray btn-sm" style="display:none" onclick="remMarkAllShownDone()"></button>
       <button class="btn btn-gray btn-sm" style="margin-left:auto" onclick="renderReminders()">↺ Làm Mới</button>
     </div>
     <div id="rem-cards"></div>
@@ -1244,6 +1245,18 @@ function cskhOpenZalo(i){const r=_remsShown[i];if(!r)return;window.open('https:/
 function markRemDone(key){const a=getRemDone();if(!a.includes(key)){a.push(key);saveRemDone(a);if(typeof cloudSave==='function')cloudSave('rem_done',a);}}
 function unmarkRemDone(key){const a=getRemDone().filter(k=>k!==key);saveRemDone(a);if(typeof cloudSave==='function')cloudSave('rem_done',a);}
 let _remsShown=[];
+function remMarkAllShownDone(){
+  if(!_remsShown||!_remsShown.length)return;
+  if(!confirm(`Đánh dấu tất cả ${_remsShown.length} nhắc nhở đang hiện là ĐÃ GỬI/ĐÃ GỌI?\n\nDùng cái này để dọn nhanh các nhắc nhở cũ mà sếp đã tự nhắn tay trước khi có tính năng này.`))return;
+  const doneSet=new Set(getRemDone());
+  _remsShown.forEach(r=>doneSet.add(remKey(r)));
+  const arr=[...doneSet];
+  saveRemDone(arr);
+  if(typeof cloudSave==='function')cloudSave('rem_done',arr);
+  renderReminders();updateRemBadge();
+  if(typeof renderHomeAlerts==='function')renderHomeAlerts();
+  toast('✅ Đã đánh dấu xong hết!');
+}
 function remToggleDone(i){const r=_remsShown[i];if(!r)return;const k=remKey(r);if(r.done)unmarkRemDone(k);else markRemDone(k);renderReminders();updateRemBadge();if(typeof renderHomeAlerts==='function')renderHomeAlerts();}
 function getAllReminders(){
   const custs=DB.get('customers');
@@ -1348,6 +1361,11 @@ function renderReminders(){
   const cnt=document.getElementById('rem-count');
   const soDaGoi=getAllReminders().filter(r=>r.done).length;
   if(cnt)cnt.textContent=`${rems.length} nhắc nhở`+(filter!=='done'&&soDaGoi?` · ${soDaGoi} đã gọi (đã ẩn)`:'');
+  const markAllBtn=document.getElementById('rem-markall-btn');
+  if(markAllBtn){
+    if(filter!=='done'&&rems.length>1){markAllBtn.style.display='inline-block';markAllBtn.textContent=`✅ Đánh dấu tất cả ${rems.length} đã gửi`;}
+    else markAllBtn.style.display='none';
+  }
   if(!rems.length){el.innerHTML=`<div class="rem-empty"><div class="re-icon">✅</div><p style="font-size:14px;font-weight:700;color:#006064;margin-bottom:6px">${filter==='done'?'Chưa có hẹn nào đánh dấu đã gọi':'Không có nhắc nhở nào!'}</p><p>${filter==='done'?'Bấm ✅ Đã gọi ở một hẹn để ẩn nó cho gọn.':'Tất cả khách hàng đều ổn.'}</p></div>`;return;}
   el.innerHTML=`<div class="rem-cards">${rems.map((r,i)=>{
     const dayLabel=r.daysUntil<0?`Đã quá ${Math.abs(r.daysUntil)} ngày`:r.daysUntil===0?'Hôm nay!':r.daysUntil===1?'Ngày mai':r.daysUntil+' ngày nữa';
