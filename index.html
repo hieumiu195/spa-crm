@@ -215,6 +215,7 @@ tfoot td{background:#006064!important;color:#fff;font-weight:700;}
 .rem-card.urgent{border-left-color:#e65100;background:#fffbf0;}
 .rem-card.soon{border-left-color:#2e7d32;background:#f9fff9;}
 .rem-card.birthday{border-left-color:#7b1fa2;background:#fdf5ff;}
+.rem-card.stale{border-left-color:#90a4ae;background:#fafafa;}
 .rem-card-top{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
 .rem-icon{font-size:24px;flex-shrink:0;}
 .rem-name{font-size:14px;font-weight:700;color:#006064;}
@@ -224,6 +225,7 @@ tfoot td{background:#006064!important;color:#fff;font-weight:700;}
 .rem-badge.urgent{background:#fff3e0;color:#e65100;}
 .rem-badge.soon{background:#e8f5e9;color:#2e7d32;}
 .rem-badge.birthday{background:#f3e5f5;color:#7b1fa2;}
+.rem-badge.stale{background:#eceff1;color:#455a64;}
 .rem-detail{font-size:12px;color:#546e7a;line-height:1.7;}
 .rem-detail b{color:#212121;}
 .rem-empty{text-align:center;padding:50px 20px;color:#90a4ae;}
@@ -336,8 +338,9 @@ tfoot td{background:#006064!important;color:#fff;font-weight:700;}
     <div class="rem-filter">
       <h2>🔔 Lịch Nhắc & Hẹn Lại</h2>
       <select id="rem-filter-sel" class="fi" onchange="renderReminders()" style="width:180px">
-        <option value="all">Tất cả nhắc nhở</option>
-        <option value="overdue">⚠️ Đã quá hạn</option>
+        <option value="all">Tất cả nhắc nhở (mới, gọn)</option>
+        <option value="overdue">⚠️ Mới quá hạn (≤30 ngày)</option>
+        <option value="stale">🗄️ Quá hạn lâu (&gt;30 ngày) — dọn riêng</option>
         <option value="7">🔥 Trong 7 ngày</option>
         <option value="30">📅 Trong 30 ngày</option>
         <option value="cskh">💌 Chăm sóc sau dịch vụ</option>
@@ -1288,7 +1291,7 @@ function getAllReminders(){
     if(!cust)return;
     // Show all: overdue and up to 60 days ahead
     if(dUntil>60)return;
-    let urgency=dUntil<0?'overdue':dUntil<=7?'urgent':'soon';
+    let urgency=dUntil<-30?'stale':dUntil<0?'overdue':dUntil<=7?'urgent':'soon';
     reminders.push({type:'service',custId:r.custId,custName:cust.name,custPhone:cust.phone,
       svcName:r.svcName,lastDate:r.date,remindDate:remDate,daysUntil:dUntil,urgency});
   });
@@ -1336,7 +1339,7 @@ function getAllReminders(){
 }
 
 function updateRemBadge(){
-  const urgent=getAllReminders().filter(r=>!r.done&&(r.daysUntil<=3||r.urgency==='overdue'||r.urgency==='birthday'));
+  const urgent=getAllReminders().filter(r=>!r.done&&r.urgency!=='stale'&&(r.daysUntil<=3||r.urgency==='overdue'||r.urgency==='birthday'));
   const badge=document.getElementById('rem-badge');
   if(badge){
     if(urgent.length){badge.textContent=urgent.length>9?'9+':urgent.length;badge.style.display='flex';}
@@ -1350,7 +1353,9 @@ function renderReminders(){
   if(filter==='done'){ rems=rems.filter(r=>r.done); }
   else {
     rems=rems.filter(r=>!r.done);   // mặc định: ẩn hẹn ĐÃ GỌI cho gọn
-    if(filter==='overdue')rems=rems.filter(r=>r.daysUntil<0);
+    if(filter==='all')rems=rems.filter(r=>r.urgency!=='stale'); // mặc định KHÔNG trộn nhắc quá cũ (>30 ngày) vào cho đỡ rối
+    else if(filter==='overdue')rems=rems.filter(r=>r.urgency==='overdue');
+    else if(filter==='stale')rems=rems.filter(r=>r.urgency==='stale');
     else if(filter==='7')rems=rems.filter(r=>r.daysUntil>=0&&r.daysUntil<=7);
     else if(filter==='30')rems=rems.filter(r=>r.daysUntil>=0&&r.daysUntil<=30);
     else if(filter==='cskh')rems=rems.filter(r=>r.type==='cskh');
@@ -1360,7 +1365,11 @@ function renderReminders(){
   const el=document.getElementById('rem-cards');
   const cnt=document.getElementById('rem-count');
   const soDaGoi=getAllReminders().filter(r=>r.done).length;
-  if(cnt)cnt.textContent=`${rems.length} nhắc nhở`+(filter!=='done'&&soDaGoi?` · ${soDaGoi} đã gọi (đã ẩn)`:'');
+  const soQuaCu=getAllReminders().filter(r=>!r.done&&r.urgency==='stale').length;
+  if(cnt){
+    cnt.innerHTML=`${rems.length} nhắc nhở`+(filter!=='done'&&soDaGoi?` · ${soDaGoi} đã gọi (đã ẩn)`:'')
+      +(filter==='all'&&soQuaCu?` · <span style="color:#455a64;text-decoration:underline;cursor:pointer" onclick="document.getElementById('rem-filter-sel').value='stale';renderReminders()">🗄️ ${soQuaCu} quá cũ &gt;30 ngày (xem riêng)</span>`:'');
+  }
   const markAllBtn=document.getElementById('rem-markall-btn');
   if(markAllBtn){
     if(filter!=='done'&&rems.length>1){markAllBtn.style.display='inline-block';markAllBtn.textContent=`✅ Đánh dấu tất cả ${rems.length} đã gửi`;}
@@ -1407,7 +1416,7 @@ function renderReminders(){
     return`<div class="rem-card ${r.urgency}" onclick="openCust('${r.custId}')">
       <div class="rem-card-top"><div class="rem-icon">${icon}</div>
         <div><div class="rem-name">${r.custName}</div><div class="rem-phone">📱 ${r.custPhone}</div></div>
-        <span class="rem-badge ${r.urgency}">${r.urgency==='overdue'?'⚠️ '+dayLabel:dayLabel}</span>
+        <span class="rem-badge ${r.urgency}">${r.urgency==='overdue'?'⚠️ '+dayLabel:r.urgency==='stale'?'🗄️ '+dayLabel:dayLabel}</span>
       </div>
       <div class="rem-detail">
         🔧 Dịch vụ: <b>${r.svcName}</b><br>
@@ -1420,7 +1429,7 @@ function renderReminders(){
 }
 
 function renderHomeAlerts(){
-  const rems=getAllReminders().filter(r=>!r.done&&(r.daysUntil<=3||r.urgency==='overdue'));
+  const rems=getAllReminders().filter(r=>!r.done&&r.urgency!=='stale'&&(r.daysUntil<=3||r.urgency==='overdue'));
   const el=document.getElementById('home-alerts');
   if(!rems.length){el.innerHTML='';return;}
   const rows=rems.slice(0,5).map(r=>{
@@ -1471,7 +1480,7 @@ function getCustStats(custId){
 function custCardHtml(c){
   const s=getCustStats(c.id);const tier=getTier(s.total);
   const ds=s.last?Math.floor((new Date()-new Date(s.last+'T00:00:00'))/(864e5)):null;
-  const hasRem=getAllReminders().some(r=>r.custId===c.id&&!r.done&&(r.daysUntil<=3||r.urgency==='overdue'));
+  const hasRem=getAllReminders().some(r=>r.custId===c.id&&!r.done&&r.urgency!=='stale'&&(r.daysUntil<=3||r.urgency==='overdue'));
   return`<div class="cust-card" onclick="openCust('${c.id}')">
     <div class="cust-card-top">
       <div class="cust-avatar" style="background:${getABG(c.id)}">${getIni(c.name)}</div>
