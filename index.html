@@ -384,8 +384,8 @@ tfoot td{background:#006064!important;color:#fff;font-weight:700;}
 }
 @media print{#topbar,#x-bottom,.x-page-head button,.x-noprint{display:none!important;}}
 
-/* KTV: ẩn ô tìm khách + nút thêm khách + trang khách (chỉ xem lương & tour của mình) */
-body.xr-ktv #topbar .search-wrap,body.xr-ktv #topbar .right-btns .btn,body.xr-ktv #topbar .right-btns label.btn,body.xr-ktv #page-home,body.xr-ktv #page-customers,body.xr-ktv #page-reminders,body.xr-ktv #detail-panel,body.xr-ktv #panel-overlay{display:none!important;}
+/* KTV: ẩn dòng tổng tiền/giá nhập (nếu có) */
+body.xr-ktv .x-money{display:none!important;}
 </style>
 </head>
 <body>
@@ -3459,7 +3459,7 @@ checkCloudUpdates=async function(){
     const nc=(d.customers||[]).length-_pollCustCount,nv=(d.visits||[]).length-_pollVisitCount;
     _pollCustCount=(d.customers||[]).length;_pollVisitCount=(d.visits||[]).length;
     xMergeAll(d);setSyncStatus('ok');xRefreshUI();
-    if((nc>0||nv>0)&&!xIsKtv()){const p=[];if(nc>0)p.push(nc+' khách hàng mới');if(nv>0)p.push(nv+' lượt dịch vụ mới');const msg=p.join(', ')+' vừa được cập nhật!';toast('🔔 '+msg);sendNotif('🌸 Spa CRM',msg);}
+    if(nc>0||nv>0){const p=[];if(nc>0)p.push(nc+' khách hàng mới');if(nv>0)p.push(nv+' lượt dịch vụ mới');const msg=p.join(', ')+' vừa được cập nhật!';toast('🔔 '+msg);sendNotif('🌸 Spa CRM',msg);}
   }catch(e){}
 };
 // Dữ liệu lớn hơn → kiểm tra 60 giây/lần và chỉ khi app đang mở trên màn hình (đỡ tốn 4G)
@@ -3502,20 +3502,20 @@ const X_ROLES={
   admin:{label:'Admin',cls:'r-admin',desc:'Toàn quyền, kể cả cài đặt hệ thống & tài khoản'},
   quanly:{label:'Quản lý',cls:'r-quanly',desc:'Mọi chức năng vận hành + báo cáo, lương; không đụng tài khoản Admin & hệ thống'},
   letan:{label:'Lễ tân',cls:'r-letan',desc:'Khách hàng, lịch hẹn, bán hàng, thu nợ, kho, chi phí; KHÔNG xem doanh thu/lương'},
-  ktv:{label:'Kỹ thuật viên',cls:'r-ktv',desc:'CHỈ xem bảng lương & phiếu tour / hoa hồng CỦA MÌNH — không xem khách hàng hay dữ liệu khác'}
+  ktv:{label:'Kỹ thuật viên',cls:'r-ktv',desc:'Làm việc với khách (hồ sơ, lịch hẹn của mình, thêm lượt, liệu trình, xuất kho, tự chấm công) + xem lương & tour CỦA MÌNH. KHÔNG xem doanh thu tổng, lương / hoa hồng người khác'}
 };
 const X_PAGES=[
-  {id:'home',ic:'🏠',t:'Trang Chủ',r:'admin quanly letan'},
-  {id:'customers',ic:'👥',t:'Khách Hàng',r:'admin quanly letan'},
-  {id:'xappt',ic:'📅',t:'Lịch Hẹn',r:'admin quanly letan'},
-  {id:'xsale',ic:'🛒',t:'Bán Hàng',r:'admin quanly letan'},
+  {id:'home',ic:'🏠',t:'Trang Chủ',r:'admin quanly letan ktv'},
+  {id:'customers',ic:'👥',t:'Khách Hàng',r:'admin quanly letan ktv'},
+  {id:'xappt',ic:'📅',t:'Lịch Hẹn',r:'admin quanly letan ktv'},
+  {id:'xsale',ic:'🛒',t:'Bán Hàng',r:'admin quanly letan ktv'},
   {id:'xdebt',ic:'💳',t:'Công Nợ',r:'admin quanly letan'},
-  {id:'reminders',ic:'🔔',t:'Nhắc Lịch',r:'admin quanly letan'},
-  {id:'xsvc',ic:'✨',t:'Dịch Vụ & Liệu Trình',r:'admin quanly letan'},
+  {id:'reminders',ic:'🔔',t:'Nhắc Lịch',r:'admin quanly letan ktv'},
+  {id:'xsvc',ic:'✨',t:'Dịch Vụ & Liệu Trình',r:'admin quanly letan ktv'},
   {id:'xvoucher',ic:'🎟️',t:'Voucher',r:'admin quanly letan'},
   {id:'cosmetics',ic:'💄',t:'Mỹ Phẩm',r:'admin quanly letan'},
-  {id:'xstock',ic:'📦',t:'Kho Hàng',r:'admin quanly letan'},
-  {id:'xatt',ic:'🕐',t:'Chấm Công',r:'admin quanly letan'},
+  {id:'xstock',ic:'📦',t:'Kho Hàng',r:'admin quanly letan ktv'},
+  {id:'xatt',ic:'🕐',t:'Chấm Công',r:'admin quanly letan ktv'},
   {id:'xmypay',ic:'💵',t:'Lương Của Tôi',r:'ktv'},
   {id:'xtour',ic:'🧾',t:'Phiếu Tour',r:'admin quanly ktv'},
   {id:'payroll',ic:'💵',t:'Bảng Lương',r:'admin quanly'},
@@ -3536,7 +3536,7 @@ function xCan(act){
 }
 function xMyStaff(){return xCurUser&&xCurUser.staffName||'';}
 function xIsKtv(){return xRole()==='ktv';}
-function xHomePage(){return xIsKtv()?'xmypay':'home';}
+function xHomePage(){return 'home';}
 
 async function xHash(s){
   const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('tarus-crm|'+s));
@@ -3639,7 +3639,7 @@ function xBuildNav(){
     document.querySelector('#x-user-pill .nmx').textContent=xCurUser.name;
   }
   // thanh dưới điện thoại
-  const main4=xIsKtv()?['xmypay','xtour']:['home','customers','xappt','xsale'];
+  const main4=xIsKtv()?['home','customers','xappt','xmypay']:['home','customers','xappt','xsale'];
   let bt=document.getElementById('x-bottom');
   if(!bt){document.body.insertAdjacentHTML('beforeend','<div id="x-bottom"></div><div id="x-sheet-bg" onclick="if(event.target===this)xMenuClose()"><div id="x-sheet"></div></div>');bt=document.getElementById('x-bottom');}
   bt.innerHTML=main4.filter(xAllowed).map(id=>{const p=X_PAGES.find(x=>x.id===id);return `<a id="xb-${id}" onclick="showPage('${id}')"><span class="ic">${p.ic}</span>${p.t.split(' ')[0]==='Trang'?'Trang chủ':p.t.replace(' & Liệu Trình','').replace('Khách Hàng','Khách')}</a>`;}).join('')+`<a onclick="xMenuOpen()"><span class="ic">☰</span>Menu</a>`;
@@ -3648,7 +3648,7 @@ function xMenuOpen(){
   const sh=document.getElementById('x-sheet');
   sh.innerHTML=`<div class="x-sheet-title">📋 Tất cả chức năng — ${xE(xCurUser.name)} <span class="x-role ${X_ROLES[xRole()].cls}">${X_ROLES[xRole()].label}</span></div>
   <div class="x-grid">${X_PAGES.filter(p=>xAllowed(p.id)).map(p=>`<div class="x-tile ${p.id===xCurPage?'active':''}" onclick="xMenuClose();showPage('${p.id}')"><span class="ic">${p.ic}</span>${p.t}</div>`).join('')}
-  ${xIsKtv()?'':`<div class="x-tile" onclick="xMenuClose();showAddCust()"><span class="ic">➕</span>Thêm khách</div>`}
+  <div class="x-tile" onclick="xMenuClose();showAddCust()"><span class="ic">➕</span>Thêm khách</div>
   <div class="x-tile" onclick="xMenuClose();syncNow()"><span class="ic">🔄</span>Đồng bộ</div>
   <div class="x-tile" onclick="xMenuClose();xUserMenu()"><span class="ic">👤</span>Tài khoản</div></div>`;
   document.getElementById('x-sheet-bg').classList.add('show');
@@ -4559,7 +4559,7 @@ function xMoves(){
 X_RENDER.xstock=function(){
   const el=document.getElementById('page-xstock');
   if(!document.getElementById('xst-from'))el.innerHTML=`<div class="x-page-head"><h2>📦 Kho Hàng – Nhập Xuất Tồn</h2>${xRangeBar('xst')}</div>
-    <div class="x-page-head"><button class="btn btn-green" onclick="showPurchaseModal()">📥 Nhập hàng</button><button class="btn btn-orange" onclick="xStockOutForm()">📤 Xuất kho</button><button class="btn btn-teal" onclick="showSellCosmModal()">💰 Bán lẻ</button><button class="btn btn-gray" onclick="showPage('cosmetics')">💄 Danh mục mỹ phẩm</button></div><div id="xst-body"></div>`;
+    <div class="x-page-head">${xIsKtv()?'':'<button class="btn btn-green" onclick="showPurchaseModal()">📥 Nhập hàng</button>'}<button class="btn btn-orange" onclick="xStockOutForm()">📤 Xuất kho${xIsKtv()?' (dùng cho dịch vụ)':''}</button>${xIsKtv()?'':'<button class="btn btn-teal" onclick="showSellCosmModal()">💰 Bán lẻ</button><button class="btn btn-gray" onclick="showPage(\'cosmetics\')">💄 Danh mục mỹ phẩm</button>'}</div><div id="xst-body"></div>`;
   const {from,to}=xGetRange('xst','month');const prods=getProducts();const mv=xMoves();
   const rows=prods.map(p=>{const m=mv.filter(x=>x.pid===p.id);const after=m.filter(x=>x.date>to).reduce((a,x)=>a+x.q,0);const inR=m.filter(x=>x.date>=from&&x.date<=to);
     const nhap=inR.filter(x=>x.k==='in').reduce((a,x)=>a+x.q,0),ban=-inR.filter(x=>x.k==='sale').reduce((a,x)=>a+x.q,0),xuat=-inR.filter(x=>x.k==='out').reduce((a,x)=>a+x.q,0);
@@ -4778,6 +4778,15 @@ X_RENDER.xmypay=function(){
     <table class="x-table"><tbody>${a.map(e=>`<tr><td>${xE(e.svc)}${e.chung?' <span class="x-badge st-xn">👥 làm chung</span>':''}</td><td class="x-note">${e.role==='work'?'Thực hiện':'Tư vấn'}</td><td class="r"><b>${fmt(e.comm)}</b></td></tr>`).join('')}</tbody></table>`;}).join(''):'<div class="x-empty">Chưa có tour trong tháng này</div>'}</div>`;
 };
 function xMyShift(n){const [y,m]=xMyMonth.split('-').map(Number);const d=new Date(y,m-1+n,1);xMyMonth=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');xRerender();}
+
+// KTV: trong form thêm lượt chỉ thấy hoa hồng CỦA MÌNH (không lộ hoa hồng người khác)
+const _xOrigCommPrev=commPreviewText;
+commPreviewText=function(item){
+  if(!xIsKtv())return _xOrigCommPrev(item);
+  const me=xMyStaff();const c=itemComm(item);let a=0;
+  c.workShares.forEach(w=>{if(w.nm===me)a+=w.amount;});if(c.advisor===me)a+=c.advice;
+  return a?'💸 Hoa hồng của bạn: '+fmt(a):'';
+};
 
 </script>
 <script>
