@@ -6,12 +6,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>🌸 Spa CRM – Quản Lý Khách Hàng</title>
-<link rel="manifest" href="manifest.json?v=5">
+<link rel="manifest" href="manifest.json?v=6">
 <meta name="theme-color" content="#006064">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Spa CRM">
-<link rel="apple-touch-icon" href="icon.svg">
+<meta name="apple-mobile-web-app-title" content="TARUS Spa">
+<link rel="apple-touch-icon" sizes="180x180" href="icon-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#212121;font-size:13px;}
@@ -376,7 +377,16 @@ tfoot td{background:#006064!important;color:#fff;font-weight:700;}
   .x-chk{grid-template-columns:1fr;}
   .modal{padding:16px 14px;border-radius:14px;}
   .form-grid{grid-template-columns:1fr;}
-  .fi{font-size:15px;}
+  /* iPhone tự phóng to khi bấm vào ô chữ < 16px → để 16px cho mọi ô nhập */
+  input,select,textarea,.fi,.vi-row input,.vi-row select,.disc-row input,.disc-row select,.cosm-row input,.cosm-row select,.vi-cat-search{font-size:16px!important;}
+  .vi-row input,.vi-row select{min-height:38px;}
+  .vi-row>input,.vi-row>select{flex:1 1 44%!important;min-width:0!important;width:auto!important;}
+  .vi-row>input[id^="vn-"]{flex:1 1 100%!important;}
+  .vi-row{padding:8px;gap:6px;}
+  /* trang Danh mục & Hoa hồng (cũ) chia 1 cột trên điện thoại */
+  #service-lists,.settings-grid{grid-template-columns:1fr!important;}
+  #comm-table,#page-settings .settings-card{overflow-x:auto;}
+  .settings-card{padding:14px 12px;}
   .x-stats{grid-template-columns:1fr 1fr;}
   .x-stat .v{font-size:16px;}
   #detail-panel{width:100vw;}

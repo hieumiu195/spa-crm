@@ -1,13 +1,16 @@
 {
-  "name": "🌸 Spa CRM – Quản Lý Khách Hàng",
-  "short_name": "Spa CRM",
-  "description": "Quản lý khách hàng Spa chuyên nghiệp",
+  "name": "🌸 TARUS Beauty – Quản Lý Spa",
+  "short_name": "TARUS Spa",
+  "description": "Phần mềm quản lý spa TARUS Beauty",
   "start_url": "/spa-crm/",
+  "scope": "/spa-crm/",
   "display": "standalone",
   "background_color": "#f0f4f8",
   "theme_color": "#006064",
-  "orientation": "any",
+  "orientation": "portrait",
   "icons": [
-    {"src": "icon.svg","sizes": "any","type": "image/svg+xml","purpose": "any maskable"}
+    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"},
+    {"src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any"}
   ]
 }
