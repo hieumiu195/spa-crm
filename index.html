@@ -5263,6 +5263,20 @@ function xCosmRestore(visits){const prods=getProducts();let ch=false;visits.forE
   f(id);if(DB.get('customers').length<n)xCosmRestore(snap);
 };})();
 
+// ════════ Ẩn ô cũ "📦 Bán Mỹ Phẩm Có Trừ Kho" trong form lượt (17/10, sếp yêu cầu — tránh bấm nhầm) ════════
+// Bán mỹ phẩm chỉ cần chọn ở "💄 Sản phẩm bán về" → có doanh thu + hoa hồng + kho tự trừ.
+// Lượt CŨ đã có dòng bán kiểu này thì vẫn hiện khi sửa (để không mất dữ liệu).
+(function(){const f=renderVisitModal;renderVisitModal=function(custId,editId){f(custId,editId);
+  if((pendingCosm||[]).length)return;
+  const mb=document.getElementById('modal-body');if(!mb)return;
+  const wrap=document.getElementById('cosm-items-wrap');if(wrap)wrap.style.display='none';
+  mb.querySelectorAll('div,button').forEach(el=>{const t=el.textContent||'';
+    if(el.tagName==='BUTTON'&&/Thêm Mỹ Phẩm Trừ Kho/.test(t))el.style.display='none';
+    else if(el.tagName==='DIV'&&el.querySelectorAll('div').length===0&&/^📦 Bán Mỹ Phẩm Có Trừ Kho/.test(t.trim()))el.style.display='none';});
+  const hint=mb.querySelector('.vi-sec-mp .vi-sec-hd');
+  if(hint&&!hint.querySelector('.x-kho-hint'))hint.insertAdjacentHTML('beforeend',' <span class="x-kho-hint" style="font-weight:600;color:#8d6e63;font-size:11px">· chọn ở đây là kho tự trừ</span>');
+};})();
+
 </script>
 <script>
 // ══ INIT ══
