@@ -5028,6 +5028,14 @@ function xStockSyncVisit(v,oldItems){
   const n=DB.get('customers').length;f(id);
   if(DB.get('customers').length<n&&items.some(i=>i.productId)){const prods=getProducts();if(xStockApply(items,+1,prods))saveProducts(prods);}
 };})();
+// GIỮ NGUYÊN các trường phụ khi sửa ✏️ sản phẩm: hàm cũ dựng lại bản ghi chỉ với tên/giá/tồn → mất liên kết danh mục (svcIds) + cờ theo dõi kho
+(function(){const f=saveProduct;saveProduct=function(id){
+  const old=id?JSON.parse(JSON.stringify(getProducts().find(x=>x.id===id)||null)):null;
+  f(id);
+  if(!old)return;const prods=getProducts();const i=prods.findIndex(x=>x.id===id);if(i<0)return;
+  const keep={};Object.keys(old).forEach(k=>{if(!['id','name','unit','buyPrice','sellPrice','stock','updatedAt'].includes(k))keep[k]=old[k];});
+  prods[i]={...keep,...prods[i]};saveProducts(prods);
+};})();
 // Nhập số tồn / nhập hàng → bắt đầu theo dõi kho cho SP đó
 (function(){const f=saveProduct;saveProduct=function(id){
   const st=Number(document.getElementById('pp-stock')?.value)||0;const nm=(document.getElementById('pp-name')?.value||'').trim();
@@ -5367,6 +5375,43 @@ showSellCosmModal=function(){xMpSaleOpen();};
 };})();
 // Hồ sơ Khách lẻ dùng chung → không bao giờ hiện cảnh báo bệnh án
 (function(){const f=xMedFlags;xMedFlags=function(id){return id==='c-khachle'?[]:f(id);};})();
+
+// ════════ ➕ SẢN PHẨM MỚI — 1 form tạo cả trong Danh mục (bán + hoa hồng) lẫn Kho (tồn + giá nhập) ════════
+function xNewProd(){
+  if(!xCan('manage')){toast('Chỉ Admin / Quản lý thêm sản phẩm',false);return;}
+  const pc=isMayTinh();
+  showModal(`<h3>➕ Sản phẩm mới</h3>
+  <div class="form-grid"><div><label>Tên sản phẩm *</label><input class="fi" id="np-name" placeholder="VD: Serum B5 30ml"></div><div><label>Đơn vị</label><input class="fi" id="np-unit" value="hộp" placeholder="hộp / chai / tuýp"></div></div>
+  <div class="form-grid"><div><label>Giá bán 1 cái (đ) *</label><input class="fi" id="np-sell" type="number" inputmode="numeric" step="1000"></div><div><label>Giá nhập 1 cái (đ)</label><input class="fi" id="np-buy" type="number" inputmode="numeric" step="1000" placeholder="để tính lời"></div></div>
+  <div class="form-grid"><div><label>Số đang có trên kệ</label><input class="fi" id="np-stock" type="number" inputmode="numeric" min="0" placeholder="để trống nếu chưa có hàng"></div><div></div></div>
+  ${pc?`<div style="background:#fff8e1;border-radius:8px;padding:10px 12px;margin-bottom:9px"><div style="font-size:12px;font-weight:700;color:#e65100;margin-bottom:6px">💸 Hoa hồng khi bán sản phẩm này</div>
+    <div class="form-grid"><div><label>% người BÁN</label><input class="fi" id="np-comm" type="number" min="0" max="100" placeholder="VD: 10"></div><div><label>% người TƯ VẤN</label><input class="fi" id="np-adv" type="number" min="0" max="100" placeholder="VD: 5"></div></div></div>`
+  :'<div class="x-note" style="margin-bottom:8px">🔒 % hoa hồng cài trên máy tính (Danh Mục & Hoa Hồng).</div>'}
+  <div class="btn-group"><button class="btn btn-gray" onclick="closeModal()">Huỷ</button><button class="btn btn-green" onclick="xNewProdSave()">💾 Lưu sản phẩm</button></div>`);
+}
+function xNewProdSave(){
+  const g=id=>document.getElementById(id);const name=g('np-name').value.trim();const sell=Math.max(0,Number(g('np-sell').value)||0);
+  if(!name){toast('Nhập tên sản phẩm',false);return;}
+  const n=_noAccent(name);
+  if(getServices().some(s=>s.cat==='mp'&&_noAccent(s.name)===n)||getProducts().some(p=>_noAccent(p.name)===n)){if(!confirm(`Đã có sản phẩm tên "${name}". Vẫn tạo thêm?`))return;}
+  const comm=g('np-comm')?Math.min(100,Math.max(0,Number(g('np-comm').value)||0)):0,adv=g('np-adv')?Math.min(100,Math.max(0,Number(g('np-adv').value)||0)):0;
+  const sid=xId();const svcs=getServices();svcs.push({id:sid,name,cat:'mp',price:sell,remindDays:0,commPct:comm,advicePct:adv,group:''});DB.set('services',svcs);
+  const st=g('np-stock').value.trim();const prods=getProducts();
+  prods.push({id:'p-'+sid,name,unit:g('np-unit').value.trim()||'hộp',buyPrice:Math.max(0,Number(g('np-buy').value)||0),sellPrice:sell,stock:st===''?0:Math.max(0,Number(st)||0),svcIds:[sid],track:st!==''});
+  saveProducts(prods);closeModal();toast('✅ Đã thêm '+name+(st!==''?' · tồn '+st:''));
+  if(xCurPage==='cosmetics')renderProducts();else if(xCurPage==='settings')renderServiceCatalog();else xRerender();
+}
+// Mọi nút "Thêm mỹ phẩm/sản phẩm" cũ → form mới
+(function(){const f=showAddService;showAddService=function(cat){if(cat==='mp')return xNewProd();return f(cat);};})();
+showAddProduct=function(){xNewProd();};
+// Sửa giá/tên ở 1 chỗ → chỗ kia tự khớp
+(function(){const f=updateService;updateService=function(id){f(id);const s=getServices().find(x=>x.id===id);if(!s||s.cat!=='mp')return;
+  const prods=getProducts();const p=prods.find(x=>(x.svcIds||[]).includes(id));if(p&&(p.name!==s.name||Number(p.sellPrice)!==Number(s.price))){p.name=s.name;p.sellPrice=Number(s.price)||0;saveProducts(prods);}};})();
+(function(){const f=saveProduct;saveProduct=function(id){f(id);if(!id)return;const p=getProducts().find(x=>x.id===id);if(!p||!(p.svcIds||[]).length)return;
+  const svcs=getServices();let ch=false;svcs.forEach(s=>{if(p.svcIds.includes(s.id)&&(s.name!==p.name||Number(s.price)!==Number(p.sellPrice))){s.name=p.name;s.price=Number(p.sellPrice)||0;ch=true;}});if(ch)DB.set('services',svcs);};})();
+// Nút trên trang Kho
+(function(){const f=X_RENDER.xstock;X_RENDER.xstock=function(){f();const h=document.querySelector('#page-xstock .x-page-head:nth-of-type(2)');
+  if(h&&xCan('manage')&&!h.querySelector('#x-newprod'))h.insertAdjacentHTML('beforeend','<button class="btn btn-gray" id="x-newprod" onclick="xNewProd()">➕ Sản phẩm mới</button>');};})();
 
 </script>
 <script>
