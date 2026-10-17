@@ -366,6 +366,8 @@ tfoot td{background:#006064!important;color:#fff;font-weight:700;}
   .search-wrap{max-width:none;min-width:0;flex:1;}
   #topbar .right-btns{gap:4px;}
   #sync-pill{padding:3px 7px;font-size:10px;}
+  /* ô gợi ý tìm khách trên thanh trên: rộng hết màn hình */
+  #search-dropdown{position:fixed;left:8px;right:8px;top:54px;max-height:60vh;}
   html,body{overflow-x:hidden;}
   #x-user-pill .nmx{display:none;}
   #main,#page-cosmetics{padding:12px 10px;}
@@ -400,6 +402,9 @@ body.xr-ktv .x-money{display:none!important;}
 .x-bd-btn{position:relative;display:inline-flex;align-items:center;justify-content:center;width:34px;height:30px;border-radius:9px;background:rgba(255,255,255,.18);font-size:18px;cursor:pointer;flex-shrink:0;}
 .x-bd-btn:hover{background:rgba(255,255,255,.3);}
 .x-bd-btn .nb{position:absolute;top:-5px;right:-5px;background:#e91e63;color:#fff;border-radius:9px;min-width:17px;height:17px;padding:0 4px;font-size:10px;font-weight:800;align-items:center;justify-content:center;border:1.5px solid #fff;}
+
+/* 🔒 Lễ tân + KTV: ẩn bộ lọc xem cả danh sách khách */
+body.xr-letan #page-customers .controls+.controls,body.xr-ktv #page-customers .controls+.controls,body.xr-letan #x-cust-src,body.xr-ktv #x-cust-src{display:none!important;}
 </style>
 </head>
 <body>
@@ -3790,19 +3795,20 @@ function xRerender(){X_RENDER[xCurPage]&&X_RENDER[xCurPage]();}
 // Ô tìm khách có gợi ý (dùng ở Lịch hẹn, Bán hàng, Liệu trình)
 function xCustPicker(p,selId){
   const c=selId?xCust(selId):null;
-  return `<div style="position:relative"><input class="fi" id="${p}-q" autocomplete="off" placeholder="🔎 Gõ tên hoặc SĐT khách..." value="${c?xA(c.name+' – '+c.phone):''}" oninput="xCustSugg('${p}')" onfocus="xCustSugg('${p}')" onblur="setTimeout(()=>document.getElementById('${p}-s')?.classList.remove('show'),220)">
+  return `<div style="position:relative"><input class="fi" id="${p}-q" autocomplete="off" placeholder="🔎 Gõ tên hoặc SĐT khách..." value="${c?xA(c.name+' – '+xMask(c.phone)):''}" oninput="xCustSugg('${p}')" onfocus="xCustSugg('${p}')" onblur="setTimeout(()=>document.getElementById('${p}-s')?.classList.remove('show'),220)">
   <input type="hidden" id="${p}-id" value="${c?c.id:''}"><div class="x-sugg" id="${p}-s"></div></div>`;
 }
 function xCustSugg(p){
   const q=document.getElementById(p+'-q').value;document.getElementById(p+'-id').value='';
   const s=document.getElementById(p+'-s');const nq=_noAccent(q),dq=q.replace(/\D/g,'');
   if(!nq){s.classList.remove('show');xOnPick&&xOnPick(p,null);return;}
-  const hits=DB.get('customers').filter(c=>_noAccent(c.name).includes(nq)||(dq.length>=3&&(c.phone||'').includes(dq))).slice(0,12);
-  s.innerHTML=hits.length?hits.map(c=>`<div onmousedown="xPickCust('${p}','${c.id}')"><b>${xE(c.name)}</b> <span style="color:#78909c">${xE(c.phone||'')}</span></div>`).join(''):'<div style="color:#90a4ae;cursor:default">Không thấy — khách mới thì điền tên + SĐT bên dưới</div>';
+  if(xIsStaff()&&!xQueryOk(q)){s.innerHTML='<div style="color:#90a4ae;cursor:default">Gõ ít nhất 3 chữ của tên hoặc 4 số điện thoại…</div>';s.classList.add('show');return;}
+  const hits=DB.get('customers').filter(c=>_noAccent(c.name).includes(nq)||(dq.length>=3&&(c.phone||'').includes(dq))).slice(0,xIsStaff()?X_STAFF_MAX:12);
+  s.innerHTML=hits.length?hits.map(c=>`<div onmousedown="xPickCust('${p}','${c.id}')"><b>${xE(c.name)}</b> <span style="color:#78909c">${xE(xMask(c.phone||''))}</span></div>`).join(''):'<div style="color:#90a4ae;cursor:default">Không thấy — khách mới thì điền tên + SĐT bên dưới</div>';
   s.classList.add('show');xOnPick&&xOnPick(p,null);
 }
 let xOnPick=null;
-function xPickCust(p,id){const c=xCust(id);if(!c)return;document.getElementById(p+'-q').value=c.name+' – '+c.phone;document.getElementById(p+'-id').value=id;document.getElementById(p+'-s').classList.remove('show');xOnPick&&xOnPick(p,id);}
+function xPickCust(p,id){const c=xCust(id);if(!c)return;document.getElementById(p+'-q').value=c.name+' – '+xMask(c.phone);document.getElementById(p+'-id').value=id;document.getElementById(p+'-s').classList.remove('show');xOnPick&&xOnPick(p,id);}
 // Tạo nhanh khách mới (dùng khi đặt lịch/bán hàng cho khách chưa có hồ sơ)
 function xQuickCust(name,phone){
   name=(name||'').trim();phone=(phone||'').replace(/\D/g,'');
@@ -3920,7 +3926,7 @@ function xApptCard(a){
     <div class="tm">${xE(a.time||'--:--')}<div style="font-size:10.5px;color:#90a4ae;font-weight:600">${end?'→ '+end:''}</div></div>
     <div class="bd">
       <div class="nm">${xE(nm||'—')} ${c?`<a style="font-size:11px;color:#00838f;cursor:pointer" onclick="openCust('${c.id}')">hồ sơ ›</a>`:'<span class="x-badge st-cho">khách mới</span>'}</div>
-      <div class="mt">📱 ${xE(ph||'—')} · ✨ <b>${xE(a.svc||'—')}</b> · 👩 ${xE(a.staff||'chưa xếp')}${a.note?'<br>📝 '+xE(a.note):''}${a.by?` <span style="color:#b0bec5">· đặt bởi ${xE(a.by)}</span>`:''}</div>
+      <div class="mt">📱 ${xE(xMask(ph)||'—')} · ✨ <b>${xE(a.svc||'—')}</b> · 👩 ${xE(a.staff||'chưa xếp')}${a.note?'<br>📝 '+xE(a.note):''}${a.by?` <span style="color:#b0bec5">· đặt bởi ${xE(a.by)}</span>`:''}</div>
       ${flags.length?`<div style="margin-top:4px;font-size:11.5px;color:#c62828;font-weight:700">⚠️ ${xE(flags.join(' · '))}</div>`:''}
       <div class="ac">
         <select class="fi" style="width:auto;padding:4px 8px;font-size:12px" onchange="xApptStatus('${a.id}',this.value)" ${xIsKtv()&&a.status==='xong'?'disabled':''}>${X_APPT_ST.map(([k,l])=>`<option value="${k}" ${k===a.status?'selected':''}>${l}</option>`).join('')}</select>
@@ -4184,7 +4190,7 @@ X_RENDER.xsale=function(){
     <div class="x-stat red"><div class="l">Còn nợ</div><div class="v">${fmt(debt)}</div></div>
     ${Object.entries(byPm).map(([k,v])=>`<div class="x-stat purple"><div class="l">${xPmLabel(k)}</div><div class="v">${fmt(v)}</div></div>`).join('')}</div>`:''}
   <div class="x-card"><div class="x-table-wrap"><table class="x-table"><thead><tr><th>Khách</th><th>Dịch vụ / sản phẩm</th>${showMoney?'<th class="r">Tổng</th><th class="r">Còn nợ</th>':''}<th>Thanh toán</th><th>Người tạo</th></tr></thead><tbody>
-  ${vs.length?vs.map(v=>{const c=xCust(v.custId);return `<tr style="cursor:pointer" onclick="openCust('${v.custId}')"><td><b>${xE(c?c.name:'(đã xoá)')}</b><div class="x-note">${xE(c?c.phone:'')}</div></td>
+  ${vs.length?vs.map(v=>{const c=xCust(v.custId);return `<tr style="cursor:pointer" onclick="openCust('${v.custId}')"><td><b>${xE(c?c.name:'(đã xoá)')}</b><div class="x-note">${xE(c?xMask(c.phone):'')}</div></td>
   <td class="x-note" style="color:#37474f">${(v.items||[]).map(i=>xE(i.name)).join(', ')}${v.voucher?` <span class="x-badge st-xong">🎟️ ${xE(v.voucher.code)}</span>`:''}</td>
   ${showMoney?`<td class="r"><b>${fmt(visitBill(v))}</b></td><td class="r" style="color:#c62828">${hasPaidField(v)&&visitDebt(v)>0?fmt(visitDebt(v)):''}</td>`:''}
   <td class="x-note">${xPmLabel(v.payMethod||'')}</td><td class="x-note">${xE(v.by||'')}</td></tr>`;}).join(''):'<tr><td colspan="6" class="x-empty">Chưa có đơn nào</td></tr>'}
@@ -4221,7 +4227,7 @@ X_RENDER.xdebt=function(){
     <div class="x-stat"><div class="l">Nợ phát sinh tháng này</div><div class="v">${fmt(newM)}</div></div>
     <div class="x-stat green"><div class="l">Đã thu nợ tháng này</div><div class="v">${fmt(payM)}</div></div></div>
   <div class="x-card"><div class="x-table-wrap"><table class="x-table"><thead><tr><th>Khách</th><th class="r">Nợ phát sinh</th><th class="r">Đã trả thêm</th><th class="r">Còn nợ</th><th>Lần nợ gần nhất</th><th></th></tr></thead><tbody>
-  ${rows.length?rows.map(r=>`<tr><td><a style="cursor:pointer;color:#006064;font-weight:700" onclick="openCust('${r.custId}')">${xE(r.c?r.c.name:'(đã xoá)')}</a><div class="x-note">${xE(r.c?r.c.phone:'')}</div></td>
+  ${rows.length?rows.map(r=>`<tr><td><a style="cursor:pointer;color:#006064;font-weight:700" onclick="openCust('${r.custId}')">${xE(r.c?r.c.name:'(đã xoá)')}</a><div class="x-note">${xE(r.c?xMask(r.c.phone):'')}</div></td>
   <td class="r">${fmt(r.debt)}</td><td class="r" style="color:#2e7d32">${fmt(r.paid)}</td><td class="r"><b style="color:${r.remain>0?'#c62828':'#2e7d32'}">${r.remain>0?fmt(r.remain):'✓ Hết nợ'}</b></td>
   <td>${xFmtD(r.last)}</td><td style="white-space:nowrap">${r.remain>0?`<button class="btn btn-green btn-xs" onclick="xDebtPayForm('${r.custId}')">💵 Thu nợ</button> `:''}<button class="btn btn-gray btn-xs" onclick="xDebtHist('${r.custId}')">📜 Lịch sử</button></td></tr>`).join(''):'<tr><td colspan="6" class="x-empty">🎉 Không có khách nào đang nợ</td></tr>'}
   </tbody></table></div>
@@ -4383,7 +4389,7 @@ function xBdOpen(){
     const ph=r.c.phone||'';
     return `<div class="x-pkg" style="${r.diff===0?'background:#fff0f5;border-color:#f8bbd0':''}${r.done?';opacity:.6':''}">
       <div style="min-width:46px;text-align:center;background:#fce4ec;border-radius:10px;padding:4px 2px"><div style="font-size:18px;font-weight:800;color:#ad1457;line-height:1">${r.d}</div><div style="font-size:10px;color:#ad1457">/${m}</div></div>
-      <div style="flex:1;min-width:140px;cursor:pointer" onclick="closeModal();openCust('${r.c.id}')"><b>${xE(r.c.name)}</b> ${st}<div class="x-note">📱 ${xE(ph||'—')}${r.age>0&&r.age<100?' · tròn '+r.age+' tuổi':''}${r.done?' · ✅ đã chúc':''}</div></div>
+      <div style="flex:1;min-width:140px;cursor:pointer" onclick="closeModal();openCust('${r.c.id}')"><b>${xE(r.c.name)}</b> ${st}<div class="x-note">📱 ${xE(xMask(ph)||'—')}${r.age>0&&r.age<100?' · tròn '+r.age+' tuổi':''}${r.done?' · ✅ đã chúc':''}</div></div>
       <div style="display:flex;gap:4px;flex-wrap:wrap">
         ${ph?`<a class="btn btn-gray btn-xs" href="tel:${xA(ph)}">📞</a><button class="btn btn-teal btn-xs" onclick="xBdZalo('${r.c.id}')">💬 Zalo</button>`:''}
         <button class="btn ${r.done?'btn-gray':'btn-green'} btn-xs" onclick="xBdDone('${r.key}',${r.done})">${r.done?'↩️ Bỏ':'✅ Đã chúc'}</button>
@@ -4421,6 +4427,43 @@ renderHomeAlerts=function(){
     ${up.map(r=>`<div class="al-info" style="padding:2px 0">🎂 <b>${r.d}/${t.getMonth()+1}</b> · ${xE(r.c.name)} ${r.diff===0?'<b style="color:#c62828">– HÔM NAY</b>':'– còn '+r.diff+' ngày'}</div>`).join('')}
   </div>`);
 };
+
+// ════════ 🔒 BẢO MẬT DANH SÁCH KHÁCH (17/10, sếp yêu cầu) ════════
+// Lễ tân + KTV: KHÔNG xem danh sách khách, KHÔNG thấy SĐT hàng loạt — chỉ TÌM từng khách.
+// SĐT chỉ hiện đủ khi MỞ HỒ SƠ 1 khách. Admin / Quản lý thấy như cũ.
+function xIsStaff(){const r=xRole();return r==='letan'||r==='ktv';}
+function xMask(p){p=String(p||'');if(!xIsStaff()||p.length<6)return p;return p.slice(0,2)+'•• ••• '+p.slice(-3);}
+function xQueryOk(q){q=String(q||'').trim();const d=q.replace(/\D/g,'');return d.length>=4||_noAccent(q).replace(/[^a-z]/g,'').length>=3;}
+const X_STAFF_MAX=10;
+// Tìm khách: nhân viên phải gõ đủ (≥3 chữ hoặc ≥4 số), tối đa 10 kết quả
+(function(){const f=searchCusts;searchCusts=function(q){if(xIsStaff()){if(!xQueryOk(q))return[];return f(q).slice(0,X_STAFF_MAX);}return f(q);};})();
+// Ô tìm trên thanh trên: che SĐT
+topSearch=function(q){
+  const dd=document.getElementById('search-dropdown');const r=searchCusts(q);
+  if(!q||!r.length){dd.classList.remove('show');return;}
+  const st=xBuildCardCache().st;
+  dd.innerHTML=r.slice(0,6).map(c=>{const s=st[c.id]||{visits:0,total:0};return `<div class="sd-item" onclick="openCust('${c.id}');document.getElementById('top-search').value='';hideTopSearch()"><div class="sd-avatar" style="background:${getABG(c.id)}">${getIni(c.name||'?')}</div><div><div class="sd-name">${xE(c.name)}</div><div class="sd-meta">${xE(xMask(c.phone))} · ${s.visits} lần${xIsStaff()?'':' · '+fmt(s.total)}</div></div></div>`;}).join('')+(r.length>6?`<div style="padding:7px 15px;font-size:11px;color:#90a4ae;text-align:center">+${r.length-6} kết quả khác</div>`:'');
+  dd.classList.add('show');
+};
+// Ô tìm lớn ở Trang chủ: báo cần gõ đủ
+(function(){const f=heroSearch;heroSearch=function(q){if(xIsStaff()&&q&&!xQueryOk(q)){document.getElementById('hero-results').innerHTML='<div style="color:#90a4ae;padding:12px;font-size:13px">🔎 Gõ ít nhất 3 chữ của tên hoặc 4 số điện thoại để tìm khách</div>';return;}return f(q);};})();
+// Thẻ khách: che SĐT
+(function(){const f=custCardHtml;custCardHtml=function(c){const h=f(c);if(!xIsStaff()||!c.phone)return h;return h.replace('📱 '+xE(c.phone),'📱 '+xE(xMask(c.phone)));};})();
+// Trang chủ: bỏ khối "Khách hàng gần đây" (là 1 danh sách) với nhân viên
+(function(){const f=renderHomeRecent;renderHomeRecent=function(){if(xIsStaff()){const el=document.getElementById('home-recent');if(el)el.innerHTML='';return;}return f();};})();
+// Trang Khách hàng: nhân viên chỉ có ô tìm, không có danh sách
+(function(){const f=renderCustomers;renderCustomers=function(more){
+  if(!xIsStaff())return f(more);
+  const q=document.getElementById('cust-search')?.value||'';
+  const ctl=document.getElementById('cust-count');const box=document.getElementById('cust-cards');
+  if(!xQueryOk(q)){if(ctl)ctl.textContent='';box.innerHTML='<div class="x-card x-empty">🔒 Gõ <b>ít nhất 3 chữ của tên</b> hoặc <b>4 số điện thoại</b> vào ô tìm ở trên để tìm khách.<br><span class="x-note">Danh sách toàn bộ khách chỉ Admin / Quản lý xem được.</span></div>';return;}
+  const r=searchCusts(q);_xCardCache=xBuildCardCache();
+  if(ctl)ctl.textContent=r.length?`Tìm thấy ${r.length}${r.length>=X_STAFF_MAX?'+ (gõ cụ thể hơn)':''} khách`:'';
+  box.innerHTML=`<div class="cards-grid" style="padding:0 0 18px">${r.length?r.map(custCardHtml).join(''):'<div style="grid-column:1/-1;text-align:center;color:#90a4ae;padding:30px">Không tìm thấy khách phù hợp</div>'}</div>`;_xCardCache=null;
+};})();
+// Nhắc lịch / thẻ nhắc: che SĐT, nút Zalo vẫn dùng số thật
+(function(){const f=getAllReminders;getAllReminders=function(){const a=f();if(!xIsStaff())return a;return a.map(r=>({...r,_ph:r.custPhone,custPhone:xMask(r.custPhone)}));};})();
+cskhOpenZalo=function(i){const r=_remsShown[i];if(!r)return;window.open('https://zalo.me/'+_zaloPhone(r._ph||r.custPhone),'_blank');};
 
 // ════════════════════════════════════════════════════════════════════
 // ══ MỞ RỘNG — PHẦN QUẢN LÝ: Chấm công · Lương · Chi phí · Liệu trình · Phiếu tour · Kho · Nhân viên · Hệ thống
