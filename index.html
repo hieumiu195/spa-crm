@@ -396,6 +396,10 @@ tfoot td{background:#006064!important;color:#fff;font-weight:700;}
 
 /* KTV: ẩn dòng tổng tiền/giá nhập (nếu có) */
 body.xr-ktv .x-money{display:none!important;}
+/* 🎁 ô sinh nhật */
+.x-bd-btn{position:relative;display:inline-flex;align-items:center;justify-content:center;width:34px;height:30px;border-radius:9px;background:rgba(255,255,255,.18);font-size:18px;cursor:pointer;flex-shrink:0;}
+.x-bd-btn:hover{background:rgba(255,255,255,.3);}
+.x-bd-btn .nb{position:absolute;top:-5px;right:-5px;background:#e91e63;color:#fff;border-radius:9px;min-width:17px;height:17px;padding:0 4px;font-size:10px;font-weight:800;align-items:center;justify-content:center;border:1.5px solid #fff;}
 </style>
 </head>
 <body>
@@ -4339,6 +4343,84 @@ renderCustomers=function(more){
     ${o.n?`<div style="margin-top:6px;white-space:pre-line;font-size:12.5px;background:#fff;border-radius:8px;padding:7px 10px;border:1px solid #efebe9">${xE(o.n)}</div>`:''}
     <div class="x-note" style="margin-top:4px">Lịch sử chi tiết từng lần làm không có trong file cũ — chỉ có tổng.</div></div>`);
 };})();
+
+// ════════ 🎁 SINH NHẬT KHÁCH HÀNG (ô hộp quà) ════════
+// Khoá "đã chúc" dùng CHUNG với Lịch Nhắc (bd|id|ngày) → chúc ở đâu cũng ẩn ở cả hai nơi
+let xBdMonth=null;
+function xBdParse(b){const m=String(b||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);if(!m)return null;const y=+m[1],mo=+m[2],d=+m[3];if(mo<1||mo>12||d<1||d>31||y<1900)return null;return {y,mo,d};}
+function xBdKey(id,year,mo,d){return 'bd|'+id+'|'+new Date(year,mo-1,d).toISOString().slice(0,10);}
+function xBdList(year,month){
+  const done=new Set(getRemDone());const t=new Date();t.setHours(0,0,0,0);
+  return DB.get('customers').map(c=>{const b=xBdParse(c.birthday);if(!b||b.mo!==month)return null;
+    const day=new Date(year,b.mo-1,b.d);const diff=Math.round((day-t)/864e5);const key=xBdKey(c.id,year,b.mo,b.d);
+    return {c,d:b.d,age:year-b.y,diff,key,done:done.has(key)};}).filter(Boolean).sort((a,b)=>a.d-b.d||a.c.name.localeCompare(b.c.name));
+}
+function xBdUpcoming(){ // 7 ngày tới (kể cả hôm nay), chưa chúc
+  const t=new Date();t.setHours(0,0,0,0);const out=[];const done=new Set(getRemDone());
+  DB.get('customers').forEach(c=>{const b=xBdParse(c.birthday);if(!b)return;let y=t.getFullYear();let day=new Date(y,b.mo-1,b.d);if(day<t){y++;day=new Date(y,b.mo-1,b.d);}
+    const diff=Math.round((day-t)/864e5);if(diff<=7&&!done.has(xBdKey(c.id,y,b.mo,b.d)))out.push(c);});
+  return out;
+}
+function xBdBadge(){
+  const n=xBdUpcoming().length;
+  document.querySelectorAll('.x-bd-btn .nb').forEach(el=>{el.textContent=n>9?'9+':n;el.style.display=n?'flex':'none';});
+}
+function xBdMsg(name){const s=xSys();return `Dạ ${s.spaName} chúc ${name} sinh nhật thật vui, luôn xinh đẹp và hạnh phúc ạ 🎂🌸 Nhân dịp sinh nhật, spa có món quà nhỏ dành riêng cho ${name} trong tháng này, ${name} rảnh ghé spa hoặc nhắn spa để nhận quà nha!`;}
+function xBdOpen(){
+  if(!xBdMonth){const t=new Date();xBdMonth=t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0');}
+  const [y,m]=xBdMonth.split('-').map(Number);const list=xBdList(y,m);
+  const today=list.filter(r=>r.diff===0),soon=list.filter(r=>r.diff>0&&r.diff<=7);
+  showModal(`<h3>🎁 Sinh nhật khách hàng</h3>
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+    <button class="btn btn-gray btn-sm" onclick="xBdShift(-1)">◀</button>
+    <div style="flex:1;text-align:center;font-weight:800;color:#ad1457;font-size:15px">Tháng ${m}/${y}</div>
+    <button class="btn btn-gray btn-sm" onclick="xBdShift(1)">▶</button></div>
+  <div class="x-stats" style="margin-bottom:10px"><div class="x-stat purple"><div class="l">Sinh nhật trong tháng</div><div class="v">${list.length}</div></div>
+    <div class="x-stat red"><div class="l">🎂 Hôm nay</div><div class="v">${today.length}</div></div>
+    <div class="x-stat orange"><div class="l">Trong 7 ngày tới</div><div class="v">${soon.length}</div></div>
+    <div class="x-stat green"><div class="l">✅ Đã chúc</div><div class="v">${list.filter(r=>r.done).length}</div></div></div>
+  ${list.length?list.map(r=>{const st=r.diff===0?'<span class="x-badge st-huy">🎂 HÔM NAY</span>':r.diff>0&&r.diff<=7?`<span class="x-badge st-den">còn ${r.diff} ngày</span>`:r.diff>0?`<span class="x-badge st-xn">còn ${r.diff} ngày</span>`:'<span class="x-badge st-cho">đã qua</span>';
+    const ph=r.c.phone||'';
+    return `<div class="x-pkg" style="${r.diff===0?'background:#fff0f5;border-color:#f8bbd0':''}${r.done?';opacity:.6':''}">
+      <div style="min-width:46px;text-align:center;background:#fce4ec;border-radius:10px;padding:4px 2px"><div style="font-size:18px;font-weight:800;color:#ad1457;line-height:1">${r.d}</div><div style="font-size:10px;color:#ad1457">/${m}</div></div>
+      <div style="flex:1;min-width:140px;cursor:pointer" onclick="closeModal();openCust('${r.c.id}')"><b>${xE(r.c.name)}</b> ${st}<div class="x-note">📱 ${xE(ph||'—')}${r.age>0&&r.age<100?' · tròn '+r.age+' tuổi':''}${r.done?' · ✅ đã chúc':''}</div></div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap">
+        ${ph?`<a class="btn btn-gray btn-xs" href="tel:${xA(ph)}">📞</a><button class="btn btn-teal btn-xs" onclick="xBdZalo('${r.c.id}')">💬 Zalo</button>`:''}
+        <button class="btn ${r.done?'btn-gray':'btn-green'} btn-xs" onclick="xBdDone('${r.key}',${r.done})">${r.done?'↩️ Bỏ':'✅ Đã chúc'}</button>
+      </div></div>`;}).join(''):'<div class="x-empty">Không có khách nào sinh nhật trong tháng này<br><span class="x-note">(chỉ tính khách có ghi ngày sinh trong hồ sơ)</span></div>'}
+  <div class="btn-group"><button class="btn btn-gray" onclick="closeModal()">Đóng</button></div>`);
+  // nhảy tới khách sắp sinh nhật gần nhất (hôm nay trở đi)
+  const i=list.findIndex(r=>r.diff>=0);const rows=document.querySelectorAll('#modal-body .x-pkg');
+  if(i>1&&rows[i-1])setTimeout(()=>rows[i-1].scrollIntoView({block:'start'}),60);
+}
+function xBdShift(n){const [y,m]=xBdMonth.split('-').map(Number);const d=new Date(y,m-1+n,1);xBdMonth=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');xBdOpen();}
+function xBdDone(key,was){if(was)unmarkRemDone(key);else markRemDone(key);xBdBadge();if(typeof updateRemBadge==='function')updateRemBadge();xBdOpen();}
+function xBdZalo(id){
+  const c=xCust(id);if(!c)return;const msg=xBdMsg(c.name);
+  showModal(`<h3>💬 Lời chúc sinh nhật – ${xE(c.name)}</h3><textarea class="fi" id="xbdm" rows="5">${xE(msg)}</textarea>
+  <div class="x-note" style="margin:6px 0">Bấm “Mở Zalo” → lời chúc đã được chép sẵn, chỉ cần dán vào ô chat.</div>
+  <div class="btn-group"><button class="btn btn-gray" onclick="xBdOpen()">◀ Quay lại</button>
+  <a class="btn btn-green" href="https://zalo.me/${xA(_zaloPhone(c.phone))}" target="_blank" onclick="navigator.clipboard&&navigator.clipboard.writeText(document.getElementById('xbdm').value)">Mở Zalo</a></div>`);
+}
+// Gắn ô 🎁 lên thanh trên + khung trên Trang chủ
+function xBdMount(){
+  const rb=document.querySelector('#topbar .right-btns');
+  if(rb&&!rb.querySelector('.x-bd-btn'))rb.insertAdjacentHTML('afterbegin',`<span class="x-bd-btn" onclick="xBdOpen()" title="Sinh nhật khách hàng">🎁<span class="nb" style="display:none"></span></span>`);
+  xBdBadge();
+}
+const _xOrigBuildNav=xBuildNav;
+xBuildNav=function(){_xOrigBuildNav();xBdMount();};
+const _xOrigHomeAlerts2=renderHomeAlerts;
+renderHomeAlerts=function(){
+  _xOrigHomeAlerts2();xBdBadge();
+  const el=document.getElementById('home-alerts');if(!el||!xCurUser)return;
+  const t=new Date();const list=xBdList(t.getFullYear(),t.getMonth()+1);
+  const up=list.filter(r=>r.diff>=0&&!r.done).slice(0,4);
+  el.insertAdjacentHTML('afterbegin',`<div class="alert-strip" style="background:linear-gradient(90deg,#fce4ec,#fff5f8);border-color:#f8bbd0;cursor:pointer" onclick="xBdOpen()">
+    <div class="alert-strip-title" style="color:#ad1457;margin-bottom:${up.length?'8px':'0'}">🎁 Sinh nhật tháng ${t.getMonth()+1} (${list.length} khách) <span class="btn btn-pink btn-xs" style="margin-left:auto">Xem danh sách ›</span></div>
+    ${up.map(r=>`<div class="al-info" style="padding:2px 0">🎂 <b>${r.d}/${t.getMonth()+1}</b> · ${xE(r.c.name)} ${r.diff===0?'<b style="color:#c62828">– HÔM NAY</b>':'– còn '+r.diff+' ngày'}</div>`).join('')}
+  </div>`);
+};
 
 // ════════════════════════════════════════════════════════════════════
 // ══ MỞ RỘNG — PHẦN QUẢN LÝ: Chấm công · Lương · Chi phí · Liệu trình · Phiếu tour · Kho · Nhân viên · Hệ thống
