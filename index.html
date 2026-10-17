@@ -5115,6 +5115,49 @@ function xStockCountSave(){
 (function(){const f=X_RENDER.xstock;X_RENDER.xstock=function(){f();const h=document.querySelector('#page-xstock .x-page-head:nth-of-type(2)');
   if(h&&xCan('manage')&&!h.querySelector('#x-count-btn2'))h.insertAdjacentHTML('afterbegin','<button class="btn btn-green" id="x-count-btn2" onclick="xStockCount()">📝 Kiểm kho nhanh</button>');};})();
 
+// ════════ 📥 NHẬP HÀNG NHANH — hàng về: gõ số lượng từng SP trên 1 màn hình, lưu 1 lần ════════
+function xRecvOpen(){
+  if(!xCan('front')){toast('Bạn không có quyền nhập hàng',false);return;}
+  const prods=getProducts().slice().sort((a,b)=>a.name.localeCompare(b.name));
+  if(!prods.length){toast('Kho chưa có sản phẩm',false);return;}
+  const money=xCan('money');
+  showModal(`<h3>📥 Nhập hàng nhanh</h3>
+  <div class="form-grid"><div><label>Ngày hàng về</label><input class="fi" type="date" id="xrv-date" value="${xToday()}"></div><div><label>Nhà cung cấp / ghi chú</label><input class="fi" id="xrv-note" placeholder="VD: đại lý Kim Anh, HĐ 125"></div></div>
+  <input class="fi" id="xrv-q" placeholder="🔎 Gõ tên để lọc nhanh — vd: ka, serum, son..." oninput="xRecvFilter()" style="margin:4px 0 8px">
+  <div class="x-note" style="margin-bottom:6px">Chỉ gõ <b>số lượng</b> ở sản phẩm có hàng về. Ô trống = không nhập.${money?' Giá nhập để sẵn giá cũ, đổi nếu giá mới khác.':''}</div>
+  <div style="max-height:52vh;overflow-y:auto"><table class="x-table" style="table-layout:fixed"><thead><tr><th>Sản phẩm</th>${money?'<th class="r" style="width:32%">Giá nhập 1 cái</th>':''}<th class="r" style="width:22%">SL về</th></tr></thead><tbody id="xrv-body">
+  ${prods.map(p=>`<tr data-n="${xA(_noAccent(p.name))}"><td style="word-break:break-word"><b>${xE(p.name)}</b><div class="x-note">${p.track?'đang có '+p.stock:'<span class="x-badge st-cho">chưa kiểm kho</span>'}</div></td>
+    ${money?`<td class="r"><input class="fi xrv-buy" data-id="${p.id}" type="number" inputmode="numeric" min="0" step="1000" style="width:100%;text-align:right;padding:7px 6px" placeholder="giá nhập" value="${Number(p.buyPrice)>0?p.buyPrice:''}"></td>`:''}
+    <td class="r"><input class="fi xrv-qty" data-id="${p.id}" type="number" inputmode="numeric" min="0" style="width:100%;text-align:right;padding:7px 6px;background:#f1fbf3" placeholder="SL" oninput="xRecvSum()"></td></tr>`).join('')}
+  </tbody></table></div>
+  <div id="xrv-sum" class="x-vc-msg" style="margin-top:6px"></div>
+  <div class="btn-group"><button class="btn btn-gray" onclick="closeModal()">Huỷ</button><button class="btn btn-green" onclick="xRecvSave()">💾 Lưu nhập hàng</button></div>`);
+  setTimeout(()=>document.getElementById('xrv-q')?.focus(),150);
+}
+function xRecvFilter(){const q=_noAccent(document.getElementById('xrv-q').value);document.querySelectorAll('#xrv-body tr').forEach(tr=>{const has=tr.querySelector('.xrv-qty').value!=='';tr.style.display=!q||tr.dataset.n.includes(q)||has?'':'none';});}
+function xRecvSum(){
+  const prods=getProducts();let n=0,q=0,m=0;
+  document.querySelectorAll('.xrv-qty').forEach(i=>{const v=Number(i.value)||0;if(v>0){n++;q+=v;const b=document.querySelector(`.xrv-buy[data-id="${i.dataset.id}"]`);const p=prods.find(x=>x.id===i.dataset.id);m+=v*(Number(b?b.value:p&&p.buyPrice)||0);}});
+  document.getElementById('xrv-sum').innerHTML=n?`<span style="color:#2e7d32">✓ ${n} sản phẩm · ${q} cái${xCan('money')&&m?' · tiền hàng '+fmt(m):''}</span>`:'';
+}
+function xRecvSave(){
+  const prods=getProducts();const purs=getPurchases();const date=document.getElementById('xrv-date').value||xToday();const note=document.getElementById('xrv-note').value.trim();
+  const lines=[];document.querySelectorAll('.xrv-qty').forEach(i=>{const qty=Number(i.value)||0;if(qty<=0)return;const p=prods.find(x=>x.id===i.dataset.id);if(!p)return;
+    const b=document.querySelector(`.xrv-buy[data-id="${p.id}"]`);const buy=b&&b.value!==''?Math.max(0,Number(b.value)||0):(Number(p.buyPrice)||0);lines.push({p,qty,buy});});
+  if(!lines.length){toast('Chưa gõ số lượng sản phẩm nào',false);return;}
+  const fresh=lines.filter(l=>!l.p.track);
+  if(fresh.length&&!confirm(`${fresh.length} sản phẩm CHƯA kiểm kho (${fresh.map(l=>l.p.name).slice(0,4).join(', ')}${fresh.length>4?'…':''}).\n\nSố tồn của các SP này sẽ = số vừa nhập. Nếu trên kệ còn hàng cũ, sau đó nhớ bấm "📝 Kiểm kho nhanh" để sửa cho đúng.\n\nTiếp tục lưu?`))return;
+  lines.forEach(({p,qty,buy})=>{p.stock=(p.track?Number(p.stock)||0:0)+qty;p.track=true;if(buy)p.buyPrice=buy;
+    purs.push({id:xId(),productId:p.id,productName:p.name,qty,buyPrice:buy,date,note,by:xCurUser.name});});
+  saveProducts(prods);savePurchases(purs);
+  closeModal();toast(`✅ Đã nhập ${lines.length} sản phẩm · ${lines.reduce((a,l)=>a+l.qty,0)} cái`);
+  if(xCurPage==='cosmetics')renderProducts();else xRerender();
+}
+(function(){const f=renderProducts;renderProducts=function(){f();const c=document.getElementById('x-cosm-extra');
+  if(c&&xCan('front')&&!document.getElementById('x-recv-btn'))c.insertAdjacentHTML('afterbegin','<button class="btn btn-teal" id="x-recv-btn" onclick="xRecvOpen()">📥 Nhập hàng nhanh</button>');};})();
+(function(){const f=X_RENDER.xstock;X_RENDER.xstock=function(){f();const h=document.querySelector('#page-xstock .x-page-head:nth-of-type(2)');
+  if(h&&xCan('front')&&!h.querySelector('#x-recv-btn2'))h.insertAdjacentHTML('afterbegin','<button class="btn btn-teal" id="x-recv-btn2" onclick="xRecvOpen()">📥 Nhập hàng nhanh</button>');};})();
+
 </script>
 <script>
 // ══ INIT ══
