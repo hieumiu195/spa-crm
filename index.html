@@ -3580,8 +3580,8 @@ function xApplyBrand(){
 const X_ROLES={
   admin:{label:'Admin',cls:'r-admin',desc:'Toàn quyền, kể cả cài đặt hệ thống & tài khoản'},
   quanly:{label:'Quản lý',cls:'r-quanly',desc:'Mọi chức năng vận hành + báo cáo, lương; không đụng tài khoản Admin & hệ thống'},
-  letan:{label:'Lễ tân',cls:'r-letan',desc:'Khách hàng, lịch hẹn, bán hàng, thu nợ, kho, chi phí; KHÔNG xem doanh thu/lương'},
-  ktv:{label:'Kỹ thuật viên',cls:'r-ktv',desc:'Làm việc với khách (hồ sơ, lịch hẹn của mình, thêm lượt, liệu trình, xuất kho, tự chấm công) + xem lương & tour CỦA MÌNH. KHÔNG xem doanh thu tổng, lương / hoa hồng người khác'}
+  letan:{label:'Lễ tân',cls:'r-letan',desc:'Khách hàng, lịch hẹn, bán hàng, thu nợ, nhập hàng + kiểm kho (chỉ số lượng), chi phí; KHÔNG xem doanh thu, lương, giá nhập / lời lãi / giá trị kho'},
+  ktv:{label:'Kỹ thuật viên',cls:'r-ktv',desc:'Làm việc với khách (hồ sơ, lịch hẹn của mình, thêm lượt, liệu trình, bán mỹ phẩm), nhập hàng + kiểm kho (chỉ số lượng), xuất kho, tự chấm công + xem lương & tour CỦA MÌNH. KHÔNG xem doanh thu tổng, giá nhập / lời lãi / giá trị kho, lương người khác'}
 };
 const X_PAGES=[
   {id:'home',ic:'🏠',t:'Trang Chủ',r:'admin quanly letan ktv'},
@@ -3592,7 +3592,7 @@ const X_PAGES=[
   {id:'reminders',ic:'🔔',t:'Nhắc Lịch',r:'admin quanly letan ktv'},
   {id:'xsvc',ic:'✨',t:'Dịch Vụ & Liệu Trình',r:'admin quanly letan ktv'},
   {id:'xvoucher',ic:'🎟️',t:'Voucher',r:'admin quanly letan'},
-  {id:'cosmetics',ic:'💄',t:'Mỹ Phẩm',r:'admin quanly letan'},
+  {id:'cosmetics',ic:'💄',t:'Mỹ Phẩm',r:'admin quanly'},
   {id:'xstock',ic:'📦',t:'Kho Hàng',r:'admin quanly letan ktv'},
   {id:'xatt',ic:'🕐',t:'Chấm Công',r:'admin quanly letan ktv'},
   {id:'xmypay',ic:'💵',t:'Lương Của Tôi',r:'ktv'},
@@ -5114,14 +5114,14 @@ function xCosmReport(from,to){
 
 // ════════ 📝 KIỂM KHO NHANH — điền tồn + giá nhập cả danh sách trên 1 màn hình ════════
 function xStockCount(){
-  if(!xCan('manage')){toast('Chỉ Admin / Quản lý kiểm kho',false);return;}
+  const money=xCan('money');
   const prods=getProducts().slice().sort((a,b)=>(a.track===b.track?0:a.track?1:-1)||a.name.localeCompare(b.name));
   if(!prods.length){toast('Kho chưa có sản phẩm — bấm “🔄 Lấy SP từ danh mục” trước',false);return;}
   showModal(`<h3>📝 Kiểm kho nhanh</h3>
-  <div class="x-note" style="margin-bottom:8px">Đếm hàng trên kệ rồi điền <b>số đang có</b>. Điền <b>giá nhập 1 hộp/chai</b> để app tính lời. Ô nào để trống thì giữ nguyên. Sản phẩm nào có điền số tồn → từ giờ bán là kho tự trừ.</div>
-  <div style="max-height:60vh;overflow-y:auto"><table class="x-table" style="table-layout:fixed"><thead><tr><th>Sản phẩm</th><th class="r" style="width:34%">Giá nhập 1 cái</th><th class="r" style="width:22%">Số đang có</th></tr></thead><tbody>
-  ${prods.map(p=>`<tr><td style="word-break:break-word"><b>${xE(p.name)}</b><div class="x-note">bán ${fmt(p.sellPrice)}</div>${p.track?'':'<span class="x-badge st-cho">chưa kiểm</span>'}</td>
-    <td class="r"><input class="fi xsc-buy" data-id="${p.id}" type="number" inputmode="numeric" min="0" step="1000" style="width:100%;text-align:right;padding:7px 6px" placeholder="giá nhập" value="${Number(p.buyPrice)>0?p.buyPrice:''}"></td>
+  <div class="x-note" style="margin-bottom:8px">Đếm hàng trên kệ rồi điền <b>số đang có</b>. ${money?'Điền <b>giá nhập 1 hộp/chai</b> để app tính lời. ':''}Ô nào để trống thì giữ nguyên. Sản phẩm nào có điền số tồn → từ giờ bán là kho tự trừ.</div>
+  <div style="max-height:60vh;overflow-y:auto"><table class="x-table" style="table-layout:fixed"><thead><tr><th>Sản phẩm</th>${money?'<th class="r" style="width:34%">Giá nhập 1 cái</th>':''}<th class="r" style="width:${money?22:34}%">Số đang có</th></tr></thead><tbody>
+  ${prods.map(p=>`<tr><td style="word-break:break-word"><b>${xE(p.name)}</b>${money?`<div class="x-note">bán ${fmt(p.sellPrice)}</div>`:''}${p.track?'':'<span class="x-badge st-cho">chưa kiểm</span>'}</td>
+    ${money?`<td class="r"><input class="fi xsc-buy" data-id="${p.id}" type="number" inputmode="numeric" min="0" step="1000" style="width:100%;text-align:right;padding:7px 6px" placeholder="giá nhập" value="${Number(p.buyPrice)>0?p.buyPrice:''}"></td>`:''}
     <td class="r"><input class="fi xsc-st" data-id="${p.id}" type="number" inputmode="numeric" min="0" style="width:100%;text-align:right;padding:7px 6px" placeholder="SL" value="${p.track?p.stock:''}"></td></tr>`).join('')}
   </tbody></table></div>
   <div class="btn-group"><button class="btn btn-gray" onclick="closeModal()">Huỷ</button><button class="btn btn-green" onclick="xStockCountSave()">💾 Lưu kiểm kho</button></div>`);
@@ -5140,13 +5140,12 @@ function xStockCountSave(){
   closeModal();toast(`✅ Đã lưu kiểm kho (${n} ô)`);if(xCurPage==='cosmetics')renderProducts();else xRerender();
 }
 (function(){const f=renderProducts;renderProducts=function(){f();const c=document.getElementById('x-cosm-extra');
-  if(c&&xCan('manage')&&!document.getElementById('x-count-btn'))c.insertAdjacentHTML('afterbegin','<button class="btn btn-green" id="x-count-btn" onclick="xStockCount()">📝 Kiểm kho nhanh</button>');};})();
+  if(c&&!document.getElementById('x-count-btn'))c.insertAdjacentHTML('afterbegin','<button class="btn btn-green" id="x-count-btn" onclick="xStockCount()">📝 Kiểm kho nhanh</button>');};})();
 (function(){const f=X_RENDER.xstock;X_RENDER.xstock=function(){f();const h=document.querySelector('#page-xstock .x-page-head:nth-of-type(2)');
-  if(h&&xCan('manage')&&!h.querySelector('#x-count-btn2'))h.insertAdjacentHTML('afterbegin','<button class="btn btn-green" id="x-count-btn2" onclick="xStockCount()">📝 Kiểm kho nhanh</button>');};})();
+  if(h&&!h.querySelector('#x-count-btn2'))h.insertAdjacentHTML('afterbegin','<button class="btn btn-green" id="x-count-btn2" onclick="xStockCount()">📝 Kiểm kho nhanh</button>');};})();
 
 // ════════ 📥 NHẬP HÀNG NHANH — hàng về: gõ số lượng từng SP trên 1 màn hình, lưu 1 lần ════════
 function xRecvOpen(){
-  if(!xCan('front')){toast('Bạn không có quyền nhập hàng',false);return;}
   const prods=getProducts().slice().sort((a,b)=>a.name.localeCompare(b.name));
   if(!prods.length){toast('Kho chưa có sản phẩm',false);return;}
   const money=xCan('money');
@@ -5183,9 +5182,9 @@ function xRecvSave(){
   if(xCurPage==='cosmetics')renderProducts();else xRerender();
 }
 (function(){const f=renderProducts;renderProducts=function(){f();const c=document.getElementById('x-cosm-extra');
-  if(c&&xCan('front')&&!document.getElementById('x-recv-btn'))c.insertAdjacentHTML('afterbegin','<button class="btn btn-teal" id="x-recv-btn" onclick="xRecvOpen()">📥 Nhập hàng nhanh</button>');};})();
+  if(c&&!document.getElementById('x-recv-btn'))c.insertAdjacentHTML('afterbegin','<button class="btn btn-teal" id="x-recv-btn" onclick="xRecvOpen()">📥 Nhập hàng nhanh</button>');};})();
 (function(){const f=X_RENDER.xstock;X_RENDER.xstock=function(){f();const h=document.querySelector('#page-xstock .x-page-head:nth-of-type(2)');
-  if(h&&xCan('front')&&!h.querySelector('#x-recv-btn2'))h.insertAdjacentHTML('afterbegin','<button class="btn btn-teal" id="x-recv-btn2" onclick="xRecvOpen()">📥 Nhập hàng nhanh</button>');};})();
+  if(h&&!h.querySelector('#x-recv-btn2'))h.insertAdjacentHTML('afterbegin','<button class="btn btn-teal" id="x-recv-btn2" onclick="xRecvOpen()">📥 Nhập hàng nhanh</button>');};})();
 
 // ════════ ✨ ĐƠN GIẢN HOÁ GIAO DIỆN (17/10) ════════
 // 1) Menu gom 5 nhóm  2) Gộp Mỹ Phẩm + Kho thành "📦 Kho Mỹ Phẩm"  3) Trang chủ: nút làm nhanh + số liệu hôm nay
@@ -5237,7 +5236,7 @@ function xQuickHtml(){
   add(front,'🧾','Tạo đơn',"showPage('xsale')");
   add(!front,'🧾','Thêm lượt',"showPage('customers')");
   add(true,'➕','Thêm khách',"showAddCust()");
-  add(front,'📥','Nhập hàng',"xRecvOpen()");
+  add(true,'📥','Nhập hàng',"xRecvOpen()");
   add(xAllowed('xexp'),'💸','Ghi chi phí',"xExpForm()");
   add(xAllowed('xatt'),'🕐','Chấm công',"showPage('xatt')");
   add(true,'🎁','Sinh nhật',"xBdOpen()");
@@ -5412,6 +5411,9 @@ showAddProduct=function(){xNewProd();};
 // Nút trên trang Kho
 (function(){const f=X_RENDER.xstock;X_RENDER.xstock=function(){f();const h=document.querySelector('#page-xstock .x-page-head:nth-of-type(2)');
   if(h&&xCan('manage')&&!h.querySelector('#x-newprod'))h.insertAdjacentHTML('beforeend','<button class="btn btn-gray" id="x-newprod" onclick="xNewProd()">➕ Sản phẩm mới</button>');};})();
+// Nhân viên (KTV / lễ tân): trang Kho không có nút sang "Danh sách sản phẩm" (trang đó có giá nhập, lãi)
+(function(){const f=X_RENDER.xstock;X_RENDER.xstock=function(){f();if(xCan('manage'))return;
+  document.querySelectorAll('#page-xstock .x-page-head button').forEach(b=>{if(/Danh sách sản phẩm|Danh mục mỹ phẩm/.test(b.textContent))b.remove();});};})();
 
 </script>
 <script>
