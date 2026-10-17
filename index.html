@@ -3295,6 +3295,41 @@ const xId=()=>DB.id();
 function xLoad(k){try{const v=JSON.parse(localStorage.getItem('spa_'+k));return Array.isArray(v)?v:[];}catch{return[];}}
 function xSig(r){const o={...r};delete o.updatedAt;return JSON.stringify(o);}
 
+// ══ ĐỒNG BỘ CHỊU ĐƯỢC MẠNG CHẬM (17/10) ══
+// Kho Google ~2MB: tải mất 6–9s, ghi ~5s (hơn trên 4G) → app cũ chờ 8s là bỏ → báo lỗi đồng bộ.
+fetchCloud=async function(url,opts,retriesLeft){
+  if(retriesLeft===undefined)retriesLeft=2;
+  const isPost=!!(opts&&String(opts.method||'').toUpperCase()==='POST');
+  const ctrl=new AbortController();const timer=setTimeout(()=>ctrl.abort(),isPost?60000:30000);
+  try{
+    const res=await fetch(url,{...(opts||{}),signal:ctrl.signal});clearTimeout(timer);
+    const ct=res.headers.get('content-type')||'';
+    if((!res.ok||ct.includes('text/html'))&&retriesLeft>0){await new Promise(r=>setTimeout(r,2000));return fetchCloud(url,opts,retriesLeft-1);}
+    return res;
+  }catch(e){clearTimeout(timer);if(retriesLeft>0){await new Promise(r=>setTimeout(r,2000));return fetchCloud(url,opts,retriesLeft-1);}throw e;}
+};
+let _xSaving=0;
+function xLatest(key,value){try{const v=JSON.parse(localStorage.getItem('spa_'+key));return v==null?value:v;}catch{return value;}}
+cloudSave=function(key,value,_try){
+  if(window.__X_TEST_NOWRITE){(window.__testWrites=window.__testWrites||[]).push(key);setSyncStatus('ok');return;}
+  if(!CLOUD_URL)return;_try=_try||0;
+  _xSaving++;setSyncStatus('saving');
+  const safe=key==='visits'?stripPhotosForCloud(value):value;
+  const body='data='+encodeURIComponent(JSON.stringify({key,value:safe}));
+  fetchCloud(CLOUD_URL,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body})
+    .then(r=>r.json()).then(j=>{
+      if(!j.ok)throw new Error(j.error||'cloud');
+      _xSaving--;setSyncStatus(_xSaving>0?'saving':'ok');
+      if(key==='services')_svcsDirty=false;if(key==='staff_list')_staffDirty=false;if(key==='payroll')_payrollDirty=false;if(key==='staff_base')_baseDirty=false;
+    }).catch(()=>{
+      _xSaving--;
+      if(_try<3){setSyncStatus('saving','Mạng chậm – đang tự gửi lại...');setTimeout(()=>cloudSave(key,xLatest(key,value),_try+1),12000*(_try+1));}
+      else setSyncStatus('error','Chưa gửi được – dữ liệu vẫn trên máy, sẽ tự gửi lại khi mở app / có mạng');
+    });
+};
+// Đóng app / chuyển app khác → gửi ngay những gì đang chờ
+document.addEventListener('visibilitychange',()=>{if(document.hidden)Object.keys(_xPushT).forEach(k=>{if(_xPushT[k]){clearTimeout(_xPushT[k]);_xPushT[k]=null;if(CLOUD_URL)cloudSave(k,xLoad(k));}});});
+
 // ── Tombstones (bia mộ khi xoá) ──
 function xTombs(){return xLoad('deleted');}
 function xTombSet(){return new Set(xTombs().map(t=>t.id));}
@@ -3322,7 +3357,7 @@ function xStamp(k,arr,allowTomb){
 const _xPushT={};
 function xPush(k){
   clearTimeout(_xPushT[k]);
-  _xPushT[k]=setTimeout(()=>{if(typeof cloudSave==='function'&&CLOUD_URL)cloudSave(k,xLoad(k));},700);
+  _xPushT[k]=setTimeout(()=>{_xPushT[k]=null;if(typeof cloudSave==='function'&&CLOUD_URL)cloudSave(k,xLoad(k));},700);
 }
 // Lưu bộ sưu tập mới (có đóng dấu + bia mộ khi xoá)
 function xSave(k,arr,opt){
@@ -3445,19 +3480,26 @@ function xRefreshUI(){
     else if(X_RENDER[cur]&&!document.getElementById('modal').classList.contains('show'))X_RENDER[cur]();
   }catch(e){console.warn(e);}
 }
+let _xFirstLoad=true,_xLoading=null;
 cloudLoad=async function(){
   if(!CLOUD_URL){setSyncStatus('offline');return false;}
+  if(_xFirstLoad){_xFirstLoad=false;if(xLoad('customers').length){_xLoading=xCloudLoadReal().finally(()=>{_xLoading=null;});return true;}}
+  if(_xLoading)return _xLoading;
+  _xLoading=xCloudLoadReal().finally(()=>{_xLoading=null;});return _xLoading;
+};
+async function xCloudLoadReal(){
   setSyncStatus('loading');
   try{
     const res=await fetchCloud(CLOUD_URL+'?action=getAll&_t='+Date.now(),{cache:'no-store'});
     const json=await res.json();
     if(json.ok&&json.data){xMergeAll(json.data);setSyncStatus('ok');xRefreshUI();return true;}
-    setSyncStatus('error','Cloud trả về lỗi');return false;
-  }catch(e){setSyncStatus('error','Không kết nối được cloud');return false;}
-};
+    setSyncStatus('error','Cloud trả về lỗi – sẽ tự thử lại');return false;
+  }catch(e){setSyncStatus('error','Mạng chậm – sẽ tự thử lại');return false;}
+}
 let _xLastSig='';
 checkCloudUpdates=async function(){
-  if(!CLOUD_URL)return;
+  if(!CLOUD_URL||_xPolling)return;
+  _xPolling=true;
   try{
     const res=await fetchCloud(CLOUD_URL+'?action=getAll&_t='+Date.now(),{cache:'no-store'});
     const json=await res.json();if(!json.ok||!json.data)return;
@@ -3470,10 +3512,11 @@ checkCloudUpdates=async function(){
     _pollCustCount=(d.customers||[]).length;_pollVisitCount=(d.visits||[]).length;
     xMergeAll(d);setSyncStatus('ok');xRefreshUI();
     if(nc>0||nv>0){const p=[];if(nc>0)p.push(nc+' khách hàng mới');if(nv>0)p.push(nv+' lượt dịch vụ mới');const msg=p.join(', ')+' vừa được cập nhật!';toast('🔔 '+msg);sendNotif('🌸 Spa CRM',msg);}
-  }catch(e){}
+  }catch(e){}finally{_xPolling=false;}
 };
-// Dữ liệu lớn hơn → kiểm tra 60 giây/lần và chỉ khi app đang mở trên màn hình (đỡ tốn 4G)
-startPolling=function(){stopPolling();if(!CLOUD_URL)return;_xLastSig='';checkCloudUpdates();_pollTimer=setInterval(()=>{if(!document.hidden)checkCloudUpdates();},60000);};
+// Dữ liệu lớn hơn → kiểm tra 2 phút/lần và chỉ khi app đang mở trên màn hình (đỡ tốn 4G)
+startPolling=function(){stopPolling();if(!CLOUD_URL)return;_xLastSig='';if(!_xLoading)checkCloudUpdates();_pollTimer=setInterval(()=>{if(!document.hidden&&!_xLoading&&!_xPolling)checkCloudUpdates();},120000);};
+let _xPolling=false;
 
 // Sao lưu ĐẦY ĐỦ (cả phần mới) — khôi phục thì GỘP, không xoá dữ liệu đang có
 exportData=function(){
