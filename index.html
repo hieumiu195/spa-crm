@@ -4966,6 +4966,79 @@ commPreviewText=function(item){
   return a?'💸 Hoa hồng của bạn: '+fmt(a):'';
 };
 
+// ════════ 📦 NỐI DANH MỤC MỸ PHẨM ↔ KHO (17/10, sếp duyệt) ════════
+// Bán ở "💄 Sản phẩm bán về" (như đang làm) → kho TỰ TRỪ sản phẩm tương ứng.
+// - Mỗi SP kho gắn với dòng danh mục qua svcIds; gõ tay thì khớp theo tên (chỉ khi tên không trùng).
+// - Số lượng = giá dòng ÷ giá bán 1 SP nếu chia hết (vd 3.500.000 ÷ 1.750.000 = 2), ngược lại = 1.
+// - Chỉ trừ SP ĐANG THEO DÕI KHO (đã nhập số tồn / nhập hàng) → chưa kiểm kho thì không bị âm.
+// - Sửa lượt: hoàn lại số cũ rồi trừ số mới. Xoá lượt / xoá khách: hoàn lại kho.
+function xProdFor(it,prods){
+  if(!it||it.cat!=='mp'||!it.name)return null;
+  let p=it.svcId&&prods.find(x=>(x.svcIds||[]).includes(it.svcId));
+  if(!p){const n=_noAccent(it.name);const m=prods.filter(x=>_noAccent(x.name)===n);if(m.length===1)p=m[0];}
+  return p||null;
+}
+function xQtyFor(it,p){const pr=Number(it.price)||0,sp=Number(p.sellPrice)||0;if(pr>0&&sp>0&&pr%sp===0)return Math.max(1,pr/sp);return 1;}
+function xStockApply(items,sign,prods){ // sign -1 = trừ, +1 = hoàn
+  let ch=false;(items||[]).forEach(it=>{if(!it.productId||!it.stockQty)return;const p=prods.find(x=>x.id===it.productId);if(!p)return;p.stock=(Number(p.stock)||0)+sign*Number(it.stockQty);ch=true;});return ch;
+}
+function xStockSyncVisit(v,oldItems){
+  const prods=getProducts();let pch=xStockApply(oldItems,+1,prods);
+  (v.items||[]).forEach(it=>{delete it.productId;delete it.stockQty;const p=xProdFor(it,prods);if(p&&p.track){it.productId=p.id;it.stockQty=xQtyFor(it,p);}});
+  pch=xStockApply(v.items,-1,prods)||pch;
+  if(pch)saveProducts(prods);
+  return (v.items||[]).some(it=>it.productId)||(oldItems||[]).some(it=>it.productId);
+}
+(function(){const f=saveVisit;saveVisit=function(custId,editId){
+  const oldItems=editId?JSON.parse(JSON.stringify((DB.get('visits').find(x=>x.id===editId)||{}).items||[])):[];
+  const before=new Set(DB.get('visits').map(v=>v.id));
+  f(custId,editId);
+  if(document.getElementById('modal').classList.contains('show'))return;
+  const vs=DB.get('visits');const v=editId?vs.find(x=>x.id===editId):vs.find(x=>!before.has(x.id)&&x.custId===custId);
+  if(v&&xStockSyncVisit(v,oldItems))DB.set('visits',vs);
+};})();
+(function(){const f=deleteVisit;deleteVisit=function(visitId,custId){
+  const v=DB.get('visits').find(x=>x.id===visitId);const items=v?JSON.parse(JSON.stringify(v.items||[])):[];
+  const n=DB.get('visits').length;f(visitId,custId);
+  if(DB.get('visits').length<n&&items.some(i=>i.productId)){const prods=getProducts();if(xStockApply(items,+1,prods))saveProducts(prods);}
+};})();
+(function(){const f=confirmDeleteCust;confirmDeleteCust=function(id){
+  const items=DB.get('visits').filter(v=>v.custId===id).flatMap(v=>JSON.parse(JSON.stringify(v.items||[])));
+  const n=DB.get('customers').length;f(id);
+  if(DB.get('customers').length<n&&items.some(i=>i.productId)){const prods=getProducts();if(xStockApply(items,+1,prods))saveProducts(prods);}
+};})();
+// Nhập số tồn / nhập hàng → bắt đầu theo dõi kho cho SP đó
+(function(){const f=saveProduct;saveProduct=function(id){
+  const st=Number(document.getElementById('pp-stock')?.value)||0;const nm=(document.getElementById('pp-name')?.value||'').trim();
+  f(id);const prods=getProducts();const p=id?prods.find(x=>x.id===id):prods.filter(x=>x.name===nm).pop();
+  if(p&&(st>0||p.track)&&!p.track){p.track=true;saveProducts(prods);renderProducts();}
+};})();
+(function(){const f=savePurchase;savePurchase=function(){
+  const pid=document.getElementById('pur-prod')?.value;f();const prods=getProducts();const p=prods.find(x=>x.id===pid);
+  if(p&&!p.track){p.track=true;saveProducts(prods);renderProducts();}
+};})();
+// Kho N-X-T: tính cả mỹ phẩm bán qua lượt dịch vụ
+(function(){const f=xMoves;xMoves=function(){const mv=f();DB.get('visits').forEach(v=>(v.items||[]).forEach(it=>{if(it.productId&&it.stockQty)mv.push({pid:it.productId,date:v.date,q:-Number(it.stockQty),k:'sale'});}));return mv;};})();
+// Lấy SP từ danh mục còn thiếu vào kho
+function xProdFromCatalog(silent){
+  const prods=getProducts();const linked=new Set(prods.flatMap(p=>p.svcIds||[]));let n=0;
+  getServices().filter(s=>s.cat==='mp'&&!linked.has(s.id)).forEach(s=>{
+    const same=prods.find(p=>_noAccent(p.name)===_noAccent(s.name)&&Number(p.sellPrice)===Number(s.price));
+    if(same){same.svcIds=[...(same.svcIds||[]),s.id];}else{prods.push({id:'p-'+s.id,name:s.name,unit:'hộp',buyPrice:0,sellPrice:Number(s.price)||0,stock:0,svcIds:[s.id],track:false});}n++;});
+  if(n)saveProducts(prods);if(!silent){toast(n?`✅ Đã lấy ${n} sản phẩm từ danh mục`:'Danh mục không có sản phẩm mới');renderProducts();}
+  return n;
+}
+// Trang Mỹ Phẩm: nhãn "chưa kiểm kho" + nút lấy từ danh mục
+(function(){const f=renderProducts;renderProducts=function(){f();
+  const c=document.getElementById('x-cosm-extra');
+  if(c&&xCan('manage')&&!document.getElementById('x-from-cat'))c.insertAdjacentHTML('beforeend','<button class="btn btn-gray" id="x-from-cat" onclick="xProdFromCatalog()">🔄 Lấy SP từ danh mục</button>');
+  const prods=getProducts();const nt=prods.filter(p=>!p.track).length;
+  const pl=document.getElementById('prod-list');
+  if(pl&&nt&&!document.getElementById('x-track-note'))pl.insertAdjacentHTML('beforebegin',`<div id="x-track-note" class="x-med-warn" style="background:#fff8e1;border-color:#ffe082;color:#8d6e00;margin:8px 12px">📋 ${nt} sản phẩm <b>chưa kiểm kho</b> (kho chưa tự trừ). Bấm ✏️ từng sản phẩm → điền <b>Tồn Kho Hiện Tại</b> (và giá nhập) → Lưu. Từ lúc đó, bán ở “Sản phẩm bán về” là kho tự trừ.</div>`);
+  document.querySelectorAll('#prod-list .prod-row').forEach(row=>{const b=row.querySelector('button[onclick^="showEditProduct"]');if(!b)return;const id=(b.getAttribute('onclick').match(/'([^']+)'/)||[])[1];const p=prods.find(x=>x.id===id);
+    if(p&&!p.track){const nm=row.querySelector('.prod-name');if(nm&&!nm.querySelector('.x-nt'))nm.insertAdjacentHTML('beforeend',' <span class="x-nt x-badge st-cho">chưa kiểm kho</span>');}});
+};})();
+
 </script>
 <script>
 // ══ INIT ══
