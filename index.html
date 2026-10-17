@@ -4216,7 +4216,7 @@ X_RENDER.xsale=function(){
 function xSaleGo(){const id=document.getElementById('xsl-id').value;if(!id){toast('Chọn khách trong danh sách gợi ý (hoặc bấm Khách mới)',false);return;}showAddVisit(id);}
 function xSaleWalkin(){
   let c=DB.get('customers').find(x=>x.id==='c-khachle');
-  if(!c){const cs=DB.get('customers');c={id:'c-khachle',name:'Khách lẻ',phone:'',address:'',birthday:'',skinType:'',note:'Hồ sơ chung cho khách vãng lai',createdAt:xToday()};cs.push(c);DB.set('customers',cs);}
+  if(!c){const cs=DB.get('customers');c={id:'c-khachle',name:'Khách lẻ (vãng lai)',phone:'',address:'',birthday:'',skinType:'',note:'',createdAt:xToday()};cs.push(c);DB.set('customers',cs);}
   showAddVisit('c-khachle');
 }
 
@@ -5339,7 +5339,7 @@ function xMpSave(){
   const low=xMpCart.filter(c=>c.prod&&c.prod.track&&c.qty>Number(c.prod.stock));
   if(low.length&&!confirm('Kho không đủ: '+low.map(c=>`${c.name} (còn ${c.prod.stock}, bán ${c.qty})`).join(', ')+'\n\nVẫn lưu? (nên kiểm kho lại)'))return;
   let custId=document.getElementById('xmp-id').value;
-  if(!custId){let c=DB.get('customers').find(x=>x.id==='c-khachle');if(!c){const cs=DB.get('customers');c={id:'c-khachle',name:'Khách lẻ',phone:'',address:'',birthday:'',skinType:'',note:'Hồ sơ chung cho khách vãng lai',createdAt:xToday()};cs.push(c);DB.set('customers',cs);}custId='c-khachle';}
+  if(!custId){let c=DB.get('customers').find(x=>x.id==='c-khachle');if(!c){const cs=DB.get('customers');c={id:'c-khachle',name:'Khách lẻ (vãng lai)',phone:'',address:'',birthday:'',skinType:'',note:'',createdAt:xToday()};cs.push(c);DB.set('customers',cs);}custId='c-khachle';}
   const staff=document.getElementById('xmp-staff').value;
   const items=xMpCart.map(c=>{const s=c.svc;return {id:xId(),name:c.name,cat:'mp',price:c.qty*c.unit,qty:c.qty,staff,staff2:'',staff3:'',staff4:'',advisor:'',note:c.qty>1?'SL '+c.qty:'',
     svcId:s?s.id:((c.prod&&c.prod.svcIds||[])[0]||''),discount:0,discountType:'pct',commPct:s?Number(s.commPct)||0:0,advicePct:s?Number(s.advicePct)||0:0,commAmt:s?Number(s.commAmt)||0:0,adviceAmt:s?Number(s.adviceAmt)||0:0};});
@@ -5359,6 +5359,14 @@ showSellCosmModal=function(){xMpSaleOpen();};
 (function(){const f=X_RENDER.xsale;X_RENDER.xsale=function(){f();document.querySelectorAll('#page-xsale button').forEach(b=>{if(/Bán lẻ mỹ phẩm/.test(b.textContent))b.textContent='💄 Bán mỹ phẩm mang về';});};})();
 (function(){const f=X_RENDER.xstock;X_RENDER.xstock=function(){f();document.querySelectorAll('#page-xstock .x-page-head button').forEach(b=>{if(b.textContent.trim()==='💰 Bán lẻ')b.textContent='💄 Bán mỹ phẩm';});};})();
 (function(){const f=renderProducts;renderProducts=function(){f();document.querySelectorAll('#page-cosmetics .controls button').forEach(b=>{if(/Bán Lẻ/.test(b.textContent))b.textContent='💄 Bán mỹ phẩm';});};})();
+
+// Sửa hồ sơ "Khách lẻ" tạo trước đó: câu ghi chú nằm nhầm ô Dị ứng/Chống chỉ định → hiện cảnh báo đỏ sai. Chuyển sang tên.
+(function(){const f=xStartAs;xStartAs=function(u){f(u);
+  const cs=DB.get('customers');const c=cs.find(x=>x.id==='c-khachle');
+  if(c&&(c.note==='Hồ sơ chung cho khách vãng lai'||c.name==='Khách lẻ')){c.note='';c.name='Khách lẻ (vãng lai)';DB.set('customers',cs);}
+};})();
+// Hồ sơ Khách lẻ dùng chung → không bao giờ hiện cảnh báo bệnh án
+(function(){const f=xMedFlags;xMedFlags=function(id){return id==='c-khachle'?[]:f(id);};})();
 
 </script>
 <script>
