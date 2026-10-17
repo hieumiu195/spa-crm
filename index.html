@@ -405,6 +405,23 @@ body.xr-ktv .x-money{display:none!important;}
 
 /* 🔒 Lễ tân + KTV: ẩn bộ lọc xem cả danh sách khách */
 body.xr-letan #page-customers .controls+.controls,body.xr-ktv #page-customers .controls+.controls,body.xr-letan #x-cust-src,body.xr-ktv #x-cust-src{display:none!important;}
+/* ✨ menu nhóm (máy tính) */
+.x-dd{position:relative;display:inline-block;}
+.x-dd-btn{cursor:pointer;}
+.x-dd.cur>.x-dd-btn{background:rgba(255,255,255,.2);color:#fff;}
+.x-dd-menu{display:none;position:absolute;top:calc(100% + 4px);left:0;background:#fff;border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.2);padding:6px;min-width:200px;z-index:300;}
+.x-dd.open .x-dd-menu{display:block;}
+.x-dd-menu a{display:block;color:#263238!important;padding:9px 12px!important;border-radius:7px;font-size:13px!important;}
+.x-dd-menu a:hover,.x-dd-menu a.active{background:#e0f7fa!important;color:#006064!important;}
+/* menu điện thoại: tiêu đề nhóm */
+.x-sheet-grp{font-size:11.5px;font-weight:800;color:#78909c;margin:12px 4px 6px;text-transform:uppercase;letter-spacing:.3px;}
+/* nút làm nhanh trang chủ */
+.x-qa-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px;}
+.x-qa{background:linear-gradient(160deg,#f1fbfb,#e0f2f1);border:1.5px solid #b2dfdb;border-radius:14px;padding:12px 4px 10px;text-align:center;font-size:12.5px;font-weight:800;color:#00695c;cursor:pointer;line-height:1.25;user-select:none;}
+.x-qa:active{transform:scale(.97);}
+.x-qa .ic{display:block;font-size:26px;margin-bottom:4px;}
+@media(max-width:760px){.x-qa-grid{grid-template-columns:repeat(4,1fr);gap:6px;}.x-qa{font-size:11.5px;padding:10px 2px 8px;}.x-qa .ic{font-size:23px;}}
+@media(max-width:760px){.hero-search{padding:12px 4px 8px;}.hero-search h1,.hero-search p{display:none;}}
 </style>
 </head>
 <body>
@@ -5107,7 +5124,7 @@ function xStockCountSave(){
   if(!n){toast('Chưa điền gì mới',false);return;}
   saveProducts(prods);
   // chênh lệch khi kiểm lại → ghi phiếu "Kiểm kho lệch" để N-X-T khớp
-  changes.forEach(({p,diff})=>{if(diff<0)xUpsert('stock_out',{id:xId(),productId:p.id,productName:p.name,qty:-diff,reason:'Kiểm kho lệch',date:xToday(),note:'tự ghi khi kiểm kho',by:xCurUser.name});});
+  changes.forEach(({p,diff})=>xStockAdjustLog(p,diff,'kiểm kho'));
   closeModal();toast(`✅ Đã lưu kiểm kho (${n} ô)`);if(xCurPage==='cosmetics')renderProducts();else xRerender();
 }
 (function(){const f=renderProducts;renderProducts=function(){f();const c=document.getElementById('x-cosm-extra');
@@ -5157,6 +5174,94 @@ function xRecvSave(){
   if(c&&xCan('front')&&!document.getElementById('x-recv-btn'))c.insertAdjacentHTML('afterbegin','<button class="btn btn-teal" id="x-recv-btn" onclick="xRecvOpen()">📥 Nhập hàng nhanh</button>');};})();
 (function(){const f=X_RENDER.xstock;X_RENDER.xstock=function(){f();const h=document.querySelector('#page-xstock .x-page-head:nth-of-type(2)');
   if(h&&xCan('front')&&!h.querySelector('#x-recv-btn2'))h.insertAdjacentHTML('afterbegin','<button class="btn btn-teal" id="x-recv-btn2" onclick="xRecvOpen()">📥 Nhập hàng nhanh</button>');};})();
+
+// ════════ ✨ ĐƠN GIẢN HOÁ GIAO DIỆN (17/10) ════════
+// 1) Menu gom 5 nhóm  2) Gộp Mỹ Phẩm + Kho thành "📦 Kho Mỹ Phẩm"  3) Trang chủ: nút làm nhanh + số liệu hôm nay
+const X_GROUPS=[
+  {k:'daily',ic:'🌸',t:'Hằng ngày',ids:['home','customers','xappt','xsale','reminders']},
+  {k:'hang',ic:'📦',t:'Hàng hoá',ids:['xstock','xsvc','xvoucher']},
+  {k:'tien',ic:'💰',t:'Tiền',ids:['revenue','xdebt','xexp','payroll']},
+  {k:'ns',ic:'👥',t:'Nhân sự',ids:['xatt','xtour','xmypay','xstaff']},
+  {k:'cd',ic:'⚙️',t:'Cài đặt',ids:['settings','xsys']}
+];
+// tên gọn, dễ hiểu
+(function(){const rn={xstock:'Kho Mỹ Phẩm',cosmetics:'Danh sách mỹ phẩm',revenue:'Doanh Thu',xstaff:'Nhân Viên',settings:'Danh Mục & Hoa Hồng',xsys:'Hệ Thống',xsvc:'Liệu Trình'};
+  X_PAGES.forEach(p=>{if(rn[p.id])p.t=rn[p.id];});})();
+const xPg=id=>X_PAGES.find(p=>p.id===id);
+(function(){const f=xBuildNav;xBuildNav=function(){f();
+  const nav=document.querySelector('#x-navbar nav');if(!nav)return;
+  const item=id=>{const p=xPg(id);return `<a onclick="xDdClose();showPage('${id}')" id="nav-${id}">${p.ic} ${p.t}${id==='reminders'?'<span class="nav-badge" id="rem-badge" style="display:none"></span>':''}</a>`;};
+  let h='';
+  X_GROUPS.forEach(g=>{const ids=g.ids.filter(xAllowed);if(!ids.length)return;
+    if(g.k==='daily')h+=ids.map(item).join('');
+    else h+=`<span class="x-dd" data-g="${g.k}"><a class="x-dd-btn" onclick="xDdToggle('${g.k}',event)">${g.ic} ${g.t} ▾</a><span class="x-dd-menu">${ids.map(item).join('')}</span></span>`;});
+  nav.innerHTML=h;updateRemBadge();
+};})();
+function xDdToggle(k,e){e.stopPropagation();document.querySelectorAll('.x-dd').forEach(d=>d.classList.toggle('open',d.dataset.g===k&&!d.classList.contains('open')));}
+function xDdClose(){document.querySelectorAll('.x-dd.open').forEach(d=>d.classList.remove('open'));}
+document.addEventListener('click',xDdClose);
+// tô sáng nhóm chứa trang đang mở
+(function(){const f=showPage;showPage=function(p){f(p);document.querySelectorAll('.x-dd').forEach(d=>d.classList.toggle('cur',!!d.querySelector('#nav-'+xCurPage)));};})();
+// Menu điện thoại: chia nhóm
+xMenuOpen=function(){
+  const sh=document.getElementById('x-sheet');
+  sh.innerHTML=`<div class="x-sheet-title">📋 ${xE(xCurUser.name)} <span class="x-role ${X_ROLES[xRole()].cls}">${X_ROLES[xRole()].label}</span></div>`+
+  X_GROUPS.map(g=>{const ids=g.ids.filter(xAllowed);if(!ids.length)return '';return `<div class="x-sheet-grp">${g.ic} ${g.t}</div><div class="x-grid">${ids.map(id=>{const p=xPg(id);return `<div class="x-tile ${id===xCurPage?'active':''}" onclick="xMenuClose();showPage('${id}')"><span class="ic">${p.ic}</span>${p.t}</div>`;}).join('')}</div>`;}).join('')+
+  `<div class="x-sheet-grp">🔧 Khác</div><div class="x-grid"><div class="x-tile" onclick="xMenuClose();xBdOpen()"><span class="ic">🎁</span>Sinh nhật</div><div class="x-tile" onclick="xMenuClose();syncNow()"><span class="ic">🔄</span>Đồng bộ</div><div class="x-tile" onclick="xMenuClose();xUserMenu()"><span class="ic">👤</span>Tài khoản</div></div>`;
+  document.getElementById('x-sheet-bg').classList.add('show');
+};
+// Kho Mỹ Phẩm: tiêu đề + nút sang danh sách SP rõ ràng
+(function(){const f=X_RENDER.xstock;X_RENDER.xstock=function(){f();
+  const h2=document.querySelector('#page-xstock .x-page-head h2');if(h2)h2.textContent='📦 Kho Mỹ Phẩm';
+  document.querySelectorAll('#page-xstock .x-page-head button').forEach(b=>{const t=b.textContent.trim();if(/Danh mục mỹ phẩm/.test(t))b.textContent='📋 Danh sách sản phẩm (thêm / sửa)';if(t==='📥 Nhập hàng')b.remove();});
+};})();
+(function(){const f=renderProducts;renderProducts=function(){f();const h=document.querySelector('#page-cosmetics .controls h2');
+  if(h){h.textContent='📋 Danh sách mỹ phẩm';if(!document.getElementById('x-back-kho'))h.insertAdjacentHTML('beforebegin','<button class="btn btn-gray btn-sm" id="x-back-kho" onclick="showPage(\'xstock\')">◀ Về Kho</button>');}};})();
+// Trang chủ: nút làm nhanh + hôm nay
+function xQuickHtml(){
+  const T=[];const add=(ok,ic,t,fn)=>{if(ok)T.push(`<div class="x-qa" onclick="${fn}"><span class="ic">${ic}</span>${t}</div>`);};
+  const front=xCan('front');
+  add(front,'📅','Đặt lịch',"xApptForm()");
+  add(front,'🧾','Tạo đơn',"showPage('xsale')");
+  add(!front,'🧾','Thêm lượt',"showPage('customers')");
+  add(true,'➕','Thêm khách',"showAddCust()");
+  add(front,'📥','Nhập hàng',"xRecvOpen()");
+  add(xAllowed('xexp'),'💸','Ghi chi phí',"xExpForm()");
+  add(xAllowed('xatt'),'🕐','Chấm công',"showPage('xatt')");
+  add(true,'🎁','Sinh nhật',"xBdOpen()");
+  add(xAllowed('revenue'),'📊','Doanh thu',"showPage('revenue')");
+  add(xAllowed('xmypay'),'💵','Lương tôi',"showPage('xmypay')");
+  const td=xToday();const vs=DB.get('visits').filter(v=>v.date===td);
+  const ap=xAppts().filter(a=>a.date===td&&!['huy','vang'].includes(a.status)&&(!xIsKtv()||a.staff===xMyStaff()));
+  let stats=`<div class="x-stat"><div class="l">👥 Khách hôm nay</div><div class="v">${new Set(vs.map(v=>v.custId)).size}</div></div><div class="x-stat orange"><div class="l">📅 Lịch hẹn hôm nay</div><div class="v">${ap.length}</div></div>`;
+  if(xCan('money')){const bill=vs.reduce((a,v)=>a+visitBill(v),0),debt=vs.reduce((a,v)=>a+(hasPaidField(v)?visitDebt(v):0),0);const mp=xCosmReport(td,td);
+    stats=`<div class="x-stat green"><div class="l">💰 Doanh thu hôm nay</div><div class="v">${fmt(bill)}</div>${debt?`<div class="x-note">còn nợ ${fmt(debt)}</div>`:''}</div>`+stats+`<div class="x-stat purple"><div class="l">💄 Mỹ phẩm bán hôm nay</div><div class="v">${mp.rows.reduce((a,r)=>a+r.qty,0)} món</div></div>`;}
+  return `<div id="x-quick" class="x-card" style="padding:12px 12px 6px"><div class="x-qa-grid">${T.join('')}</div><div class="x-stats" style="margin:10px 0 4px">${stats}</div></div>`;
+}
+(function(){const f=renderHomeAlerts;renderHomeAlerts=function(){f();if(!xCurUser)return;const el=document.getElementById('home-alerts');if(!el)return;
+  document.getElementById('x-quick')?.remove();el.insertAdjacentHTML('afterbegin',xQuickHtml());};})();
+
+// Mọi thay đổi số tồn bằng tay (kiểm kho / sửa ✏️) đều ghi phiếu → bảng nhập-xuất-tồn luôn khớp
+function xStockAdjustLog(p,diff,src){
+  if(!diff)return;
+  if(diff<0)xUpsert('stock_out',{id:xId(),productId:p.id,productName:p.name,qty:-diff,reason:'Kiểm kho lệch (thiếu)',date:xToday(),note:'tự ghi khi '+src,by:xCurUser.name});
+  else{const purs=getPurchases();purs.push({id:xId(),productId:p.id,productName:p.name,qty:diff,buyPrice:0,date:xToday(),note:'Kiểm kho dư – điều chỉnh (tự ghi khi '+src+')',adjust:true,by:xCurUser.name});savePurchases(purs);}
+}
+(function(){const f=saveProduct;saveProduct=function(id){
+  const old=id?getProducts().find(x=>x.id===id):null;const oldStock=old?Number(old.stock)||0:0,wasTracked=!!(old&&old.track);
+  f(id);
+  if(id&&wasTracked){const p=getProducts().find(x=>x.id===id);if(p)xStockAdjustLog(p,(Number(p.stock)||0)-oldStock,'sửa sản phẩm');}
+};})();
+// Xoá lượt / xoá khách có "Bán mỹ phẩm có trừ kho" → trả lại kho (app cũ quên hoàn kho)
+function xCosmRestore(visits){const prods=getProducts();let ch=false;visits.forEach(v=>(v.cosm||[]).forEach(c=>{const p=prods.find(x=>x.id===c.productId);if(p&&Number(c.qty)>0){p.stock=(Number(p.stock)||0)+Number(c.qty);ch=true;}}));if(ch)saveProducts(prods);}
+(function(){const f=deleteVisit;deleteVisit=function(visitId,custId){
+  const v=DB.get('visits').find(x=>x.id===visitId);const snap=v?JSON.parse(JSON.stringify(v)):null;const n=DB.get('visits').length;
+  f(visitId,custId);if(snap&&DB.get('visits').length<n)xCosmRestore([snap]);
+};})();
+(function(){const f=confirmDeleteCust;confirmDeleteCust=function(id){
+  const snap=JSON.parse(JSON.stringify(DB.get('visits').filter(v=>v.custId===id)));const n=DB.get('customers').length;
+  f(id);if(DB.get('customers').length<n)xCosmRestore(snap);
+};})();
 
 </script>
 <script>
