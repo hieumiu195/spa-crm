@@ -3580,8 +3580,8 @@ function xApplyBrand(){
 const X_ROLES={
   admin:{label:'Admin',cls:'r-admin',desc:'Toàn quyền, kể cả cài đặt hệ thống & tài khoản'},
   quanly:{label:'Quản lý',cls:'r-quanly',desc:'Mọi chức năng vận hành + báo cáo, lương; không đụng tài khoản Admin & hệ thống'},
-  letan:{label:'Lễ tân',cls:'r-letan',desc:'Khách hàng, lịch hẹn, bán hàng, thu nợ, nhập hàng + kiểm kho (chỉ số lượng), chi phí; KHÔNG xem doanh thu, lương, giá nhập / lời lãi / giá trị kho'},
-  ktv:{label:'Kỹ thuật viên',cls:'r-ktv',desc:'Làm việc với khách (hồ sơ, lịch hẹn của mình, thêm lượt, liệu trình, bán mỹ phẩm), nhập hàng + kiểm kho (chỉ số lượng), xuất kho, tự chấm công + xem lương & tour CỦA MÌNH. KHÔNG xem doanh thu tổng, giá nhập / lời lãi / giá trị kho, lương người khác'}
+  letan:{label:'Lễ tân',cls:'r-letan',desc:'Khách hàng, lịch hẹn, bán hàng, thu nợ, thêm sản phẩm mới + nhập hàng + kiểm kho (không thấy giá nhập), chi phí; KHÔNG xem doanh thu, lương, giá nhập / lời lãi / giá trị kho'},
+  ktv:{label:'Kỹ thuật viên',cls:'r-ktv',desc:'Làm việc với khách (hồ sơ, lịch hẹn của mình, thêm lượt, liệu trình, bán mỹ phẩm), thêm sản phẩm mới + nhập hàng + kiểm kho (không thấy giá nhập), xuất kho, tự chấm công + xem lương & tour CỦA MÌNH. KHÔNG xem doanh thu tổng, giá nhập / lời lãi / giá trị kho, lương người khác'}
 };
 const X_PAGES=[
   {id:'home',ic:'🏠',t:'Trang Chủ',r:'admin quanly letan ktv'},
@@ -5377,15 +5377,14 @@ showSellCosmModal=function(){xMpSaleOpen();};
 
 // ════════ ➕ SẢN PHẨM MỚI — 1 form tạo cả trong Danh mục (bán + hoa hồng) lẫn Kho (tồn + giá nhập) ════════
 function xNewProd(){
-  if(!xCan('manage')){toast('Chỉ Admin / Quản lý thêm sản phẩm',false);return;}
-  const pc=isMayTinh();
+  const money=xCan('money');const pc=money&&isMayTinh();
   showModal(`<h3>➕ Sản phẩm mới</h3>
   <div class="form-grid"><div><label>Tên sản phẩm *</label><input class="fi" id="np-name" placeholder="VD: Serum B5 30ml"></div><div><label>Đơn vị</label><input class="fi" id="np-unit" value="hộp" placeholder="hộp / chai / tuýp"></div></div>
-  <div class="form-grid"><div><label>Giá bán 1 cái (đ) *</label><input class="fi" id="np-sell" type="number" inputmode="numeric" step="1000"></div><div><label>Giá nhập 1 cái (đ)</label><input class="fi" id="np-buy" type="number" inputmode="numeric" step="1000" placeholder="để tính lời"></div></div>
+  <div class="form-grid"><div><label>Giá bán 1 cái (đ) *</label><input class="fi" id="np-sell" type="number" inputmode="numeric" step="1000"></div>${money?'<div><label>Giá nhập 1 cái (đ)</label><input class="fi" id="np-buy" type="number" inputmode="numeric" step="1000" placeholder="để tính lời"></div>':'<div></div>'}</div>
   <div class="form-grid"><div><label>Số đang có trên kệ</label><input class="fi" id="np-stock" type="number" inputmode="numeric" min="0" placeholder="để trống nếu chưa có hàng"></div><div></div></div>
   ${pc?`<div style="background:#fff8e1;border-radius:8px;padding:10px 12px;margin-bottom:9px"><div style="font-size:12px;font-weight:700;color:#e65100;margin-bottom:6px">💸 Hoa hồng khi bán sản phẩm này</div>
     <div class="form-grid"><div><label>% người BÁN</label><input class="fi" id="np-comm" type="number" min="0" max="100" placeholder="VD: 10"></div><div><label>% người TƯ VẤN</label><input class="fi" id="np-adv" type="number" min="0" max="100" placeholder="VD: 5"></div></div></div>`
-  :'<div class="x-note" style="margin-bottom:8px">🔒 % hoa hồng cài trên máy tính (Danh Mục & Hoa Hồng).</div>'}
+  :(money?'<div class="x-note" style="margin-bottom:8px">🔒 % hoa hồng cài trên máy tính (Danh Mục & Hoa Hồng).</div>':'<div class="x-note" style="margin-bottom:8px">💡 Giá nhập + % hoa hồng do chủ / quản lý cài sau.</div>')}
   <div class="btn-group"><button class="btn btn-gray" onclick="closeModal()">Huỷ</button><button class="btn btn-green" onclick="xNewProdSave()">💾 Lưu sản phẩm</button></div>`);
 }
 function xNewProdSave(){
@@ -5396,7 +5395,7 @@ function xNewProdSave(){
   const comm=g('np-comm')?Math.min(100,Math.max(0,Number(g('np-comm').value)||0)):0,adv=g('np-adv')?Math.min(100,Math.max(0,Number(g('np-adv').value)||0)):0;
   const sid=xId();const svcs=getServices();svcs.push({id:sid,name,cat:'mp',price:sell,remindDays:0,commPct:comm,advicePct:adv,group:''});DB.set('services',svcs);
   const st=g('np-stock').value.trim();const prods=getProducts();
-  prods.push({id:'p-'+sid,name,unit:g('np-unit').value.trim()||'hộp',buyPrice:Math.max(0,Number(g('np-buy').value)||0),sellPrice:sell,stock:st===''?0:Math.max(0,Number(st)||0),svcIds:[sid],track:st!==''});
+  prods.push({id:'p-'+sid,by:xCurUser.name,createdAt:xToday(),name,unit:g('np-unit').value.trim()||'hộp',buyPrice:g('np-buy')?Math.max(0,Number(g('np-buy').value)||0):0,sellPrice:sell,stock:st===''?0:Math.max(0,Number(st)||0),svcIds:[sid],track:st!==''});
   saveProducts(prods);closeModal();toast('✅ Đã thêm '+name+(st!==''?' · tồn '+st:''));
   if(xCurPage==='cosmetics')renderProducts();else if(xCurPage==='settings')renderServiceCatalog();else xRerender();
 }
@@ -5410,7 +5409,7 @@ showAddProduct=function(){xNewProd();};
   const svcs=getServices();let ch=false;svcs.forEach(s=>{if(p.svcIds.includes(s.id)&&(s.name!==p.name||Number(s.price)!==Number(p.sellPrice))){s.name=p.name;s.price=Number(p.sellPrice)||0;ch=true;}});if(ch)DB.set('services',svcs);};})();
 // Nút trên trang Kho
 (function(){const f=X_RENDER.xstock;X_RENDER.xstock=function(){f();const h=document.querySelector('#page-xstock .x-page-head:nth-of-type(2)');
-  if(h&&xCan('manage')&&!h.querySelector('#x-newprod'))h.insertAdjacentHTML('beforeend','<button class="btn btn-gray" id="x-newprod" onclick="xNewProd()">➕ Sản phẩm mới</button>');};})();
+  if(h&&!h.querySelector('#x-newprod'))h.insertAdjacentHTML('beforeend','<button class="btn btn-gray" id="x-newprod" onclick="xNewProd()">➕ Sản phẩm mới</button>');};})();
 // Nhân viên (KTV / lễ tân): trang Kho không có nút sang "Danh sách sản phẩm" (trang đó có giá nhập, lãi)
 (function(){const f=X_RENDER.xstock;X_RENDER.xstock=function(){f();if(xCan('manage'))return;
   document.querySelectorAll('#page-xstock .x-page-head button').forEach(b=>{if(/Danh sách sản phẩm|Danh mục mỹ phẩm/.test(b.textContent))b.remove();});};})();
