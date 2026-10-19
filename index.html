@@ -4482,6 +4482,13 @@ topSearch=function(q){
 (function(){const f=getAllReminders;getAllReminders=function(){const a=f();if(!xIsStaff())return a;return a.map(r=>({...r,_ph:r.custPhone,custPhone:xMask(r.custPhone)}));};})();
 cskhOpenZalo=function(i){const r=_remsShown[i];if(!r)return;window.open('https://zalo.me/'+_zaloPhone(r._ph||r.custPhone),'_blank');};
 
+// ═══ SỐ LƯỢNG LẺ (19/10): bán / xuất / nhập / kiểm kho theo ¼ ½ ¾ sản phẩm ═══
+function xQ4(q){return Math.round((Number(q)||0)*4)/4;}
+function xIsQuarter(r){return r>0&&Math.abs(r*4-Math.round(r*4))<1e-9;}
+function xQtyFmt(q){q=Number(q)||0;const neg=q<0;q=Math.abs(q);
+  if(!xIsQuarter(q)&&q!==0)return (neg?'−':'')+String(Math.round(q*100)/100).replace('.',',');
+  const i=Math.floor(q+1e-9),f=Math.round((q-i)*4);const fr=['','¼','½','¾'][f]||'';
+  return (neg?'−':'')+((i?String(i):(fr?'':'0'))+fr);}
 // ════════════════════════════════════════════════════════════════════
 // ══ MỞ RỘNG — PHẦN QUẢN LÝ: Chấm công · Lương · Chi phí · Liệu trình · Phiếu tour · Kho · Nhân viên · Hệ thống
 // ════════════════════════════════════════════════════════════════════
@@ -4762,19 +4769,19 @@ X_RENDER.xstock=function(){
   const T=k=>rows.reduce((a,r)=>a+r[k],0);const val=rows.reduce((a,r)=>a+r.cuoi*(Number(r.p.buyPrice)||0),0);
   const low=prods.filter(p=>p.track!==false&&Number(p.stock||0)<=5);
   document.getElementById('xst-body').innerHTML=`<div class="x-stats"><div class="x-stat"><div class="l">Mặt hàng</div><div class="v">${prods.length}</div></div>
-   <div class="x-stat green"><div class="l">Nhập trong kỳ</div><div class="v">${T('nhap')}</div></div><div class="x-stat orange"><div class="l">Xuất bán (đã trừ kho)</div><div class="v">${T('ban')}</div></div>
-   <div class="x-stat red"><div class="l">Xuất khác (dùng/hỏng)</div><div class="v">${T('xuat')}</div></div>${xCan('money')?`<div class="x-stat purple"><div class="l">Giá trị tồn (giá nhập)</div><div class="v">${fmt(val)}</div></div>`:''}</div>
-  ${low.length?`<div class="x-med-warn" style="background:#fff8e1;border-color:#ffe082;color:#8d6e00">⚠️ Sắp hết / hết hàng: ${low.map(p=>xE(p.name)+' ('+(p.stock||0)+')').join(' · ')}</div>`:''}
+   <div class="x-stat green"><div class="l">Nhập trong kỳ</div><div class="v">${xQtyFmt(T('nhap'))}</div></div><div class="x-stat orange"><div class="l">Xuất bán (đã trừ kho)</div><div class="v">${xQtyFmt(T('ban'))}</div></div>
+   <div class="x-stat red"><div class="l">Xuất khác (dùng/hỏng)</div><div class="v">${xQtyFmt(T('xuat'))}</div></div>${xCan('money')?`<div class="x-stat purple"><div class="l">Giá trị tồn (giá nhập)</div><div class="v">${fmt(val)}</div></div>`:''}</div>
+  ${low.length?`<div class="x-med-warn" style="background:#fff8e1;border-color:#ffe082;color:#8d6e00">⚠️ Sắp hết / hết hàng: ${low.map(p=>xE(p.name)+' ('+xQtyFmt(p.stock||0)+')').join(' · ')}</div>`:''}
   <div class="x-card"><h3>📊 Bảng nhập – xuất – tồn <span class="x-note">${xFmtD(from)} → ${xFmtD(to)} · chỉ tính hàng ĐÃ KIỂM KHO (từ lúc nhập số tồn)</span></h3>${prods.length?`<div class="x-table-wrap"><table class="x-table"><thead><tr><th>Sản phẩm</th><th>ĐV</th><th class="r">Tồn đầu</th><th class="r">Nhập</th><th class="r">Xuất bán</th><th class="r">Xuất khác</th><th class="r">Tồn cuối</th></tr></thead><tbody>
-   ${rows.map(r=>`<tr><td><b>${xE(r.p.name)}</b></td><td class="x-note">${xE(r.p.unit||'')}</td><td class="r">${r.dau}</td><td class="r" style="color:#2e7d32">${r.nhap?'+'+r.nhap:''}</td><td class="r" style="color:#e65100">${r.ban?'−'+r.ban:''}</td><td class="r" style="color:#c62828">${r.xuat?'−'+r.xuat:''}</td><td class="r"><b>${r.cuoi}</b></td></tr>`).join('')}
-   </tbody><tfoot><tr><td colspan="2">TỔNG</td><td class="r">${T('dau')}</td><td class="r">${T('nhap')}</td><td class="r">${T('ban')}</td><td class="r">${T('xuat')}</td><td class="r">${T('cuoi')}</td></tr></tfoot></table></div>`:'<div class="x-empty">Chưa có sản phẩm trong kho. Vào 💄 Mỹ Phẩm → “+ Thêm Sản Phẩm”.</div>'}</div>
-  <div class="x-card"><h3>📤 Phiếu xuất kho (không phải bán)</h3>${(()=>{const o=xStockOut().filter(x=>x.date>=from&&x.date<=to).sort((a,b)=>b.date.localeCompare(a.date));return o.length?`<table class="x-table"><thead><tr><th>Ngày</th><th>Sản phẩm</th><th class="r">SL</th><th>Lý do</th><th>Người xuất</th></tr></thead><tbody>${o.map(x=>`<tr><td>${xFmtD(x.date)}</td><td>${xE(x.productName)}</td><td class="r">${x.qty}</td><td class="x-note">${xE(x.reason)}${x.note?' · '+xE(x.note):''}</td><td class="x-note">${xE(x.by||'')}</td></tr>`).join('')}</tbody></table>`:'<div class="x-empty">Chưa có</div>';})()}</div>`;
+   ${rows.map(r=>`<tr><td><b>${xE(r.p.name)}</b></td><td class="x-note">${xE(r.p.unit||'')}</td><td class="r">${xQtyFmt(r.dau)}</td><td class="r" style="color:#2e7d32">${r.nhap?'+'+xQtyFmt(r.nhap):''}</td><td class="r" style="color:#e65100">${r.ban?'−'+xQtyFmt(r.ban):''}</td><td class="r" style="color:#c62828">${r.xuat?'−'+xQtyFmt(r.xuat):''}</td><td class="r"><b>${xQtyFmt(r.cuoi)}</b></td></tr>`).join('')}
+   </tbody><tfoot><tr><td colspan="2">TỔNG</td><td class="r">${xQtyFmt(T('dau'))}</td><td class="r">${xQtyFmt(T('nhap'))}</td><td class="r">${xQtyFmt(T('ban'))}</td><td class="r">${xQtyFmt(T('xuat'))}</td><td class="r">${xQtyFmt(T('cuoi'))}</td></tr></tfoot></table></div>`:'<div class="x-empty">Chưa có sản phẩm trong kho. Vào 💄 Mỹ Phẩm → “+ Thêm Sản Phẩm”.</div>'}</div>
+  <div class="x-card"><h3>📤 Phiếu xuất kho (không phải bán)</h3>${(()=>{const o=xStockOut().filter(x=>x.date>=from&&x.date<=to).sort((a,b)=>b.date.localeCompare(a.date));return o.length?`<table class="x-table"><thead><tr><th>Ngày</th><th>Sản phẩm</th><th class="r">SL</th><th>Lý do</th><th>Người xuất</th></tr></thead><tbody>${o.map(x=>`<tr><td>${xFmtD(x.date)}</td><td>${xE(x.productName)}</td><td class="r">${xQtyFmt(x.qty)}</td><td class="x-note">${xE(x.reason)}${x.note?' · '+xE(x.note):''}</td><td class="x-note">${xE(x.by||'')}</td></tr>`).join('')}</tbody></table>`:'<div class="x-empty">Chưa có</div>';})()}</div>`;
 };
 function xStockOutForm(){
   const prods=getProducts().filter(p=>Number(p.stock||0)>0);if(!prods.length){toast('Kho không còn sản phẩm nào',false);return;}
   showModal(`<h3>📤 Xuất kho (dùng cho dịch vụ / hỏng / tặng)</h3>
-  <div class="form-grid full"><div><label>Sản phẩm *</label><select class="fi" id="xso-p">${prods.map(p=>`<option value="${p.id}">${xE(p.name)} (tồn ${p.stock})</option>`).join('')}</select></div></div>
-  <div class="form-grid"><div><label>Số lượng *</label><input class="fi" type="number" id="xso-q" value="1" min="1"></div><div><label>Lý do</label><select class="fi" id="xso-r"><option>Dùng cho dịch vụ</option><option>Hư hỏng / hết hạn</option><option>Tặng khách</option><option>Kiểm kho lệch</option><option>Khác</option></select></div></div>
+  <div class="form-grid full"><div><label>Sản phẩm *</label><select class="fi" id="xso-p">${prods.map(p=>`<option value="${p.id}">${xE(p.name)} (tồn ${xQtyFmt(p.stock)})</option>`).join('')}</select></div></div>
+  <div class="form-grid"><div><label>Số lượng *</label><input class="fi" type="number" inputmode="decimal" id="xso-q" value="1" min="0.25" step="0.25"></div><div class="x-note" style="margin-top:-4px">Lẻ: gõ 0.5 = ½ · 0.25 = ¼ · 1.5 = 1½</div><div><label>Lý do</label><select class="fi" id="xso-r"><option>Dùng cho dịch vụ</option><option>Hư hỏng / hết hạn</option><option>Tặng khách</option><option>Kiểm kho lệch</option><option>Khác</option></select></div></div>
   <div class="form-grid"><div><label>Ngày</label><input class="fi" type="date" id="xso-d" value="${xToday()}"></div><div><label>Ghi chú</label><input class="fi" id="xso-n"></div></div>
   <div class="btn-group"><button class="btn btn-gray" onclick="closeModal()">Huỷ</button><button class="btn btn-orange" onclick="xStockOutSave()">📤 Xuất</button></div>`);
 }
@@ -4995,7 +5002,7 @@ function xProdFor(it,prods){
   if(!p){const n=_noAccent(it.name);const m=prods.filter(x=>_noAccent(x.name)===n);if(m.length===1)p=m[0];}
   return p||null;
 }
-function xQtyFor(it,p){const pr=Number(it.price)||0,sp=Number(p.sellPrice)||0;if(pr>0&&sp>0&&pr%sp===0)return Math.max(1,pr/sp);return 1;}
+function xQtyFor(it,p){const pr=Number(it.price)||0,sp=Number(p.sellPrice)||0;if(pr>0&&sp>0&&xIsQuarter(pr/sp))return xQ4(pr/sp);return 1;}
 function xStockApply(items,sign,prods){ // sign -1 = trừ, +1 = hoàn
   let ch=false;(items||[]).forEach(it=>{if(!it.productId||!it.stockQty)return;const p=prods.find(x=>x.id===it.productId);if(!p)return;p.stock=(Number(p.stock)||0)+sign*Number(it.stockQty);ch=true;});return ch;
 }
@@ -5003,7 +5010,7 @@ function xStockSyncVisit(v,oldItems){
   // Dòng có SL rõ (bán mỹ phẩm mang về): sửa giá ở form lượt → tính lại SL theo đơn giá cũ (vd 3.500.000 → 1.750.000 = 1 cái)
   const om=new Map((oldItems||[]).map(i=>[i.id,i]));
   (v.items||[]).forEach(it=>{const o=om.get(it.id);if(!o||!(Number(o.qty)>0))return;const unit=Number(o.price)/Number(o.qty);const np=Number(it.price)||0;
-    if(np!==Number(o.price)&&unit>0&&np>0&&np%unit===0){it.qty=np/unit;it.note=it.qty>1?'SL '+it.qty:'';}});
+    if(np!==Number(o.price)&&unit>0&&np>0&&xIsQuarter(np/unit)){it.qty=xQ4(np/unit);it.note=it.qty!==1?'SL '+xQtyFmt(it.qty):'';}});
   const prods=getProducts();let pch=xStockApply(oldItems,+1,prods);
   (v.items||[]).forEach(it=>{delete it.productId;delete it.stockQty;const p=xProdFor(it,prods);if(p&&p.track){it.productId=p.id;it.stockQty=xQtyFor(it,p);}});
   pch=xStockApply(v.items,-1,prods)||pch;
@@ -5090,17 +5097,17 @@ function xCosmReport(from,to){
   body.insertAdjacentHTML('afterbegin',`<div class="x-card" style="border:2px solid #ffcc80">
     <h3>💰 Bán mỹ phẩm & lời lãi <span class="x-note">${xFmtD(from)} → ${xFmtD(to)} · tính cả bán kèm dịch vụ + bán lẻ</span></h3>
     <div class="x-stats" style="margin-bottom:6px">
-      <div class="x-stat orange"><div class="l">Số món bán ra</div><div class="v">${T('qty')}</div></div>
+      <div class="x-stat orange"><div class="l">Số món bán ra</div><div class="v">${xQtyFmt(T('qty'))}</div></div>
       ${money?`<div class="x-stat green"><div class="l">Tiền bán mỹ phẩm</div><div class="v">${fmt(T('money')+R.unlinked)}</div></div>
       <div class="x-stat red"><div class="l">Tiền vốn (giá nhập)</div><div class="v">${fmt(T('cost'))}</div></div>
       <div class="x-stat purple"><div class="l">📈 Lời</div><div class="v">${costed.length?fmt(costed.reduce((x,r)=>x+r.money-r.cost,0)):'?'}</div><div class="x-note">${noCostRows.length?'⚠️ '+noCostRows.length+' SP chưa có giá nhập — chưa tính lời':'đã trừ vốn đầy đủ'}</div></div>`:''}
     </div>
     ${R.rows.length?`<div class="x-table-wrap"><table class="x-table"><thead><tr><th>Sản phẩm</th><th class="r">SL bán</th>${money?'<th class="r">Tiền bán</th><th class="r">Vốn</th><th class="r">Lời</th>':''}<th class="r">Còn trong kho</th></tr></thead><tbody>
-      ${R.rows.map(r=>{const nc=!(Number(r.p.buyPrice)>0);return `<tr><td><b>${xE(r.p.name)}</b></td><td class="r">${r.qty}</td>${money?`<td class="r">${fmt(r.money)}</td><td class="r">${nc?'<span class="x-badge st-den">chưa có giá nhập</span>':fmt(r.cost)}</td><td class="r"><b style="color:${nc?'#90a4ae':'#2e7d32'}">${nc?'?':fmt(r.money-r.cost)}</b></td>`:''}<td class="r">${r.p.track?`<b>${r.p.stock}</b>`:'<span class="x-badge st-cho">chưa kiểm kho</span>'}</td></tr>`;}).join('')}
+      ${R.rows.map(r=>{const nc=!(Number(r.p.buyPrice)>0);return `<tr><td><b>${xE(r.p.name)}</b></td><td class="r">${xQtyFmt(r.qty)}</td>${money?`<td class="r">${fmt(r.money)}</td><td class="r">${nc?'<span class="x-badge st-den">chưa có giá nhập</span>':fmt(r.cost)}</td><td class="r"><b style="color:${nc?'#90a4ae':'#2e7d32'}">${nc?'?':fmt(r.money-r.cost)}</b></td>`:''}<td class="r">${r.p.track?`<b>${xQtyFmt(r.p.stock)}</b>`:'<span class="x-badge st-cho">chưa kiểm kho</span>'}</td></tr>`;}).join('')}
     </tbody></table></div>`:'<div class="x-empty">Chưa bán mỹ phẩm nào trong khoảng này</div>'}
     ${R.unlinkedN&&money?`<div class="x-note" style="margin-top:6px">+ ${R.unlinkedN} dòng mỹ phẩm (${fmt(R.unlinked)}) gõ tên không có trong kho — đã cộng vào Tiền bán, chưa tính lời.</div>`:''}
     ${money&&dayKeys.length>1?`<details style="margin-top:8px"><summary style="cursor:pointer;font-weight:700;color:#006064">📅 Xem từng ngày (${dayKeys.length} ngày)</summary><table class="x-table" style="margin-top:6px"><thead><tr><th>Ngày</th><th class="r">Số món</th><th class="r">Tiền bán</th><th class="r">Vốn</th><th class="r">Lời</th></tr></thead><tbody>
-      ${dayKeys.map(k=>{const d=R.days[k];return `<tr><td>${WD[new Date(k+'T00:00:00').getDay()]} ${xFmtD(k)}</td><td class="r">${d.qty}</td><td class="r">${fmt(d.money)}</td><td class="r">${fmt(d.cost)}</td><td class="r">${d.money-d.noCost>0?'<b>'+fmt(d.money-d.cost-d.noCost)+'</b>':'?'}${d.noCost&&d.money-d.noCost>0?'<span class="x-note"> (+?)</span>':''}</td></tr>`;}).join('')}
+      ${dayKeys.map(k=>{const d=R.days[k];return `<tr><td>${WD[new Date(k+'T00:00:00').getDay()]} ${xFmtD(k)}</td><td class="r">${xQtyFmt(d.qty)}</td><td class="r">${fmt(d.money)}</td><td class="r">${fmt(d.cost)}</td><td class="r">${d.money-d.noCost>0?'<b>'+fmt(d.money-d.cost-d.noCost)+'</b>':'?'}${d.noCost&&d.money-d.noCost>0?'<span class="x-note"> (+?)</span>':''}</td></tr>`;}).join('')}
     </tbody></table></details>`:''}
   </div>`);
 };})();
@@ -5122,7 +5129,7 @@ function xStockCount(){
   <div style="max-height:60vh;overflow-y:auto"><table class="x-table" style="table-layout:fixed"><thead><tr><th>Sản phẩm</th>${money?'<th class="r" style="width:34%">Giá nhập 1 cái</th>':''}<th class="r" style="width:${money?22:34}%">Số đang có</th></tr></thead><tbody>
   ${prods.map(p=>`<tr><td style="word-break:break-word"><b>${xE(p.name)}</b>${money?`<div class="x-note">bán ${fmt(p.sellPrice)}</div>`:''}${p.track?'':'<span class="x-badge st-cho">chưa kiểm</span>'}</td>
     ${money?`<td class="r"><input class="fi xsc-buy" data-id="${p.id}" type="number" inputmode="numeric" min="0" step="1000" style="width:100%;text-align:right;padding:7px 6px" placeholder="giá nhập" value="${Number(p.buyPrice)>0?p.buyPrice:''}"></td>`:''}
-    <td class="r"><input class="fi xsc-st" data-id="${p.id}" type="number" inputmode="numeric" min="0" style="width:100%;text-align:right;padding:7px 6px" placeholder="SL" value="${p.track?p.stock:''}"></td></tr>`).join('')}
+    <td class="r"><input class="fi xsc-st" data-id="${p.id}" type="number" inputmode="decimal" min="0" step="0.25" style="width:100%;text-align:right;padding:7px 6px" placeholder="SL" value="${p.track?p.stock:''}"></td></tr>`).join('')}
   </tbody></table></div>
   <div class="btn-group"><button class="btn btn-gray" onclick="closeModal()">Huỷ</button><button class="btn btn-green" onclick="xStockCountSave()">💾 Lưu kiểm kho</button></div>`);
 }
@@ -5154,9 +5161,9 @@ function xRecvOpen(){
   <input class="fi" id="xrv-q" placeholder="🔎 Gõ tên để lọc nhanh — vd: ka, serum, son..." oninput="xRecvFilter()" style="margin:4px 0 8px">
   <div class="x-note" style="margin-bottom:6px">Chỉ gõ <b>số lượng</b> ở sản phẩm có hàng về. Ô trống = không nhập.${money?' Giá nhập để sẵn giá cũ, đổi nếu giá mới khác.':''}</div>
   <div style="max-height:52vh;overflow-y:auto"><table class="x-table" style="table-layout:fixed"><thead><tr><th>Sản phẩm</th>${money?'<th class="r" style="width:32%">Giá nhập 1 cái</th>':''}<th class="r" style="width:22%">SL về</th></tr></thead><tbody id="xrv-body">
-  ${prods.map(p=>`<tr data-n="${xA(_noAccent(p.name))}"><td style="word-break:break-word"><b>${xE(p.name)}</b><div class="x-note">${p.track?'đang có '+p.stock:'<span class="x-badge st-cho">chưa kiểm kho</span>'}</div></td>
+  ${prods.map(p=>`<tr data-n="${xA(_noAccent(p.name))}"><td style="word-break:break-word"><b>${xE(p.name)}</b><div class="x-note">${p.track?'đang có '+xQtyFmt(p.stock):'<span class="x-badge st-cho">chưa kiểm kho</span>'}</div></td>
     ${money?`<td class="r"><input class="fi xrv-buy" data-id="${p.id}" type="number" inputmode="numeric" min="0" step="1000" style="width:100%;text-align:right;padding:7px 6px" placeholder="giá nhập" value="${Number(p.buyPrice)>0?p.buyPrice:''}"></td>`:''}
-    <td class="r"><input class="fi xrv-qty" data-id="${p.id}" type="number" inputmode="numeric" min="0" style="width:100%;text-align:right;padding:7px 6px;background:#f1fbf3" placeholder="SL" oninput="xRecvSum()"></td></tr>`).join('')}
+    <td class="r"><input class="fi xrv-qty" data-id="${p.id}" type="number" inputmode="decimal" min="0" step="0.25" style="width:100%;text-align:right;padding:7px 6px;background:#f1fbf3" placeholder="SL" oninput="xRecvSum()"></td></tr>`).join('')}
   </tbody></table></div>
   <div id="xrv-sum" class="x-vc-msg" style="margin-top:6px"></div>
   <div class="btn-group"><button class="btn btn-gray" onclick="closeModal()">Huỷ</button><button class="btn btn-green" onclick="xRecvSave()">💾 Lưu nhập hàng</button></div>`);
@@ -5317,43 +5324,43 @@ function xMpSaleOpen(custId){
 function xMpList(){
   const q=_noAccent(document.getElementById('xmp-find')?.value||'');const el=document.getElementById('xmp-list');if(!el)return;
   const items=xMpCatalog().filter(x=>!q||_noAccent(x.name).includes(q)).slice(0,q?40:60);
-  el.innerHTML=items.length?items.map(x=>{const st=x.prod&&x.prod.track?`còn ${x.prod.stock}`:'';const inCart=xMpCart.find(c=>c.key===x.key);
+  el.innerHTML=items.length?items.map(x=>{const st=x.prod&&x.prod.track?`còn ${xQtyFmt(x.prod.stock)}`:'';const inCart=xMpCart.find(c=>c.key===x.key);
     return `<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid #ffe0b2">
       <div style="flex:1;min-width:0"><b>${xE(x.name)}</b><div class="x-note">${fmt(x.price)}${st?' · '+st:''}</div></div>
-      ${inCart?`<span class="x-badge st-xong">×${inCart.qty}</span>`:''}
-      <button class="btn btn-orange btn-sm" style="min-width:42px;font-size:16px" onclick="xMpAdd('${x.key}',1)">＋</button></div>`;}).join(''):'<div class="x-note" style="padding:10px">Không tìm thấy sản phẩm</div>';
+      ${inCart?`<span class="x-badge st-xong">×${xQtyFmt(inCart.qty)}</span>`:''}
+      <button class="btn btn-gray btn-sm" style="min-width:34px" onclick="xMpAdd('${x.key}',0.25)">¼</button><button class="btn btn-gray btn-sm" style="min-width:34px" onclick="xMpAdd('${x.key}',0.5)">½</button><button class="btn btn-orange btn-sm" style="min-width:42px;font-size:16px" onclick="xMpAdd('${x.key}',1)">＋</button></div>`;}).join(''):'<div class="x-note" style="padding:10px">Không tìm thấy sản phẩm</div>';
 }
 function xMpAdd(key,d){
   const x=xMpCatalog().find(i=>i.key===key);if(!x)return;let c=xMpCart.find(i=>i.key===key);
   if(!c){if(d<0)return;c={key,name:x.name,unit:x.price,qty:0,svc:x.svc,prod:x.prod};xMpCart.push(c);}
-  c.qty+=d;if(c.qty<=0)xMpCart=xMpCart.filter(i=>i!==c);
+  c.qty=xQ4(c.qty+d);if(c.qty<=0)xMpCart=xMpCart.filter(i=>i!==c);
   xMpCartRender();xMpList();
 }
 function xMpCartRender(){
   const el=document.getElementById('xmp-cart');if(!el)return;
   if(!xMpCart.length){el.innerHTML='<div class="x-note">Chưa chọn sản phẩm — bấm ＋ ở danh sách trên</div>';return;}
-  const tot=xMpCart.reduce((a,c)=>a+c.qty*c.unit,0);
+  const tot=xMpCart.reduce((a,c)=>a+Math.round(c.qty*c.unit),0);
   el.innerHTML=xMpCart.map((c,i)=>{const low=c.prod&&c.prod.track&&c.qty>Number(c.prod.stock);
     return `<div style="display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid #eee;flex-wrap:wrap">
-    <div style="flex:1;min-width:120px"><b>${xE(c.name)}</b>${low?`<div style="color:#c62828;font-size:11.5px;font-weight:700">⚠️ kho chỉ còn ${c.prod.stock}</div>`:''}</div>
-    <button class="btn btn-gray btn-sm" style="min-width:36px" onclick="xMpAdd('${c.key}',-1)">−</button><b style="min-width:26px;text-align:center">${c.qty}</b><button class="btn btn-gray btn-sm" style="min-width:36px" onclick="xMpAdd('${c.key}',1)">＋</button>
+    <div style="flex:1;min-width:120px"><b>${xE(c.name)}</b>${low?`<div style="color:#c62828;font-size:11.5px;font-weight:700">⚠️ kho chỉ còn ${xQtyFmt(c.prod.stock)}</div>`:''}</div>
+    <button class="btn btn-gray btn-sm" style="min-width:36px" onclick="xMpAdd('${c.key}',${c.qty>1?-1:-0.25})">−</button><b style="min-width:30px;text-align:center">${xQtyFmt(c.qty)}</b><button class="btn btn-gray btn-sm" style="min-width:36px" onclick="xMpAdd('${c.key}',1)">＋</button><button class="btn btn-gray btn-xs" onclick="xMpAdd('${c.key}',0.25)">+¼</button><button class="btn btn-gray btn-xs" onclick="xMpAdd('${c.key}',0.5)">+½</button>
     <input class="fi" type="number" inputmode="numeric" style="width:105px;text-align:right;padding:6px" value="${c.unit}" title="Giá 1 cái" onchange="xMpCart[${i}].unit=Math.max(0,Number(this.value)||0);xMpCartRender()">
-    <b style="min-width:92px;text-align:right;color:#e65100">${fmt(c.qty*c.unit)}</b></div>`;}).join('')+
+    <b style="min-width:92px;text-align:right;color:#e65100">${fmt(Math.round(c.qty*c.unit))}</b></div>`;}).join('')+
     `<div style="text-align:right;font-size:15px;font-weight:800;color:#006064;padding-top:8px">Tổng: ${fmt(tot)}</div>`;
 }
 function xMpSave(){
   if(!xMpCart.length){toast('Chưa chọn sản phẩm nào',false);return;}
   const low=xMpCart.filter(c=>c.prod&&c.prod.track&&c.qty>Number(c.prod.stock));
-  if(low.length&&!confirm('Kho không đủ: '+low.map(c=>`${c.name} (còn ${c.prod.stock}, bán ${c.qty})`).join(', ')+'\n\nVẫn lưu? (nên kiểm kho lại)'))return;
+  if(low.length&&!confirm('Kho không đủ: '+low.map(c=>`${c.name} (còn ${xQtyFmt(c.prod.stock)}, bán ${xQtyFmt(c.qty)})`).join(', ')+'\n\nVẫn lưu? (nên kiểm kho lại)'))return;
   let custId=document.getElementById('xmp-id').value;
   if(!custId){let c=DB.get('customers').find(x=>x.id==='c-khachle');if(!c){const cs=DB.get('customers');c={id:'c-khachle',name:'Khách lẻ (vãng lai)',phone:'',address:'',birthday:'',skinType:'',note:'',createdAt:xToday()};cs.push(c);DB.set('customers',cs);}custId='c-khachle';}
   const staff=document.getElementById('xmp-staff').value;
-  const items=xMpCart.map(c=>{const s=c.svc;return {id:xId(),name:c.name,cat:'mp',price:c.qty*c.unit,qty:c.qty,staff,staff2:'',staff3:'',staff4:'',advisor:'',note:c.qty>1?'SL '+c.qty:'',
+  const items=xMpCart.map(c=>{const s=c.svc;return {id:xId(),name:c.name,cat:'mp',price:Math.round(c.qty*c.unit),qty:c.qty,staff,staff2:'',staff3:'',staff4:'',advisor:'',note:c.qty!==1?'SL '+xQtyFmt(c.qty):'',
     svcId:s?s.id:((c.prod&&c.prod.svcIds||[])[0]||''),discount:0,discountType:'pct',commPct:s?Number(s.commPct)||0:0,advicePct:s?Number(s.advicePct)||0:0,commAmt:s?Number(s.commAmt)||0:0,adviceAmt:s?Number(s.adviceAmt)||0:0};});
   const vs=DB.get('visits');const v={id:xId(),custId,date:document.getElementById('xmp-date').value||xToday(),items,photos:[],cosm:[],visitNote:'Mua mỹ phẩm mang về',createdAt:xToday(),payMethod:document.getElementById('xmp-pm').value,by:xCurUser.name,xMp:true};
   const paid=document.getElementById('xmp-paid').value.trim();if(paid!=='')v.paid=Math.max(0,Number(paid)||0);
   xStockSyncVisit(v,[]);vs.push(v);DB.set('visits',vs);
-  const tot=items.reduce((a,i)=>a+i.price,0);closeModal();toast(`✅ Đã bán ${items.reduce((a,i)=>a+i.qty,0)} món · ${fmt(tot)}`);
+  const tot=items.reduce((a,i)=>a+i.price,0);closeModal();toast(`✅ Đã bán ${xQtyFmt(items.reduce((a,i)=>a+i.qty,0))} món · ${fmt(tot)}`);
   if(xCurPage==='customers'||document.getElementById('detail-panel').classList.contains('open'))openCust(custId);else xRerender();
 }
 // Mọi nút "Bán lẻ" cũ → form mới
