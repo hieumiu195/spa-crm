@@ -5482,7 +5482,11 @@ function xKhoData(k){
   const out=prods.filter(p=>p.track&&!(Number(p.stock)>0)).map(p=>p.name);
   const noCount=prods.filter(p=>!p.track).length;
   const sold=R.rows.filter(x=>x.qty||x.money);
-  return {r,R,shelf,out,noCount,sold,shelfQty:shelf.reduce((a,p)=>a+Number(p.stock),0),shelfSell:shelf.reduce((a,p)=>a+Number(p.stock)*(Number(p.sellPrice)||0),0),
+  // dòng bán KHÔNG khớp sản phẩm kho (gõ tên khác / gộp nhiều món) → gom theo tên để sếp thấy rõ
+  const og={};DB.get('visits').forEach(v=>{if(v.date<r.from||v.date>r.to)return;(v.items||[]).forEach(it=>{if(it.cat!=='mp'||!it.name)return;
+    if((it.productId&&prods.find(x=>x.id===it.productId))||xProdFor(it,prods))return;const k=_noAccent(it.name.trim());const g=og[k]||(og[k]={name:it.name.trim(),n:0,money:0});g.n++;g.money+=finalPrice(it);});});
+  const other=Object.values(og).sort((a,b)=>b.money-a.money);
+  return {r,R,shelf,out,noCount,sold,other,shelfQty:shelf.reduce((a,p)=>a+Number(p.stock),0),shelfSell:shelf.reduce((a,p)=>a+Number(p.stock)*(Number(p.sellPrice)||0),0),
     soldQty:sold.reduce((a,x)=>a+x.qty,0),money:sold.reduce((a,x)=>a+x.money,0)+R.unlinked};
 }
 function xKhoReport(k){
@@ -5502,7 +5506,7 @@ function xKhoReport(k){
   ${D.noCount?`<div class="x-note" style="margin:6px 0">⚠️ ${D.noCount} loại chưa kiểm kho lần nào (không tính vào tồn) → bấm “Kiểm kho nhanh” để đếm.</div>`:''}
   <div style="font-weight:800;color:#e65100;margin:12px 0 4px">💰 Bán ra cho khách · ${D.r.lb}</div>
   ${D.sold.length?`<table class="x-table"><thead><tr><th>Sản phẩm</th><th class="r">Bán</th><th class="r">Tiền</th></tr></thead><tbody>${D.sold.map(x=>`<tr><td>${xE(x.p.name)}</td><td class="r">${xQtyFmt(x.qty)}</td><td class="r"><b>${fmt(x.money)}</b></td></tr>`).join('')}
-   ${D.R.unlinked?`<tr><td class="x-note">Dòng gõ tay (không chọn từ danh sách)</td><td class="r x-note">${D.R.unlinkedN} lần</td><td class="r">${fmt(D.R.unlinked)}</td></tr>`:''}</tbody>
+   ${D.other.length?`<tr><td colspan="3" style="background:#fff8e1;font-weight:700;color:#8d6e00">✍️ Gõ tên khác / gộp nhiều món (không trừ kho được)</td></tr>`+D.other.map(o=>`<tr><td class="x-note">${xE(o.name)}</td><td class="r x-note">${o.n} lần</td><td class="r">${fmt(o.money)}</td></tr>`).join(''):''}</tbody>
    <tfoot><tr><td>TỔNG</td><td class="r">${xQtyFmt(D.soldQty)}</td><td class="r">${fmt(D.money)}</td></tr></tfoot></table>`:'<div class="x-empty">Chưa bán mỹ phẩm nào trong khoảng này</div>'}
   </div>
   <div class="btn-group"><button class="btn btn-gray" onclick="closeModal()">Đóng</button><button class="btn btn-green" onclick="xKhoShare()">📤 Gửi Zalo / Copy</button></div>`);
@@ -5510,7 +5514,7 @@ function xKhoReport(k){
 function xKhoText(){const D=xKhoData(xKhoK);
   return `📋 BÁO CÁO KHO MỸ PHẨM – TARUS\n${xFmtD(xToday())}\n\n📦 CÒN TRÊN KỆ: ${xQtyFmt(D.shelfQty)} món (${D.shelf.length} loại)\n`+D.shelf.map(p=>`- ${p.name}: ${xQtyFmt(Number(p.stock))}`).join('\n')+
   (D.out.length?`\n❌ Hết: ${D.out.join(', ')}`:'')+`\n\n💰 BÁN RA ${D.r.lb.toUpperCase()} (${xFmtD(D.r.from)}–${xFmtD(D.r.to)}): ${fmt(D.money)} · ${xQtyFmt(D.soldQty)} món\n`+
-  D.sold.map(x=>`- ${x.p.name}: ${xQtyFmt(x.qty)} → ${fmt(x.money)}`).join('\n')+(D.R.unlinked?`\n- Gõ tay: ${D.R.unlinkedN} lần → ${fmt(D.R.unlinked)}`:'');}
+  D.sold.map(x=>`- ${x.p.name}: ${xQtyFmt(x.qty)} → ${fmt(x.money)}`).join('\n')+(D.other.length?`\n✍️ Gõ tên khác / gộp món (không trừ kho):\n`+D.other.map(o=>`- ${o.name}: ${o.n} lần → ${fmt(o.money)}`).join('\n'):'');}
 async function xKhoShare(){const t=xKhoText();
   try{if(navigator.share){await navigator.share({text:t});return;}}catch(e){if(e&&e.name==='AbortError')return;}
   try{await navigator.clipboard.writeText(t);toast('✅ Đã copy – mở Zalo dán vào');}catch(e){const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();document.execCommand('copy');a.remove();toast('✅ Đã copy – mở Zalo dán vào');}}
