@@ -5383,6 +5383,7 @@ showSellCosmModal=function(){xMpSaleOpen();};
 (function(){const f=xMedFlags;xMedFlags=function(id){return id==='c-khachle'?[]:f(id);};})();
 
 // ════════ ➕ SẢN PHẨM MỚI — 1 form tạo cả trong Danh mục (bán + hoa hồng) lẫn Kho (tồn + giá nhập) ════════
+// HH MẶC ĐỊNH 10% (21/10): SP mới tự để 10% cho người bán (giống các mỹ phẩm cũ)
 function xNewProd(){
   const money=xCan('money');const pc=money&&isMayTinh();
   showModal(`<h3>➕ Sản phẩm mới</h3>
@@ -5390,8 +5391,8 @@ function xNewProd(){
   <div class="form-grid"><div><label>Giá bán 1 cái (đ) *</label><input class="fi" id="np-sell" type="number" inputmode="numeric" step="1000"></div>${money?'<div><label>Giá nhập 1 cái (đ)</label><input class="fi" id="np-buy" type="number" inputmode="numeric" step="1000" placeholder="để tính lời"></div>':'<div></div>'}</div>
   <div class="form-grid"><div><label>Số đang có trên kệ</label><input class="fi" id="np-stock" type="number" inputmode="numeric" min="0" placeholder="để trống nếu chưa có hàng"></div><div></div></div>
   ${pc?`<div style="background:#fff8e1;border-radius:8px;padding:10px 12px;margin-bottom:9px"><div style="font-size:12px;font-weight:700;color:#e65100;margin-bottom:6px">💸 Hoa hồng khi bán sản phẩm này</div>
-    <div class="form-grid"><div><label>% người BÁN</label><input class="fi" id="np-comm" type="number" min="0" max="100" placeholder="VD: 10"></div><div><label>% người TƯ VẤN</label><input class="fi" id="np-adv" type="number" min="0" max="100" placeholder="VD: 5"></div></div></div>`
-  :(money?'<div class="x-note" style="margin-bottom:8px">🔒 % hoa hồng cài trên máy tính (Danh Mục & Hoa Hồng).</div>':'<div class="x-note" style="margin-bottom:8px">💡 Giá nhập + % hoa hồng do chủ / quản lý cài sau.</div>')}
+    <div class="form-grid"><div><label>% người BÁN</label><input class="fi" id="np-comm" type="number" min="0" max="100" value="10" placeholder="VD: 10"></div><div><label>% người TƯ VẤN</label><input class="fi" id="np-adv" type="number" min="0" max="100" placeholder="VD: 5"></div></div></div>`
+  :(money?'<div class="x-note" style="margin-bottom:8px">💸 Hoa hồng người bán tự để 10% (sửa trên máy tính ở Danh Mục & Hoa Hồng).</div>':'<div class="x-note" style="margin-bottom:8px">💡 Hoa hồng người bán tự để 10%. Giá nhập do chủ / quản lý cài sau.</div>')}
   <div class="btn-group"><button class="btn btn-gray" onclick="closeModal()">Huỷ</button><button class="btn btn-green" onclick="xNewProdSave()">💾 Lưu sản phẩm</button></div>`);
 }
 function xNewProdSave(){
@@ -5399,7 +5400,7 @@ function xNewProdSave(){
   if(!name){toast('Nhập tên sản phẩm',false);return;}
   const n=_noAccent(name);
   if(getServices().some(s=>s.cat==='mp'&&_noAccent(s.name)===n)||getProducts().some(p=>_noAccent(p.name)===n)){if(!confirm(`Đã có sản phẩm tên "${name}". Vẫn tạo thêm?`))return;}
-  const comm=g('np-comm')?Math.min(100,Math.max(0,Number(g('np-comm').value)||0)):0,adv=g('np-adv')?Math.min(100,Math.max(0,Number(g('np-adv').value)||0)):0;
+  const comm=g('np-comm')?Math.min(100,Math.max(0,Number(g('np-comm').value)||0)):10,adv=g('np-adv')?Math.min(100,Math.max(0,Number(g('np-adv').value)||0)):0;
   const sid=xId();const svcs=getServices();svcs.push({id:sid,name,cat:'mp',price:sell,remindDays:0,commPct:comm,advicePct:adv,group:''});DB.set('services',svcs);
   const st=g('np-stock').value.trim();const prods=getProducts();
   prods.push({id:'p-'+sid,by:xCurUser.name,createdAt:xToday(),name,unit:g('np-unit').value.trim()||'hộp',buyPrice:g('np-buy')?Math.max(0,Number(g('np-buy').value)||0):0,sellPrice:sell,stock:st===''?0:Math.max(0,Number(st)||0),svcIds:[sid],track:st!==''});
