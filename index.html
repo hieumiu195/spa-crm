@@ -5002,7 +5002,7 @@ function xProdFor(it,prods){
   if(!p){const n=_noAccent(it.name);const m=prods.filter(x=>_noAccent(x.name)===n);if(m.length===1)p=m[0];}
   return p||null;
 }
-function xQtyFor(it,p){const pr=Number(it.price)||0,sp=Number(p.sellPrice)||0;if(pr>0&&sp>0&&xIsQuarter(pr/sp))return xQ4(pr/sp);return 1;}
+function xQtyFor(it,p){if(Number(it.qty)>0)return xQ4(it.qty);const pr=Number(it.price)||0,sp=Number(p.sellPrice)||0;if(pr>0&&sp>0&&xIsQuarter(pr/sp))return xQ4(pr/sp);return 1;}
 function xStockApply(items,sign,prods){ // sign -1 = trừ, +1 = hoàn
   let ch=false;(items||[]).forEach(it=>{if(!it.productId||!it.stockQty)return;const p=prods.find(x=>x.id===it.productId);if(!p)return;p.stock=(Number(p.stock)||0)+sign*Number(it.stockQty);ch=true;});return ch;
 }
@@ -5244,6 +5244,7 @@ function xQuickHtml(){
   add(!front,'🧾','Thêm lượt',"showPage('customers')");
   add(true,'➕','Thêm khách',"showAddCust()");
   add(true,'📥','Nhập hàng',"xRecvOpen()");
+  add(xCan('money'),'📋','Báo cáo kho',"xKhoReport()");
   add(xAllowed('xexp'),'💸','Ghi chi phí',"xExpForm()");
   add(xAllowed('xatt'),'🕐','Chấm công',"showPage('xatt')");
   add(true,'🎁','Sinh nhật',"xBdOpen()");
@@ -5458,6 +5459,54 @@ function xPriceSave(pid){
   const svcs=getServices();let ch=false;svcs.forEach(s=>{if((p.svcIds||[]).includes(s.id)&&(s.name!==name||Number(s.price)!==price)){s.name=name;s.price=price;ch=true;}});if(ch)DB.set('services',svcs);
   closeModal();toast(`✅ ${name}: ${fmt(price)}`);xRerender();
 }
+
+// ═══ BÁO CÁO KHO (21/10): 1 nút xem tổng hàng còn trên kệ + tiền bán ra cho khách (chủ + quản lý) ═══
+(function(){const f=X_RENDER.xstock;X_RENDER.xstock=function(){f();if(!xCan('money'))return;const h=document.querySelector('#page-xstock .x-page-head:nth-of-type(2)');
+  if(h&&!h.querySelector('#x-khorep'))h.insertAdjacentHTML('afterbegin','<button class="btn btn-teal" id="x-khorep" onclick="xKhoReport()">📋 Báo cáo kho</button>');};})();
+let xKhoK='month';
+function xKhoRange(k){const t=xToday(),d=new Date(t+'T00:00:00'),ymd=x=>`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`;
+  if(k==='today')return{from:t,to:t,lb:'Hôm nay'};
+  if(k==='7d'){const a=new Date(d);a.setDate(a.getDate()-6);return{from:ymd(a),to:t,lb:'7 ngày qua'};}
+  if(k==='prev'){const a=new Date(d.getFullYear(),d.getMonth()-1,1),b=new Date(d.getFullYear(),d.getMonth(),0);return{from:ymd(a),to:ymd(b),lb:'Tháng '+(a.getMonth()+1)};}
+  return{from:t.slice(0,8)+'01',to:t,lb:'Tháng '+(d.getMonth()+1)};}
+function xKhoData(k){
+  const r=xKhoRange(k);const R=xCosmReport(r.from,r.to);const prods=getProducts();
+  const shelf=prods.filter(p=>Number(p.stock)>0).sort((a,b)=>Number(b.stock)-Number(a.stock));
+  const out=prods.filter(p=>p.track&&!(Number(p.stock)>0)).map(p=>p.name);
+  const noCount=prods.filter(p=>!p.track).length;
+  const sold=R.rows.filter(x=>x.qty||x.money);
+  return {r,R,shelf,out,noCount,sold,shelfQty:shelf.reduce((a,p)=>a+Number(p.stock),0),shelfSell:shelf.reduce((a,p)=>a+Number(p.stock)*(Number(p.sellPrice)||0),0),
+    soldQty:sold.reduce((a,x)=>a+x.qty,0),money:sold.reduce((a,x)=>a+x.money,0)+R.unlinked};
+}
+function xKhoReport(k){
+  if(!xCan('money')){toast('Chỉ chủ / quản lý xem báo cáo kho',false);return;}
+  if(k)xKhoK=k;const D=xKhoData(xKhoK);
+  const chip=(kk,t)=>`<button class="btn btn-sm ${xKhoK===kk?'btn-teal':'btn-gray'}" onclick="xKhoReport('${kk}')">${t}</button>`;
+  const tile=(l,v,c,sub)=>`<div style="flex:1;min-width:0;background:${c};border-radius:12px;padding:10px 8px;text-align:center"><div style="font-size:11px;color:#455a64;font-weight:700">${l}</div><div style="font-size:19px;font-weight:900;color:#263238;margin-top:2px">${v}</div>${sub?`<div style="font-size:10.5px;color:#607d8b">${sub}</div>`:''}</div>`;
+  showModal(`<h3>📋 Báo cáo kho mỹ phẩm</h3>
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">${chip('today','Hôm nay')}${chip('7d','7 ngày')}${chip('month','Tháng này')}${chip('prev','Tháng trước')}</div>
+  <div style="display:flex;gap:8px;margin-bottom:6px">${tile('📦 Còn trên kệ',xQtyFmt(D.shelfQty)+' món',`#e0f2f1`,D.shelf.length+' loại · ≈ '+fmt(D.shelfSell))}
+    ${tile('💰 Tiền bán cho khách',fmt(D.money),'#fff3e0',D.r.lb+' · '+xQtyFmt(D.soldQty)+' món')}</div>
+  <div class="x-note" style="margin-bottom:10px">Tồn kho = số trên kệ lúc này · Tiền bán = ${xFmtD(D.r.from)} → ${xFmtD(D.r.to)} (sau giảm giá)</div>
+  <div style="max-height:52vh;overflow:auto">
+  <div style="font-weight:800;color:#00695c;margin:4px 0 4px">📦 Còn trên kệ</div>
+  ${D.shelf.length?`<table class="x-table"><thead><tr><th>Sản phẩm</th><th class="r">Còn</th><th class="r">Giá bán</th></tr></thead><tbody>${D.shelf.map(p=>`<tr><td>${xE(p.name)}</td><td class="r"><b>${xQtyFmt(Number(p.stock))}</b></td><td class="r x-note">${fmt(Number(p.sellPrice)||0)}</td></tr>`).join('')}</tbody></table>`:'<div class="x-empty">Kệ trống / chưa kiểm kho</div>'}
+  ${D.out.length?`<div class="x-note" style="margin:6px 0;color:#c62828">❌ Hết hàng: ${D.out.map(xE).join(' · ')}</div>`:''}
+  ${D.noCount?`<div class="x-note" style="margin:6px 0">⚠️ ${D.noCount} loại chưa kiểm kho lần nào (không tính vào tồn) → bấm “Kiểm kho nhanh” để đếm.</div>`:''}
+  <div style="font-weight:800;color:#e65100;margin:12px 0 4px">💰 Bán ra cho khách · ${D.r.lb}</div>
+  ${D.sold.length?`<table class="x-table"><thead><tr><th>Sản phẩm</th><th class="r">Bán</th><th class="r">Tiền</th></tr></thead><tbody>${D.sold.map(x=>`<tr><td>${xE(x.p.name)}</td><td class="r">${xQtyFmt(x.qty)}</td><td class="r"><b>${fmt(x.money)}</b></td></tr>`).join('')}
+   ${D.R.unlinked?`<tr><td class="x-note">Dòng gõ tay (không chọn từ danh sách)</td><td class="r x-note">${D.R.unlinkedN} lần</td><td class="r">${fmt(D.R.unlinked)}</td></tr>`:''}</tbody>
+   <tfoot><tr><td>TỔNG</td><td class="r">${xQtyFmt(D.soldQty)}</td><td class="r">${fmt(D.money)}</td></tr></tfoot></table>`:'<div class="x-empty">Chưa bán mỹ phẩm nào trong khoảng này</div>'}
+  </div>
+  <div class="btn-group"><button class="btn btn-gray" onclick="closeModal()">Đóng</button><button class="btn btn-green" onclick="xKhoShare()">📤 Gửi Zalo / Copy</button></div>`);
+}
+function xKhoText(){const D=xKhoData(xKhoK);
+  return `📋 BÁO CÁO KHO MỸ PHẨM – TARUS\n${xFmtD(xToday())}\n\n📦 CÒN TRÊN KỆ: ${xQtyFmt(D.shelfQty)} món (${D.shelf.length} loại)\n`+D.shelf.map(p=>`- ${p.name}: ${xQtyFmt(Number(p.stock))}`).join('\n')+
+  (D.out.length?`\n❌ Hết: ${D.out.join(', ')}`:'')+`\n\n💰 BÁN RA ${D.r.lb.toUpperCase()} (${xFmtD(D.r.from)}–${xFmtD(D.r.to)}): ${fmt(D.money)} · ${xQtyFmt(D.soldQty)} món\n`+
+  D.sold.map(x=>`- ${x.p.name}: ${xQtyFmt(x.qty)} → ${fmt(x.money)}`).join('\n')+(D.R.unlinked?`\n- Gõ tay: ${D.R.unlinkedN} lần → ${fmt(D.R.unlinked)}`:'');}
+async function xKhoShare(){const t=xKhoText();
+  try{if(navigator.share){await navigator.share({text:t});return;}}catch(e){if(e&&e.name==='AbortError')return;}
+  try{await navigator.clipboard.writeText(t);toast('✅ Đã copy – mở Zalo dán vào');}catch(e){const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();document.execCommand('copy');a.remove();toast('✅ Đã copy – mở Zalo dán vào');}}
 
 </script>
 <script>
