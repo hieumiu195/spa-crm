@@ -5489,32 +5489,26 @@ function xKhoData(k){
   return {r,R,shelf,out,noCount,sold,other,shelfQty:shelf.reduce((a,p)=>a+Number(p.stock),0),shelfSell:shelf.reduce((a,p)=>a+Number(p.stock)*(Number(p.sellPrice)||0),0),
     soldQty:sold.reduce((a,x)=>a+x.qty,0),money:sold.reduce((a,x)=>a+x.money,0)+R.unlinked};
 }
-function xKhoReport(k){
+// 21/10 sếp chốt: báo cáo kho CHỈ cần "còn bao nhiêu trên kệ + giá bán"
+function xKhoReport(){
   if(!xCan('money')){toast('Chỉ chủ / quản lý xem báo cáo kho',false);return;}
-  if(k)xKhoK=k;const D=xKhoData(xKhoK);
-  const chip=(kk,t)=>`<button class="btn btn-sm ${xKhoK===kk?'btn-teal':'btn-gray'}" onclick="xKhoReport('${kk}')">${t}</button>`;
+  const D=xKhoData('month');
   const tile=(l,v,c,sub)=>`<div style="flex:1;min-width:0;background:${c};border-radius:12px;padding:10px 8px;text-align:center"><div style="font-size:11px;color:#455a64;font-weight:700">${l}</div><div style="font-size:19px;font-weight:900;color:#263238;margin-top:2px">${v}</div>${sub?`<div style="font-size:10.5px;color:#607d8b">${sub}</div>`:''}</div>`;
-  showModal(`<h3>📋 Báo cáo kho mỹ phẩm</h3>
-  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">${chip('today','Hôm nay')}${chip('7d','7 ngày')}${chip('month','Tháng này')}${chip('prev','Tháng trước')}</div>
-  <div style="display:flex;gap:8px;margin-bottom:6px">${tile('📦 Còn trên kệ',xQtyFmt(D.shelfQty)+' món',`#e0f2f1`,D.shelf.length+' loại · ≈ '+fmt(D.shelfSell))}
-    ${tile('💰 Tiền bán cho khách',fmt(D.money),'#fff3e0',D.r.lb+' · '+xQtyFmt(D.soldQty)+' món')}</div>
-  <div class="x-note" style="margin-bottom:10px">Tồn kho = số trên kệ lúc này · Tiền bán = ${xFmtD(D.r.from)} → ${xFmtD(D.r.to)} (sau giảm giá)</div>
-  <div style="max-height:52vh;overflow:auto">
-  <div style="font-weight:800;color:#00695c;margin:4px 0 4px">📦 Còn trên kệ</div>
-  ${D.shelf.length?`<table class="x-table"><thead><tr><th>Sản phẩm</th><th class="r">Còn</th><th class="r">Giá bán</th></tr></thead><tbody>${D.shelf.map(p=>`<tr><td>${xE(p.name)}</td><td class="r"><b>${xQtyFmt(Number(p.stock))}</b></td><td class="r x-note">${fmt(Number(p.sellPrice)||0)}</td></tr>`).join('')}</tbody></table>`:'<div class="x-empty">Kệ trống / chưa kiểm kho</div>'}
-  ${D.out.length?`<div class="x-note" style="margin:6px 0;color:#c62828">❌ Hết hàng: ${D.out.map(xE).join(' · ')}</div>`:''}
-  ${D.noCount?`<div class="x-note" style="margin:6px 0">⚠️ ${D.noCount} loại chưa kiểm kho lần nào (không tính vào tồn) → bấm “Kiểm kho nhanh” để đếm.</div>`:''}
-  <div style="font-weight:800;color:#e65100;margin:12px 0 4px">💰 Bán ra cho khách · ${D.r.lb}</div>
-  ${D.sold.length?`<table class="x-table"><thead><tr><th>Sản phẩm</th><th class="r">Bán</th><th class="r">Tiền</th></tr></thead><tbody>${D.sold.map(x=>`<tr><td>${xE(x.p.name)}</td><td class="r">${xQtyFmt(x.qty)}</td><td class="r"><b>${fmt(x.money)}</b></td></tr>`).join('')}
-   ${D.other.length?`<tr><td colspan="3" style="background:#fff8e1;font-weight:700;color:#8d6e00">✍️ Gõ tên khác / gộp nhiều món (không trừ kho được)</td></tr>`+D.other.map(o=>`<tr><td class="x-note">${xE(o.name)}</td><td class="r x-note">${o.n} lần</td><td class="r">${fmt(o.money)}</td></tr>`).join(''):''}</tbody>
-   <tfoot><tr><td>TỔNG</td><td class="r">${xQtyFmt(D.soldQty)}</td><td class="r">${fmt(D.money)}</td></tr></tfoot></table>`:'<div class="x-empty">Chưa bán mỹ phẩm nào trong khoảng này</div>'}
+  showModal(`<h3>📋 Báo cáo kho – còn trên kệ</h3>
+  <div style="display:flex;gap:8px;margin-bottom:6px">${tile('📦 Còn trên kệ',xQtyFmt(D.shelfQty)+' món','#e0f2f1',D.shelf.length+' loại')}
+    ${tile('💰 Tính theo giá bán',fmt(D.shelfSell),'#fff3e0','nếu bán hết')}</div>
+  <div class="x-note" style="margin-bottom:8px">Số lúc này · ${xFmtD(xToday())}</div>
+  <div style="max-height:56vh;overflow:auto">
+  ${D.shelf.length?`<table class="x-table"><thead><tr><th>Sản phẩm</th><th class="r">Còn</th><th class="r">Giá bán</th><th class="r">Thành tiền</th></tr></thead><tbody>${D.shelf.map(p=>`<tr><td>${xE(p.name)}</td><td class="r"><b>${xQtyFmt(Number(p.stock))}</b></td><td class="r">${fmt(Number(p.sellPrice)||0)}</td><td class="r"><b>${fmt(Math.round(Number(p.stock)*(Number(p.sellPrice)||0)))}</b></td></tr>`).join('')}</tbody>
+   <tfoot><tr><td>TỔNG</td><td class="r">${xQtyFmt(D.shelfQty)}</td><td></td><td class="r">${fmt(D.shelfSell)}</td></tr></tfoot></table>`:'<div class="x-empty">Kệ trống / chưa kiểm kho</div>'}
+  ${D.out.length?`<div class="x-note" style="margin:8px 0;color:#c62828">❌ Hết hàng: ${D.out.map(xE).join(' · ')}</div>`:''}
   </div>
   <div class="btn-group"><button class="btn btn-gray" onclick="closeModal()">Đóng</button><button class="btn btn-green" onclick="xKhoShare()">📤 Gửi Zalo / Copy</button></div>`);
 }
-function xKhoText(){const D=xKhoData(xKhoK);
-  return `📋 BÁO CÁO KHO MỸ PHẨM – TARUS\n${xFmtD(xToday())}\n\n📦 CÒN TRÊN KỆ: ${xQtyFmt(D.shelfQty)} món (${D.shelf.length} loại)\n`+D.shelf.map(p=>`- ${p.name}: ${xQtyFmt(Number(p.stock))}`).join('\n')+
-  (D.out.length?`\n❌ Hết: ${D.out.join(', ')}`:'')+`\n\n💰 BÁN RA ${D.r.lb.toUpperCase()} (${xFmtD(D.r.from)}–${xFmtD(D.r.to)}): ${fmt(D.money)} · ${xQtyFmt(D.soldQty)} món\n`+
-  D.sold.map(x=>`- ${x.p.name}: ${xQtyFmt(x.qty)} → ${fmt(x.money)}`).join('\n')+(D.other.length?`\n✍️ Gõ tên khác / gộp món (không trừ kho):\n`+D.other.map(o=>`- ${o.name}: ${o.n} lần → ${fmt(o.money)}`).join('\n'):'');}
+function xKhoText(){const D=xKhoData('month');
+  return `📋 BÁO CÁO KHO MỸ PHẨM – TARUS\n${xFmtD(xToday())}\n\n📦 CÒN TRÊN KỆ: ${xQtyFmt(D.shelfQty)} món (${D.shelf.length} loại)\n`+
+  D.shelf.map(p=>`- ${p.name}: ${xQtyFmt(Number(p.stock))} × ${fmt(Number(p.sellPrice)||0)} = ${fmt(Math.round(Number(p.stock)*(Number(p.sellPrice)||0)))}`).join('\n')+
+  `\n\n💰 Tổng theo giá bán: ${fmt(D.shelfSell)}`+(D.out.length?`\n❌ Hết: ${D.out.join(', ')}`:'');}
 async function xKhoShare(){const t=xKhoText();
   try{if(navigator.share){await navigator.share({text:t});return;}}catch(e){if(e&&e.name==='AbortError')return;}
   try{await navigator.clipboard.writeText(t);toast('✅ Đã copy – mở Zalo dán vào');}catch(e){const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();document.execCommand('copy');a.remove();toast('✅ Đã copy – mở Zalo dán vào');}}
