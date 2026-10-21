@@ -5421,6 +5421,43 @@ showAddProduct=function(){xNewProd();};
 // Nhân viên (KTV / lễ tân): trang Kho không có nút sang "Danh sách sản phẩm" (trang đó có giá nhập, lãi)
 (function(){const f=X_RENDER.xstock;X_RENDER.xstock=function(){f();if(xCan('manage'))return;
   document.querySelectorAll('#page-xstock .x-page-head button').forEach(b=>{if(/Danh sách sản phẩm|Danh mục mỹ phẩm/.test(b.textContent))b.remove();});};})();
+// ═══ SỬA GIÁ BÁN (21/10): MỌI nhân viên sửa tên + giá bán trên điện thoại. KHÔNG đụng giá nhập / % hoa hồng / các lần đã bán ═══
+(function(){const f=X_RENDER.xstock;X_RENDER.xstock=function(){f();const h=document.querySelector('#page-xstock .x-page-head:nth-of-type(2)');
+  if(h&&!h.querySelector('#x-editprice'))h.insertAdjacentHTML('beforeend','<button class="btn btn-gray" id="x-editprice" onclick="xPriceOpen()">✏️ Sửa giá bán</button>');};})();
+function xPriceOpen(){
+  showModal(`<h3>✏️ Sửa giá bán mỹ phẩm</h3>
+  <input class="fi" id="xpr-find" placeholder="🔎 Gõ tên sản phẩm..." oninput="xPriceList()" style="margin-bottom:8px">
+  <div id="xpr-list" style="max-height:55vh;overflow:auto"></div>
+  <div class="x-note" style="margin-top:8px">💡 Giá mới chỉ áp dụng cho lần bán SAU. Các lần đã bán giữ nguyên giá cũ.</div>
+  <div class="btn-group"><button class="btn btn-gray" onclick="closeModal()">Đóng</button></div>`);xPriceList();
+}
+function xPriceList(){
+  const q=_noAccent(document.getElementById('xpr-find')?.value||'');
+  const ps=getProducts().filter(p=>!q||_noAccent(p.name).includes(q)).sort((a,b)=>a.name.localeCompare(b.name,'vi'));
+  document.getElementById('xpr-list').innerHTML=ps.length?ps.map(p=>`<div onclick="xPriceEdit('${p.id}')" style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 8px;border-bottom:1px solid #eceff1;cursor:pointer">
+    <div><b>${xE(p.name)}</b><div class="x-note">${xE(p.unit||'')}</div></div><div style="white-space:nowrap"><b style="color:#e65100">${fmt(Number(p.sellPrice)||0)}</b> ✏️</div></div>`).join(''):'<div class="x-empty">Không thấy sản phẩm</div>';
+}
+function xPriceEdit(pid){
+  const p=getProducts().find(x=>x.id===pid);if(!p)return;
+  showModal(`<h3>✏️ Sửa giá: ${xE(p.name)}</h3>
+  <div class="form-grid full"><div><label>Tên sản phẩm</label><input class="fi" id="xpe-name" value="${xE(p.name)}"></div></div>
+  <div class="form-grid full"><div><label>Giá bán 1 ${xE(p.unit||'cái')} (đ)</label><input class="fi" id="xpe-price" type="number" inputmode="numeric" step="1000" value="${Number(p.sellPrice)||0}"></div></div>
+  <div class="x-note" id="xpe-hint" style="margin-bottom:8px">Giá cũ: ${fmt(Number(p.sellPrice)||0)}</div>
+  <div class="btn-group"><button class="btn btn-gray" onclick="xPriceOpen()">◀ Quay lại</button><button class="btn btn-green" onclick="xPriceSave('${p.id}')">💾 Lưu giá</button></div>`);
+  const i=document.getElementById('xpe-price');i.oninput=()=>{document.getElementById('xpe-hint').textContent='Giá cũ: '+fmt(Number(p.sellPrice)||0)+' → mới: '+fmt(Number(i.value)||0);};
+}
+function xPriceSave(pid){
+  const name=document.getElementById('xpe-name').value.trim();const price=Math.round(Number(document.getElementById('xpe-price').value)||0);
+  if(!name){toast('Nhập tên sản phẩm',false);return;}
+  if(price<1000){toast('Giá bán phải từ 1.000đ trở lên',false);return;}
+  const prods=getProducts();const p=prods.find(x=>x.id===pid);if(!p)return;
+  const old=Number(p.sellPrice)||0;
+  if(price!==old&&(price>old*3||price<old/3)&&old>=1000&&!confirm(`Giá đổi nhiều: ${fmt(old)} → ${fmt(price)}. Đúng chưa?`))return;
+  const log=(p.priceLog||[]).slice(-19);if(price!==old||name!==p.name)log.push({at:xToday(),by:xCurUser.name,from:old,to:price,...(name!==p.name?{oldName:p.name}:{})});
+  p.name=name;p.sellPrice=price;p.priceLog=log;saveProducts(prods);
+  const svcs=getServices();let ch=false;svcs.forEach(s=>{if((p.svcIds||[]).includes(s.id)&&(s.name!==name||Number(s.price)!==price)){s.name=name;s.price=price;ch=true;}});if(ch)DB.set('services',svcs);
+  closeModal();toast(`✅ ${name}: ${fmt(price)}`);xRerender();
+}
 
 </script>
 <script>
