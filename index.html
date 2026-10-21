@@ -5251,7 +5251,7 @@ function xQuickHtml(){
   add(!front,'🧾','Thêm lượt',"showPage('customers')");
   add(true,'➕','Thêm khách',"showAddCust()");
   add(true,'📥','Nhập hàng',"xRecvOpen()");
-  add(xCan('money'),'📋','Báo cáo kho',"xKhoReport()");
+  add(true,'📋','Báo cáo kho',"xKhoReport()");
   add(xAllowed('xexp'),'💸','Ghi chi phí',"xExpForm()");
   add(xAllowed('xatt'),'🕐','Chấm công',"showPage('xatt')");
   add(true,'🎁','Sinh nhật',"xBdOpen()");
@@ -5468,7 +5468,7 @@ function xPriceSave(pid){
 }
 
 // ═══ BÁO CÁO KHO (21/10): 1 nút xem tổng hàng còn trên kệ + tiền bán ra cho khách (chủ + quản lý) ═══
-(function(){const f=X_RENDER.xstock;X_RENDER.xstock=function(){f();if(!xCan('money'))return;const h=document.querySelector('#page-xstock .x-page-head:nth-of-type(2)');
+(function(){const f=X_RENDER.xstock;X_RENDER.xstock=function(){f();const h=document.querySelector('#page-xstock .x-page-head:nth-of-type(2)');
   if(h&&!h.querySelector('#x-khorep'))h.insertAdjacentHTML('afterbegin','<button class="btn btn-teal" id="x-khorep" onclick="xKhoReport()">📋 Báo cáo kho</button>');};})();
 let xKhoK='month';
 function xKhoRange(k){const t=xToday(),d=new Date(t+'T00:00:00'),ymd=x=>`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`;
@@ -5491,7 +5491,7 @@ function xKhoData(k){
 }
 // 21/10 sếp chốt: báo cáo kho CHỈ cần "còn bao nhiêu trên kệ + giá bán"
 function xKhoReport(){
-  if(!xCan('money')){toast('Chỉ chủ / quản lý xem báo cáo kho',false);return;}
+  // 21/10: MỌI nhân viên xem được (chỉ có số trên kệ + giá bán, không có giá nhập / doanh thu)
   const D=xKhoData('month');
   const tile=(l,v,c,sub)=>`<div style="flex:1;min-width:0;background:${c};border-radius:12px;padding:10px 8px;text-align:center"><div style="font-size:11px;color:#455a64;font-weight:700">${l}</div><div style="font-size:19px;font-weight:900;color:#263238;margin-top:2px">${v}</div>${sub?`<div style="font-size:10.5px;color:#607d8b">${sub}</div>`:''}</div>`;
   showModal(`<h3>📋 Báo cáo kho – còn trên kệ</h3>
