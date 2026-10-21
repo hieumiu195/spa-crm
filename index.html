@@ -4996,9 +4996,14 @@ commPreviewText=function(item){
 // - Số lượng = giá dòng ÷ giá bán 1 SP nếu chia hết (vd 3.500.000 ÷ 1.750.000 = 2), ngược lại = 1.
 // - Chỉ trừ SP ĐANG THEO DÕI KHO (đã nhập số tồn / nhập hàng) → chưa kiểm kho thì không bị âm.
 // - Sửa lượt: hoàn lại số cũ rồi trừ số mới. Xoá lượt / xoá khách: hoàn lại kho.
-function xProdFor(it,prods){
+// 21/10: chọn SP trong danh mục rồi GÕ ĐÈ tên khác (vd chọn ka08 rồi sửa thành "Kem tái sinh") → KHÔNG trừ nhầm ka08.
+// Chỉ tin svcId khi tên dòng = tên SP / tên danh mục, hoặc dòng cũ đã gắn đúng SP này mà không đổi tên.
+function xProdFor(it,prods,prev){
   if(!it||it.cat!=='mp'||!it.name)return null;
   let p=it.svcId&&prods.find(x=>(x.svcIds||[]).includes(it.svcId));
+  if(p){const nm=_noAccent(it.name),sv=getServices().find(x=>x.id===it.svcId);
+    const same=nm===_noAccent(p.name)||(sv&&nm===_noAccent(sv.name))||(prev&&prev.productId===p.id&&prev.svcId===it.svcId&&prev.name===it.name);
+    if(!same)p=null;}
   if(!p){const n=_noAccent(it.name);const m=prods.filter(x=>_noAccent(x.name)===n);if(m.length===1)p=m[0];}
   return p||null;
 }
@@ -5012,7 +5017,7 @@ function xStockSyncVisit(v,oldItems){
   (v.items||[]).forEach(it=>{const o=om.get(it.id);if(!o||!(Number(o.qty)>0))return;const unit=Number(o.price)/Number(o.qty);const np=Number(it.price)||0;
     if(np!==Number(o.price)&&unit>0&&np>0&&xIsQuarter(np/unit)){it.qty=xQ4(np/unit);it.note=it.qty!==1?'SL '+xQtyFmt(it.qty):'';}});
   const prods=getProducts();let pch=xStockApply(oldItems,+1,prods);
-  (v.items||[]).forEach(it=>{delete it.productId;delete it.stockQty;const p=xProdFor(it,prods);if(p&&p.track){it.productId=p.id;it.stockQty=xQtyFor(it,p);}});
+  (v.items||[]).forEach(it=>{const prev=om.get(it.id);delete it.productId;delete it.stockQty;const p=xProdFor(it,prods,prev);if(p&&p.track){it.productId=p.id;it.stockQty=xQtyFor(it,p);}});
   pch=xStockApply(v.items,-1,prods)||pch;
   if(pch)saveProducts(prods);
   return (v.items||[]).some(it=>it.productId)||(oldItems||[]).some(it=>it.productId);
@@ -5134,6 +5139,7 @@ function xStockCount(){
   <div class="btn-group"><button class="btn btn-gray" onclick="closeModal()">Huỷ</button><button class="btn btn-green" onclick="xStockCountSave()">💾 Lưu kiểm kho</button></div>`);
 }
 function xStockCountSave(){
+  const big=[...document.querySelectorAll('.xsc-st')].filter(i=>Number(i.value)>999);if(big.length&&!confirm(`Có ${big.length} ô số lượng rất lớn (${big.map(i=>i.value).slice(0,3).join(', ')}).\nCó phải gõ nhầm GIÁ vào ô SỐ LƯỢNG? Bấm Huỷ để sửa.`))return;
   const prods=getProducts();let n=0,changes=[];
   document.querySelectorAll('.xsc-st,.xsc-buy').forEach(inp=>{
     const p=prods.find(x=>x.id===inp.dataset.id);if(!p||inp.value==='')return;const v=Math.max(0,Number(inp.value)||0);
@@ -5180,6 +5186,7 @@ function xRecvSave(){
   const lines=[];document.querySelectorAll('.xrv-qty').forEach(i=>{const qty=Number(i.value)||0;if(qty<=0)return;const p=prods.find(x=>x.id===i.dataset.id);if(!p)return;
     const b=document.querySelector(`.xrv-buy[data-id="${p.id}"]`);const buy=b&&b.value!==''?Math.max(0,Number(b.value)||0):(Number(p.buyPrice)||0);lines.push({p,qty,buy});});
   if(!lines.length){toast('Chưa gõ số lượng sản phẩm nào',false);return;}
+  const big=lines.filter(l=>l.qty>999);if(big.length&&!confirm(`Nhập ${big.map(l=>l.qty+' '+l.p.name).slice(0,3).join(', ')}?\nCó phải gõ nhầm GIÁ vào ô SỐ LƯỢNG? Bấm Huỷ để sửa.`))return;
   const fresh=lines.filter(l=>!l.p.track);
   if(fresh.length&&!confirm(`${fresh.length} sản phẩm CHƯA kiểm kho (${fresh.map(l=>l.p.name).slice(0,4).join(', ')}${fresh.length>4?'…':''}).\n\nSố tồn của các SP này sẽ = số vừa nhập. Nếu trên kệ còn hàng cũ, sau đó nhớ bấm "📝 Kiểm kho nhanh" để sửa cho đúng.\n\nTiếp tục lưu?`))return;
   lines.forEach(({p,qty,buy})=>{p.stock=(p.track?Number(p.stock)||0:0)+qty;p.track=true;if(buy)p.buyPrice=buy;
@@ -5403,7 +5410,7 @@ function xNewProdSave(){
   if(getServices().some(s=>s.cat==='mp'&&_noAccent(s.name)===n)||getProducts().some(p=>_noAccent(p.name)===n)){if(!confirm(`Đã có sản phẩm tên "${name}". Vẫn tạo thêm?`))return;}
   const comm=g('np-comm')?Math.min(100,Math.max(0,Number(g('np-comm').value)||0)):10,adv=g('np-adv')?Math.min(100,Math.max(0,Number(g('np-adv').value)||0)):0;
   const sid=xId();const svcs=getServices();svcs.push({id:sid,name,cat:'mp',price:sell,remindDays:0,commPct:comm,advicePct:adv,group:''});DB.set('services',svcs);
-  const st=g('np-stock').value.trim();const prods=getProducts();
+  const st=g('np-stock').value.trim();if(Number(st)>999&&!confirm(`Số đang có trên kệ = ${st}?\n\nCó phải gõ nhầm GIÁ vào ô SỐ LƯỢNG không? Bấm Huỷ để sửa.`))return;const prods=getProducts();
   prods.push({id:'p-'+sid,by:xCurUser.name,createdAt:xToday(),name,unit:g('np-unit').value.trim()||'hộp',buyPrice:g('np-buy')?Math.max(0,Number(g('np-buy').value)||0):0,sellPrice:sell,stock:st===''?0:Math.max(0,Number(st)||0),svcIds:[sid],track:st!==''});
   saveProducts(prods);closeModal();toast('✅ Đã thêm '+name+(st!==''?' · tồn '+st:''));
   if(xCurPage==='cosmetics')renderProducts();else if(xCurPage==='settings')renderServiceCatalog();else xRerender();
