@@ -3518,7 +3518,7 @@ async function xCloudLoadReal(){
   try{
     const res=await fetchCloud(CLOUD_URL+'?action=getAll&_t='+Date.now(),{cache:'no-store'});
     const json=await res.json();
-    if(json.ok&&json.data){xMergeAll(json.data);setSyncStatus('ok');xRefreshUI();return true;}
+    if(json.ok&&json.data){xMergeAll(json.data);_xLoadOK=Date.now();setSyncStatus('ok');xRefreshUI();return true;}
     setSyncStatus('error','Cloud trả về lỗi – sẽ tự thử lại');return false;
   }catch(e){setSyncStatus('error','Mạng chậm – sẽ tự thử lại');return false;}
 }
@@ -3531,18 +3531,22 @@ checkCloudUpdates=async function(){
     const json=await res.json();if(!json.ok||!json.data)return;
     const d=json.data;
     const sig=['customers','visits','services','deleted',...X_COLS].map(k=>xSigArr(d[k])).join('#')+JSON.stringify(d.staff_list||[])+JSON.stringify(d.rem_done||[]).length;
-    if(!_xLastSig){_xLastSig=sig;_pollCustCount=(d.customers||[]).length;_pollVisitCount=(d.visits||[]).length;return;}
+    // 23/10: lần kiểm tra đầu — nếu lúc mở app tải cloud bị lỗi/chậm thì GỘP luôn (trước đây chỉ ghi mốc → máy chủ đứng dữ liệu cũ)
+    if(!_xLastSig){_xLastSig=sig;_pollCustCount=(d.customers||[]).length;_pollVisitCount=(d.visits||[]).length;if(!_xLoadOK){xMergeAll(d);_xLoadOK=Date.now();setSyncStatus('ok');xRefreshUI();}return;}
     if(sig===_xLastSig)return;
     _xLastSig=sig;
     const nc=(d.customers||[]).length-_pollCustCount,nv=(d.visits||[]).length-_pollVisitCount;
     _pollCustCount=(d.customers||[]).length;_pollVisitCount=(d.visits||[]).length;
-    xMergeAll(d);setSyncStatus('ok');xRefreshUI();
-    if(nc>0||nv>0){const p=[];if(nc>0)p.push(nc+' khách hàng mới');if(nv>0)p.push(nv+' lượt dịch vụ mới');const msg=p.join(', ')+' vừa được cập nhật!';toast('🔔 '+msg);sendNotif('🌸 Spa CRM',msg);}
+    xMergeAll(d);_xLoadOK=Date.now();setSyncStatus('ok');xRefreshUI();
+    if((nc>0||nv>0)&&!(typeof xNotiOn==='function'&&xNotiOn())){const p=[];if(nc>0)p.push(nc+' khách hàng mới');if(nv>0)p.push(nv+' lượt dịch vụ mới');const msg=p.join(', ')+' vừa được cập nhật!';toast('🔔 '+msg);sendNotif('🌸 Spa CRM',msg);}
   }catch(e){}finally{_xPolling=false;}
 };
 // Dữ liệu lớn hơn → kiểm tra 2 phút/lần và chỉ khi app đang mở trên màn hình (đỡ tốn 4G)
-startPolling=function(){stopPolling();if(!CLOUD_URL)return;_xLastSig='';if(!_xLoading)checkCloudUpdates();_pollTimer=setInterval(()=>{if(!document.hidden&&!_xLoading&&!_xPolling)checkCloudUpdates();},120000);};
-let _xPolling=false;
+startPolling=function(){stopPolling();if(!CLOUD_URL)return;_xLastSig='';if(!_xLoading)checkCloudUpdates();_pollTimer=setInterval(()=>{if(!document.hidden&&!_xLoading&&!_xPolling)checkCloudUpdates();},60000);};
+let _xPolling=false,_xLoadOK=0,_xLastFocusChk=0;
+// 23/10: mở lại app / quay lại tab → kiểm tra cloud NGAY (không chờ tới lượt 1 phút)
+function xChkNow(){if(document.hidden||!CLOUD_URL||_xLoading||_xPolling||Date.now()-_xLastFocusChk<20000)return;_xLastFocusChk=Date.now();checkCloudUpdates();}
+document.addEventListener('visibilitychange',xChkNow);window.addEventListener('focus',xChkNow);window.addEventListener('online',xChkNow);
 
 // Sao lưu ĐẦY ĐỦ (cả phần mới) — khôi phục thì GỘP, không xoá dữ liệu đang có
 exportData=function(){
@@ -5512,6 +5516,41 @@ function xKhoText(){const D=xKhoData('month');
 async function xKhoShare(){const t=xKhoText();
   try{if(navigator.share){await navigator.share({text:t});return;}}catch(e){if(e&&e.name==='AbortError')return;}
   try{await navigator.clipboard.writeText(t);toast('✅ Đã copy – mở Zalo dán vào');}catch(e){const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();document.execCommand('copy');a.remove();toast('✅ Đã copy – mở Zalo dán vào');}}
+
+// ═══ 🔔 THÔNG BÁO NHÂN VIÊN NHẬP (23/10): chủ + quản lý thấy ngay ai vừa nhập khách / lượt / bao nhiêu tiền ═══
+function xNotiOn(){return !!(xCurUser&&xCan('manage'));}
+function xNotiList(){try{return JSON.parse(localStorage.getItem('spa_xnoti')||'[]');}catch(e){return [];}}
+function xNotiSeen(){return Number(localStorage.getItem('spa_xnoti_seen')||0);}
+(function(){const f=xMergeAll;xMergeAll=function(d){
+  const bv=new Set(xLoad('visits').map(v=>v.id)),bc=new Set(xLoad('customers').map(c=>c.id));
+  const r=f(d);
+  try{if(!xNotiOn()||!bv.size)return r;
+    const me=xCurUser.name,since=Date.now()-3*864e5,cs=Object.fromEntries(xLoad('customers').map(c=>[c.id,c.name]));const add=[];
+    xLoad('visits').forEach(v=>{if(bv.has(v.id)||(v.by||'')===me||(Number(v.updatedAt)||0)<since)return;
+      add.push({at:Number(v.updatedAt)||Date.now(),k:'v',id:v.id,custId:v.custId,by:v.by||'',cust:cs[v.custId]||'',money:visitBill(v),items:(v.items||[]).map(i=>i.name).filter(Boolean).join(', ').slice(0,80)});});
+    xLoad('customers').forEach(c=>{if(bc.has(c.id)||(Number(c.updatedAt)||0)<since||add.some(a=>a.custId===c.id))return;
+      add.push({at:Number(c.updatedAt)||Date.now(),k:'c',id:c.id,custId:c.id,by:c.by||'',cust:c.name||'',money:0,items:''});});
+    if(add.length){const L=xNotiList().concat(add).sort((a,b)=>a.at-b.at).slice(-60);localStorage.setItem('spa_xnoti',JSON.stringify(L));
+      const t=add.length===1?xNotiText(add[0]):`${add.length} lượt mới: `+add.slice(0,3).map(a=>(a.by||'NV').split(' ').pop()+' '+(a.money?fmt(a.money):'')).join(' · ');
+      setTimeout(()=>{toast('🔔 '+t);sendNotif('🌸 TARUS – nhân viên vừa nhập',t);xNotiBadge();},300);}
+  }catch(e){console.warn(e);}
+  return r;};})();
+function xNotiText(a){const who=a.by?a.by:'Nhân viên';return a.k==='c'?`${who} thêm khách mới: ${a.cust}`:`${who} nhập: ${a.cust}${a.money?' · '+fmt(a.money):''}${a.items?' ('+a.items+')':''}`;}
+function xNotiBadge(){const n=xNotiOn()?xNotiList().filter(a=>a.at>xNotiSeen()).length:0;
+  document.querySelectorAll('.x-noti-btn').forEach(b=>{b.style.display=xNotiOn()?'inline-flex':'none';const nb=b.querySelector('.nb');nb.textContent=n>9?'9+':n;nb.style.display=n?'flex':'none';});}
+function xNotiOpen(){
+  const L=xNotiList().slice().reverse(),seen=xNotiSeen();
+  showModal(`<h3>🔔 Nhân viên vừa nhập</h3>
+  <div class="x-note" style="margin-bottom:8px">Tự cập nhật mỗi phút khi app đang mở · mở lại app là cập nhật ngay.</div>
+  <div style="max-height:62vh;overflow:auto">${L.length?L.map(a=>`<div onclick="closeModal();${a.custId?`openCust('${a.custId}')`:''}" style="padding:9px 6px;border-bottom:1px solid #eceff1;cursor:pointer;${a.at>seen?'background:#fff8e1;':''}">
+    <div style="display:flex;justify-content:space-between;gap:8px"><b>${xE(a.cust||'')}</b>${a.money?`<b style="color:#2e7d32;white-space:nowrap">${fmt(a.money)}</b>`:''}</div>
+    <div class="x-note">${a.k==='c'?'➕ Khách mới':'🧾 '+xE(a.items||'')} · ${xE(a.by||'')} · ${new Date(a.at).toLocaleString('vi-VN',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'})}</div></div>`).join(''):'<div class="x-empty">Chưa có thông báo mới</div>'}</div>
+  <div class="btn-group">${'Notification' in window&&Notification.permission!=='granted'?'<button class="btn btn-gray" onclick="Notification.requestPermission().then(()=>toast(\'Đã bật thông báo\'))">🔔 Bật thông báo máy</button>':''}<button class="btn btn-gray" onclick="syncNow()">🔄 Cập nhật ngay</button><button class="btn btn-green" onclick="closeModal()">Đóng</button></div>`);
+  localStorage.setItem('spa_xnoti_seen',String(Date.now()));xNotiBadge();
+}
+(function(){const f=xBuildNav;xBuildNav=function(){f();const rb=document.querySelector('#topbar .right-btns');
+  if(rb&&!rb.querySelector('.x-noti-btn'))rb.insertAdjacentHTML('afterbegin',`<span class="x-bd-btn x-noti-btn" onclick="xNotiOpen()" title="Nhân viên vừa nhập" style="display:none">🔔<span class="nb" style="display:none"></span></span>`);
+  xNotiBadge();};})();
 
 </script>
 <script>
