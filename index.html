@@ -1279,11 +1279,11 @@ function seed(){
 
 // ══ HELPERS ══
 const fmt=n=>Number(n||0).toLocaleString('vi-VN')+'đ';
-const today=()=>new Date().toISOString().slice(0,10);
-const daysAgo=n=>{const d=new Date();d.setDate(d.getDate()-n);return d.toISOString().slice(0,10);};
+const today=()=>(x=>`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`)(new Date());
+const daysAgo=n=>{const d=new Date();d.setDate(d.getDate()-n);return (x=>`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`)(d);};
 const addDays=(dateStr,n)=>{const d=new Date(dateStr+'T00:00:00');d.setDate(d.getDate()+n);return d.toISOString().slice(0,10);};
 const firstOfMonth=()=>{const d=new Date();return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;};
-const lastOfMonth=()=>{const d=new Date();return new Date(d.getFullYear(),d.getMonth()+1,0).toISOString().slice(0,10);};
+const lastOfMonth=()=>{const d=new Date();return (x=>`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`)(new Date(d.getFullYear(),d.getMonth()+1,0));};
 const ABG=['#006064','#00838f','#00897b','#0097a7','#2e7d32','#1565c0','#6a1b9a','#c62828'];
 const getABG=id=>ABG[Math.abs((id.charCodeAt(2)||0))%ABG.length];
 const getIni=name=>name.trim().split(' ').slice(-1)[0][0].toUpperCase();
@@ -2378,7 +2378,7 @@ function setRevMonth(){document.getElementById('rev-from').value=firstOfMonth();
 function setRevLastMonth(){
   const d=new Date();d.setMonth(d.getMonth()-1);
   document.getElementById('rev-from').value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;
-  document.getElementById('rev-to').value=new Date(d.getFullYear(),d.getMonth()+1,0).toISOString().slice(0,10);renderRevenue();
+  document.getElementById('rev-to').value=(x=>`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`)(new Date(d.getFullYear(),d.getMonth()+1,0));renderRevenue();
 }
 function renderRevenue(){
   const from=document.getElementById('rev-from').value;const to=document.getElementById('rev-to').value;if(!from||!to)return;
