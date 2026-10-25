@@ -5032,7 +5032,7 @@ function xStockSyncVisit(v,oldItems){
   f(custId,editId);
   if(document.getElementById('modal').classList.contains('show'))return;
   const vs=DB.get('visits');const v=editId?vs.find(x=>x.id===editId):vs.find(x=>!before.has(x.id)&&x.custId===custId);
-  if(v&&xStockSyncVisit(v,oldItems))DB.set('visits',vs);
+  if(v){const n0=JSON.stringify(v.items);const ch=xStockSyncVisit(v,oldItems);if(ch||JSON.stringify(v.items)!==n0)DB.set('visits',vs);}
 };})();
 (function(){const f=deleteVisit;deleteVisit=function(visitId,custId){
   const v=DB.get('visits').find(x=>x.id===visitId);const items=v?JSON.parse(JSON.stringify(v.items||[])):[];
@@ -5348,6 +5348,7 @@ function xMpAdd(key,d){
   c.qty=xQ4(c.qty+d);if(c.qty<=0)xMpCart=xMpCart.filter(i=>i!==c);
   xMpCartRender();xMpList();
 }
+function xMpSetQty(i,v){const c=xMpCart[i];if(!c)return;const q=xQ4(v);if(q>0)c.qty=q;else xMpCart.splice(i,1);xMpCartRender();xMpList();}
 function xMpCartRender(){
   const el=document.getElementById('xmp-cart');if(!el)return;
   if(!xMpCart.length){el.innerHTML='<div class="x-note">Chưa chọn sản phẩm — bấm ＋ ở danh sách trên</div>';return;}
@@ -5355,7 +5356,7 @@ function xMpCartRender(){
   el.innerHTML=xMpCart.map((c,i)=>{const low=c.prod&&c.prod.track&&c.qty>Number(c.prod.stock);
     return `<div style="display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid #eee;flex-wrap:wrap">
     <div style="flex:1;min-width:120px"><b>${xE(c.name)}</b>${low?`<div style="color:#c62828;font-size:11.5px;font-weight:700">⚠️ kho chỉ còn ${xQtyFmt(c.prod.stock)}</div>`:''}</div>
-    <button class="btn btn-gray btn-sm" style="min-width:36px" onclick="xMpAdd('${c.key}',${c.qty>1?-1:-0.25})">−</button><b style="min-width:30px;text-align:center">${xQtyFmt(c.qty)}</b><button class="btn btn-gray btn-sm" style="min-width:36px" onclick="xMpAdd('${c.key}',1)">＋</button><button class="btn btn-gray btn-xs" onclick="xMpAdd('${c.key}',0.25)">+¼</button><button class="btn btn-gray btn-xs" onclick="xMpAdd('${c.key}',0.5)">+½</button>
+    <button class="btn btn-gray btn-sm" style="min-width:36px" onclick="xMpAdd('${c.key}',${c.qty>1?-1:-0.25})">−</button><input class="fi" type="number" inputmode="decimal" min="0.25" step="0.25" value="${c.qty}" title="Số lượng – gõ số" style="width:62px;text-align:center;padding:6px;font-weight:800" onchange="xMpSetQty(${i},this.value)"><button class="btn btn-gray btn-sm" style="min-width:36px" onclick="xMpAdd('${c.key}',1)">＋</button><button class="btn btn-gray btn-xs" onclick="xMpAdd('${c.key}',0.25)">+¼</button><button class="btn btn-gray btn-xs" onclick="xMpAdd('${c.key}',0.5)">+½</button>
     <input class="fi" type="number" inputmode="numeric" style="width:105px;text-align:right;padding:6px" value="${c.unit}" title="Giá 1 cái" onchange="xMpCart[${i}].unit=Math.max(0,Number(this.value)||0);xMpCartRender()">
     <b style="min-width:92px;text-align:right;color:#e65100">${fmt(Math.round(c.qty*c.unit))}</b></div>`;}).join('')+
     `<div style="text-align:right;font-size:15px;font-weight:800;color:#006064;padding-top:8px">Tổng: ${fmt(tot)}</div>`;
@@ -5551,6 +5552,28 @@ function xNotiOpen(){
 (function(){const f=xBuildNav;xBuildNav=function(){f();const rb=document.querySelector('#topbar .right-btns');
   if(rb&&!rb.querySelector('.x-noti-btn'))rb.insertAdjacentHTML('afterbegin',`<span class="x-bd-btn x-noti-btn" onclick="xNotiOpen()" title="Nhân viên vừa nhập" style="display:none">🔔<span class="nb" style="display:none"></span></span>`);
   xNotiBadge();};})();
+
+// ═══ SỐ LƯỢNG MỸ PHẨM trong phiếu khách (25/10): NV gõ SL → tiền = SL × giá 1 cái, kho trừ đúng SL ═══
+(function(){const f=_viRowHtml;_viRowHtml=function(item,i){let h=f(item,i);if(item.cat!=='mp')return h;
+  const q=Number(item.qty)>0?Number(item.qty):1;
+  const qty=`<div style="display:flex;align-items:center;gap:4px"><span style="font-size:11px;font-weight:800;color:#2e7d32;white-space:nowrap">SL</span><input id="vq-${item.id}" type="number" inputmode="decimal" min="0.25" step="0.25" value="${q}" title="Số lượng bán" oninput="xViQty(${i},this.value)" style="width:62px;text-align:center;font-weight:800"></div>`;
+  h=h.replace(`<input id="vp-${item.id}"`,qty+`<input id="vp-${item.id}"`);
+  h=h.replace(`oninput="visitItems[${i}].price=this.value;`,`oninput="visitItems[${i}].price=this.value;xViPriceIn(${i});`);
+  return h;};})();
+function xViUnit(it){if(Number(it.unitPrice)>0)return Number(it.unitPrice);const p=Number(it.price)||0;if(p>0)return p/(Number(it.qty)>0?Number(it.qty):1);
+  const s=it.svcId&&getServices().find(x=>x.id===it.svcId);return s?Number(s.price)||0:0;}
+function xViQty(i,val){const it=visitItems[i];if(!it)return;const q=xQ4(val);if(!(q>0))return;
+  const unit=xViUnit(it);it.qty=q;it.unitPrice=unit;if(unit>0){it.price=Math.round(q*unit);const p=document.getElementById('vp-'+it.id);if(p)p.value=it.price;}
+  updateDiscPreview(it.id,i);updateCommPreview(i);}
+function xViPriceIn(i){const it=visitItems[i];if(!it)return;const q=Number(it.qty)>0?Number(it.qty):1;const p=Number(it.price)||0;if(p>0)it.unitPrice=p/q;}
+// chọn SP trong danh mục → giữ SL đang gõ, tiền = SL × giá mới
+['viCatPick','pickCatalog'].forEach(fn=>{const f=window[fn];if(typeof f!=='function')return;window[fn]=function(i,x){const q=visitItems[i]&&Number(visitItems[i].qty);f.apply(this,arguments);const it=visitItems[i];
+  if(!it||it.cat!=='mp')return;const s=it.svcId&&getServices().find(z=>z.id===it.svcId);const unit=s?Number(s.price)||0:Number(it.price)||0;
+  it.unitPrice=unit;it.qty=q>0?q:1;if(it.qty!==1){it.price=Math.round(it.qty*unit);renderVisitItems();}};});
+// ghi "SL x" vào ghi chú dòng mỹ phẩm để lịch sử khách thấy rõ đã bán mấy cái
+(function(){const f=xStockSyncVisit;xStockSyncVisit=function(v,oldItems){
+  (v.items||[]).forEach(it=>{if(it.cat!=='mp'||!(Number(it.qty)>0))return;const rest=String(it.note||'').replace(/^SL [^\s]+\s*/,'');it.note=(Number(it.qty)!==1?'SL '+xQtyFmt(Number(it.qty))+' ':'')+rest;it.note=it.note.trim();});
+  return f.apply(this,arguments);};})();
 
 </script>
 <script>
