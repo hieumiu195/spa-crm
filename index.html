@@ -422,6 +422,24 @@ body.xr-letan #page-customers .controls+.controls,body.xr-ktv #page-customers .c
 .x-qa .ic{display:block;font-size:26px;margin-bottom:4px;}
 @media(max-width:760px){.x-qa-grid{grid-template-columns:repeat(4,1fr);gap:6px;}.x-qa{font-size:11.5px;padding:10px 2px 8px;}.x-qa .ic{font-size:23px;}}
 @media(max-width:760px){.hero-search{padding:12px 4px 8px;}.hero-search h1,.hero-search p{display:none;}}
+/* Liệu trình nâng cấp 31/10 */
+.x-chips{display:flex;gap:6px;flex-wrap:wrap;margin:2px 0 10px;}
+.x-chip{border:1px solid #b2dfdb;background:#fff;border-radius:16px;padding:5px 11px;font-size:12.5px;font-weight:700;color:#00695c;cursor:pointer;user-select:none;}
+.x-chip i{font-style:normal;background:#e0f2f1;border-radius:9px;padding:0 7px;margin-left:3px;font-size:11.5px;}
+.x-chip.on{background:#00838f;color:#fff;border-color:#00838f;}.x-chip.on i{background:rgba(255,255,255,.25);}
+.x-pk-cust{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12.5px;font-weight:700;color:#006064;margin:10px 0 3px;}
+.x-pk-cust>span{cursor:pointer;margin-right:auto;}
+.x-pk-items{flex-basis:100%;display:flex;flex-wrap:wrap;gap:5px;}
+.x-pk-items span{font-size:11.5px;background:#f1f8f9;border:1px solid #e0f2f1;border-radius:8px;padding:2px 8px;color:#455a64;}
+.x-pk-items span.ok{background:#e8f5e9;color:#2e7d32;border-color:#c8e6c9;}
+.x-pk-next{font-size:12px;color:#00695c;background:#f1f8f9;border-radius:7px;padding:4px 9px;margin-top:2px;}
+.x-pk-next.soon{background:#fff8e1;color:#e65100;}.x-pk-next.late{background:#ffebee;color:#c62828;}
+.x-pd-row{display:flex;gap:6px;align-items:center;margin-bottom:6px;}
+.x-pd-row .fi:first-child{flex:1;min-width:0;}.x-pd-row input[type=number]{width:72px;flex:none;}
+.x-pd-gift{display:flex;align-items:center;gap:3px;font-size:12px;white-space:nowrap;color:#ad1457;font-weight:700;}
+.x-pd-giftbox{background:#fff8fb;border:1px dashed #f8bbd0;border-radius:9px;padding:8px 10px;margin:6px 0 10px;font-size:12.5px;}
+.x-pd-giftbox .x-pd-row{margin-top:6px;}
+.x-pk-ph{display:inline-flex;gap:3px;margin-right:4px;}.x-pk-ph img{width:46px;height:46px;object-fit:cover;border-radius:6px;border:1px solid #e0f2f1;cursor:pointer;}
 </style>
 </head>
 <body>
@@ -4628,99 +4646,283 @@ renderRevenue=function(){
   <div class="x-note">Theo hình thức TT: ${Object.entries(byPm).map(([k,v])=>`${xPmLabel(k)} <b>${fmt(v)}</b>`).join(' · ')||'—'}</div></div>`);
 };
 
-// ════════ ✨ DỊCH VỤ & LIỆU TRÌNH ════════
+// ════════ ✨ DỊCH VỤ & LIỆU TRÌNH (nâng cấp 31/10/2026: gói nhiều dịch vụ + buổi tặng, ảnh & tình trạng mỗi buổi, hẹn buổi sau, lọc/tìm/đến hạn) ════════
 function xPkgDefs(){return xLoad('pkg_defs');}
-function xPkgRow(p){
-  const used=(p.history||[]).length,pct=Math.round(used/Math.max(1,p.total)*100);const exp=p.expire&&p.expire<xToday();
-  return `<div class="x-pkg"><div style="flex:2;min-width:150px"><b>${xE(p.name)}</b><div class="x-note">Mua ${xFmtD(p.buyDate)}${p.expire?' · HSD '+xFmtD(p.expire):''}${exp?' <b style="color:#c62828">(hết hạn)</b>':''}</div></div>
-  <div class="x-prog"><i style="width:${pct}%"></i></div><b style="min-width:58px;text-align:center;color:${used>=p.total?'#2e7d32':'#006064'}">${used}/${p.total}</b>
-  ${used<p.total&&xCan('front')?`<button class="btn btn-teal btn-xs" onclick="xPkgUseForm('${p.id}')">➖ Trừ buổi</button>`:used>=p.total?'<span class="x-badge st-xong">Hoàn thành</span>':''}
-  <button class="btn btn-gray btn-xs" onclick="xPkgHist('${p.id}')">📜</button></div>`;
+// 31/10 sếp chốt: MỌI nhân viên (kể cả KTV) được trừ buổi + chọn người làm
+function xCanPkgUse(){return !!xRole();}
+// Gói cũ (chỉ có total) = 1 dịch vụ
+function xPkgItems(p){return (p&&p.items&&p.items.length)?p.items:[{name:p.name,total:Number(p.total||p.sessions)||0}];}
+function xPkgDefItems(d){return (d&&d.items&&d.items.length)?d.items:[{name:d.name,sessions:Number(d.sessions)||0}];}
+function xPkgUsed(p){return (p.history||[]).length;}
+function xPkgUsedOf(p,i){return (p.history||[]).filter(h=>(Number(h.item)||0)===i).length;}
+function xPkgTotal(p){return xPkgItems(p).reduce((a,it)=>a+(Number(it.total)||0),0);}
+function xPkgDone(p){return xPkgUsed(p)>=xPkgTotal(p);}
+function xPkgExpired(p){return !!(p.expire&&p.expire<xToday()&&!xPkgDone(p));}
+function xPkgLast(p){const h=(p.history||[]).map(x=>x.date).filter(Boolean).sort();return h.length?h[h.length-1]:p.buyDate;}
+function xPkgGap(p){return Number(p.gapDays)||7;}
+// Lịch hẹn liệu trình chưa làm (kể cả hẹn đã qua mà khách chưa tới)
+function xPkgAppt(p){return xAppts().filter(a=>a.pkgId===p.id&&!['huy','vang','xong'].includes(a.status)).sort((a,b)=>(a.date+(a.time||'')).localeCompare(b.date+(b.time||'')))[0]||null;}
+// Ngày cần làm buổi tiếp: theo lịch hẹn, không có hẹn thì = buổi gần nhất + khoảng cách
+function xPkgDue(p){if(xPkgDone(p)||xPkgExpired(p))return '';const a=xPkgAppt(p);return a?a.date:_pAddDays(xPkgLast(p)||xToday(),xPkgGap(p));}
+function xPkgDaysDiff(a,b){return Math.round((new Date(a+'T00:00:00')-new Date(b+'T00:00:00'))/864e5);}
+function xPkgState(p){
+  if(xPkgDone(p))return 'done';if(xPkgExpired(p))return 'expired';
+  const t=xToday(),due=xPkgDue(p),out=[];
+  if(due&&due<=_pAddDays(t,2))out.push('due');
+  if(p.expire&&p.expire<=_pAddDays(t,30))out.push('expiring');
+  const ap=xPkgAppt(p);if(!(ap&&ap.date>=t)&&xPkgDaysDiff(t,xPkgLast(p)||t)>30)out.push('idle');
+  return out.length?out:['act'];
 }
+const X_PKG_F=[['act','💆 Đang làm'],['due','🔔 Đến hạn / trễ'],['expiring','⏳ Sắp hết hạn'],['idle','💤 Lâu chưa quay lại'],['done','✅ Đã xong'],['expired','⛔ Hết hạn']];
+function xPkgIn(p,f){const s=xPkgState(p);if(f==='act')return s!=='done'&&s!=='expired';return Array.isArray(s)?s.includes(f):s===f;}
+let xPkgF='act',xPkgQ='';
+
+function xPkgNextLine(p){
+  if(xPkgDone(p)||xPkgExpired(p))return '';
+  const t=xToday(),a=xPkgAppt(p);
+  if(a){const late=a.date<t;return `<div class="x-pk-next ${late?'late':''}">📅 ${late?'Trễ hẹn':'Hẹn buổi tiếp'}: <b>${xE(a.time||'')} ${xFmtD(a.date)}</b>${a.staff?' · '+xE(a.staff):''}${late?` <b>(trễ ${xPkgDaysDiff(t,a.date)} ngày)</b>`:''}</div>`;}
+  const due=xPkgDue(p),d=xPkgDaysDiff(due,t);
+  return `<div class="x-pk-next ${d<0?'late':d<=2?'soon':''}">${d<0?`⏰ Quá hạn buổi tiếp <b>${-d} ngày</b> (chưa hẹn)`:d===0?'🔔 Hôm nay đến hạn buổi tiếp (chưa hẹn)':`🗓️ Buổi tiếp nên làm khoảng <b>${xFmtD(due)}</b> (chưa hẹn)`}</div>`;
+}
+function xPkgRow(p){
+  const its=xPkgItems(p),used=xPkgUsed(p),tot=xPkgTotal(p),pct=Math.round(used/Math.max(1,tot)*100);
+  const done=used>=tot,exp=xPkgExpired(p);
+  const multi=its.length>1||its.some(i=>i.gift);
+  return `<div class="x-pkg"><div style="flex:2;min-width:150px"><b>${xE(p.name)}</b><div class="x-note">Mua ${xFmtD(p.buyDate)}${p.expire?' · HSD '+xFmtD(p.expire):''}${exp?' <b style="color:#c62828">(hết hạn)</b>':''}</div></div>
+  <div class="x-prog"><i style="width:${pct}%"></i></div><b style="min-width:58px;text-align:center;color:${done?'#2e7d32':'#006064'}">${used}/${tot}</b>
+  ${!done&&xCanPkgUse()?`<button class="btn btn-teal btn-xs" onclick="xPkgUseForm('${p.id}')">➖ Trừ buổi</button>${xCan('front')?`<button class="btn btn-gray btn-xs" onclick="xPkgApptForm('${p.id}')">📅 Hẹn</button>`:''}`:done?'<span class="x-badge st-xong">Hoàn thành</span>':''}
+  <button class="btn btn-gray btn-xs" onclick="xPkgHist('${p.id}')">📜 Chi tiết</button>
+  ${multi?`<div class="x-pk-items">${its.map((it,i)=>{const u=xPkgUsedOf(p,i);return `<span class="${u>=it.total?'ok':''}">${it.gift?'🎁 ':''}${xE(it.name)} <b>${u}/${it.total}</b></span>`;}).join('')}</div>`:''}
+  ${xPkgNextLine(p)?`<div style="flex-basis:100%">${xPkgNextLine(p)}</div>`:''}</div>`;
+}
+
 X_RENDER.xsvc=function(){
   const el=document.getElementById('page-xsvc');const svcs=getServices();const defs=xPkgDefs().filter(d=>d.active!==false);
-  const cps=xLoad('cust_pkgs');const act=cps.filter(p=>(p.history||[]).length<p.total);
+  const cps=xLoad('cust_pkgs');const cnt=f=>cps.filter(p=>xPkgIn(p,f)).length;
+  const act=cps.filter(p=>xPkgIn(p,'act'));
   const grp=SVC_GROUPS.map(g=>({g,list:svcs.filter(s=>s.cat==='dv'&&(s.group||'')===g.k)})).concat([{g:{k:'',label:'📁 Chưa xếp nhóm'},list:svcs.filter(s=>s.cat==='dv'&&!SVC_GROUPS.some(g=>g.k===s.group))}]).filter(x=>x.list.length);
   el.innerHTML=`<div class="x-page-head"><h2>✨ Dịch Vụ & Liệu Trình</h2>
     ${xCan('front')?`<button class="btn btn-teal" onclick="xPkgSellForm()">🛒 Bán liệu trình</button>`:''}
     ${xCan('manage')?`<button class="btn btn-gray" onclick="xPkgDefForm()">+ Tạo gói liệu trình</button><button class="btn btn-gray" onclick="showPage('settings')">✏️ Sửa danh mục dịch vụ</button>`:''}</div>
-  <div class="x-stats"><div class="x-stat"><div class="l">Dịch vụ đang bán</div><div class="v">${svcs.filter(s=>s.cat==='dv').length}</div></div>
-   <div class="x-stat purple"><div class="l">Gói liệu trình</div><div class="v">${defs.length}</div></div>
-   <div class="x-stat orange"><div class="l">Liệu trình khách đang dùng</div><div class="v">${act.length}</div></div>
-   <div class="x-stat green"><div class="l">Buổi còn lại phải làm</div><div class="v">${act.reduce((a,p)=>a+p.total-(p.history||[]).length,0)}</div></div></div>
-  <div class="x-card"><h3>📦 Gói liệu trình</h3>${defs.length?`<div class="x-table-wrap"><table class="x-table"><thead><tr><th>Tên gói</th><th class="c">Số buổi</th><th class="r">Giá gói</th><th class="r">Tiền tour/buổi</th><th>Hạn dùng</th><th></th></tr></thead><tbody>
-    ${defs.map(d=>`<tr><td><b>${xE(d.name)}</b><div class="x-note">${xE(d.note||'')}</div></td><td class="c">${d.sessions}</td><td class="r">${fmt(d.price)}</td><td class="r">${fmt(d.tourAmt||0)}</td><td>${d.validDays?d.validDays+' ngày':'Không giới hạn'}</td><td>${xCan('manage')?`<button class="btn btn-gray btn-xs" onclick="xPkgDefForm('${d.id}')">✏️</button>`:''}</td></tr>`).join('')}</tbody></table></div>`:`<div class="x-empty">Chưa có gói liệu trình. ${xCan('manage')?'Bấm “+ Tạo gói liệu trình” (vd: Trị mụn 10 buổi, Triệt lông nách 12 buổi).':''}</div>`}</div>
-  <div class="x-card"><h3>👥 Liệu trình khách đang dùng (${act.length})</h3>${act.length?act.sort((a,b)=>(a.buyDate||'').localeCompare(b.buyDate||'')).map(p=>{const c=xCust(p.custId);return `<div style="font-size:12px;font-weight:700;color:#006064;margin:6px 0 3px;cursor:pointer" onclick="openCust('${p.custId}')">👤 ${xE(c?c.name:'(đã xoá)')} <span class="x-note">${xE(c?c.phone:'')}</span></div>${xPkgRow(p)}`;}).join(''):'<div class="x-empty">Chưa có khách nào đang dùng liệu trình</div>'}</div>
-  <div class="x-card"><h3>💼 Danh mục dịch vụ & giá</h3>${grp.map(x=>`<div style="font-weight:800;color:#00695c;margin:8px 0 4px">${xE(x.g.label)} (${x.list.length})</div>
-    <div class="x-table-wrap"><table class="x-table"><tbody>${x.list.map(s=>`<tr><td>${xE(s.name)}</td><td class="r"><b>${fmt(s.price)}</b></td><td class="x-note">${s.remindDays?'nhắc sau '+s.remindDays+' ngày':''}</td></tr>`).join('')}</tbody></table></div>`).join('')}</div>`;
+  <div class="x-stats">
+   <div class="x-stat orange" style="cursor:pointer" onclick="xPkgSetF('act')"><div class="l">Liệu trình khách đang làm</div><div class="v">${act.length}</div></div>
+   <div class="x-stat red" style="cursor:pointer" onclick="xPkgSetF('due')"><div class="l">🔔 Đến hạn / trễ buổi</div><div class="v">${cnt('due')}</div></div>
+   <div class="x-stat purple" style="cursor:pointer" onclick="xPkgSetF('expiring')"><div class="l">⏳ Sắp hết hạn (30 ngày)</div><div class="v">${cnt('expiring')}</div></div>
+   <div class="x-stat green"><div class="l">Buổi còn lại phải làm</div><div class="v">${act.reduce((a,p)=>a+xPkgTotal(p)-xPkgUsed(p),0)}</div></div></div>
+  <div class="x-card"><h3>👥 Liệu trình của khách</h3>
+    <div class="x-chips" id="xpk-chips"></div>
+    <input class="fi" id="xpk-q" placeholder="🔎 Tìm theo tên khách, SĐT hoặc tên gói..." value="${xA(xPkgQ)}" oninput="xPkgQ=this.value;xPkgList()" style="margin-bottom:8px">
+    <div id="xpk-list"></div></div>
+  <div class="x-card"><h3>📦 Gói liệu trình đang bán (${defs.length})</h3>${defs.length?`<div class="x-table-wrap"><table class="x-table"><thead><tr><th>Tên gói</th><th>Gồm</th><th class="r">Giá gói</th><th class="r">Tour/buổi</th><th>Hạn dùng</th><th>Cách buổi</th><th></th></tr></thead><tbody>
+    ${defs.map(d=>`<tr><td><b>${xE(d.name)}</b><div class="x-note">${xE(d.note||'')}</div></td><td class="x-note">${xPkgDefItems(d).map(i=>`${i.gift?'🎁 ':''}${xE(i.name)} × ${i.sessions}`).join('<br>')}</td><td class="r">${fmt(d.price)}</td><td class="r">${fmt(d.tourAmt||0)}</td><td>${d.validDays?d.validDays+' ngày':'Không giới hạn'}</td><td>${Number(d.gapDays)||7} ngày</td><td>${xCan('manage')?`<button class="btn btn-gray btn-xs" onclick="xPkgDefForm('${d.id}')">✏️</button>`:''}</td></tr>`).join('')}</tbody></table></div>`:`<div class="x-empty">Chưa có gói liệu trình. ${xCan('manage')?'Bấm “+ Tạo gói liệu trình” (vd: Trị mụn 10 buổi, Triệt lông nách 12 buổi, hoặc gói nhiều dịch vụ + buổi tặng).':''}</div>`}</div>
+  <details class="x-card"><summary style="font-weight:800;color:#006064;cursor:pointer">💼 Danh mục dịch vụ & giá (bấm để xem)</summary>${grp.map(x=>`<div style="font-weight:800;color:#00695c;margin:8px 0 4px">${xE(x.g.label)} (${x.list.length})</div>
+    <div class="x-table-wrap"><table class="x-table"><tbody>${x.list.map(s=>`<tr><td>${xE(s.name)}</td><td class="r"><b>${fmt(s.price)}</b></td><td class="x-note">${s.remindDays?'nhắc sau '+s.remindDays+' ngày':''}</td></tr>`).join('')}</tbody></table></div>`).join('')}</details>`;
+  xPkgList();
 };
+function xPkgSetF(f){xPkgF=f;xPkgList();const el=document.getElementById('xpk-chips');el&&el.scrollIntoView({behavior:'smooth',block:'center'});}
+function xPkgList(){
+  const box=document.getElementById('xpk-list'),chips=document.getElementById('xpk-chips');if(!box)return;
+  const cps=xLoad('cust_pkgs');
+  chips.innerHTML=X_PKG_F.map(([k,l])=>`<span class="x-chip ${xPkgF===k?'on':''}" onclick="xPkgF='${k}';xPkgList()">${l} <i>${cps.filter(p=>xPkgIn(p,k)).length}</i></span>`).join('');
+  const q=_noAccent(xPkgQ),dq=String(xPkgQ).replace(/\D/g,'');
+  let list=cps.filter(p=>xPkgIn(p,xPkgF)).filter(p=>{if(!q)return true;const c=xCust(p.custId);return _noAccent(p.name).includes(q)||(c&&(_noAccent(c.name).includes(q)||(dq.length>=3&&(c.phone||'').includes(dq))));});
+  // Đến hạn: trễ nhất lên đầu; Sắp hết hạn: HSD gần nhất; còn lại: mua cũ nhất ở trên
+  if(xPkgF==='due')list.sort((a,b)=>xPkgDue(a).localeCompare(xPkgDue(b)));
+  else if(xPkgF==='expiring'||xPkgF==='expired')list.sort((a,b)=>(a.expire||'').localeCompare(b.expire||''));
+  else if(xPkgF==='done')list.sort((a,b)=>(xPkgLast(b)||'').localeCompare(xPkgLast(a)||''));
+  else list.sort((a,b)=>(a.buyDate||'').localeCompare(b.buyDate||''));
+  const more=list.length>100;list=list.slice(0,100);
+  box.innerHTML=list.length?list.map(p=>{const c=xCust(p.custId);const ph=c&&c.phone;
+    return `<div class="x-pk-cust"><span onclick="openCust('${p.custId}')">👤 ${xE(c?c.name:'(đã xoá)')} <span class="x-note">${xE(c?xMask(c.phone):'')}</span></span>
+      ${ph&&xCan('front')&&!xPkgDone(p)?`<a class="btn btn-gray btn-xs" href="tel:${xA(ph)}">📞 Gọi</a><button class="btn btn-gray btn-xs" onclick="xPkgRemind('${p.id}')">💬 Nhắc</button>`:''}</div>${xPkgRow(p)}`;}).join('')+(more?'<div class="x-note" style="text-align:center">Đang hiện 100 dòng đầu — gõ tên khách để tìm.</div>':'')
+    :`<div class="x-empty">${xPkgQ?'Không tìm thấy':'Không có liệu trình nào ở mục này'}</div>`;
+}
+
+// ── Tạo / sửa gói: nhiều dịch vụ + buổi tặng
+let xPdRows=[];
 function xPkgDefForm(id){
   const d=id?xPkgDefs().find(x=>x.id===id):null;
+  xPdRows=d?xPkgDefItems(d).map(i=>({name:i.name===d.name&&!(d.items&&d.items.length)?'':i.name,sessions:i.sessions,gift:!!i.gift})):[{name:'',sessions:10,gift:false}];
   showModal(`<h3>${d?'✏️ Sửa':'📦 Tạo'} gói liệu trình</h3>
   <div class="form-grid full"><div><label>Tên gói *</label><input class="fi" id="xpd-name" value="${d?xA(d.name):''}" placeholder="Trị mụn chuyên sâu 10 buổi"></div></div>
-  <div class="form-grid"><div><label>Số buổi *</label><input class="fi" type="number" id="xpd-ses" value="${d?d.sessions:10}"></div><div><label>Giá trọn gói (đ) *</label><input class="fi" type="number" id="xpd-price" value="${d?d.price:''}"></div></div>
-  <div class="form-grid"><div><label>Tiền tour cho KTV mỗi buổi (đ)</label><input class="fi" type="number" id="xpd-tour" value="${d?d.tourAmt||0:''}"></div><div><label>Hạn dùng (ngày, 0 = không hạn)</label><input class="fi" type="number" id="xpd-valid" value="${d?d.validDays||0:180}"></div></div>
+  <label style="font-weight:700;font-size:12.5px;color:#006064">Dịch vụ trong gói * <span class="x-note">(1 dịch vụ thì để trống tên = tên gói; tick 🎁 nếu là buổi tặng)</span></label>
+  <div id="xpd-rows"></div>
+  <button class="btn btn-gray btn-xs" style="margin:4px 0 10px" onclick="xPdSync();xPdRows.push({name:'',sessions:1,gift:false});xPdDraw()">+ Thêm dịch vụ / buổi tặng</button>
+  <div class="form-grid"><div><label>Giá trọn gói (đ) *</label><input class="fi" type="number" id="xpd-price" value="${d?d.price:''}"></div><div><label>Tiền tour cho KTV mỗi buổi (đ)</label><input class="fi" type="number" id="xpd-tour" value="${d?d.tourAmt||0:''}"></div></div>
+  <div class="form-grid"><div><label>Hạn dùng (ngày, 0 = không hạn)</label><input class="fi" type="number" id="xpd-valid" value="${d?d.validDays||0:180}"></div><div><label>Cách nhau mỗi buổi (ngày)</label><input class="fi" type="number" id="xpd-gap" value="${d?Number(d.gapDays)||7:7}"></div></div>
   <div class="form-grid full"><div><label>Ghi chú</label><input class="fi" id="xpd-note" value="${d?xA(d.note):''}"></div></div>
+  <datalist id="xpd-svcs">${getServices().filter(s=>s.cat==='dv').map(s=>`<option value="${xA(s.name)}">`).join('')}</datalist>
   <div class="btn-group">${d?`<button class="btn btn-pink" style="margin-right:auto" onclick="xUpsert('pkg_defs',{id:'${d.id}',active:false});closeModal();xRerender()">Ngừng bán</button>`:''}<button class="btn btn-gray" onclick="closeModal()">Huỷ</button><button class="btn btn-teal" onclick="xPkgDefSave('${id||''}')">💾 Lưu</button></div>`);
+  xPdDraw();
 }
+function xPdDraw(){
+  const w=document.getElementById('xpd-rows');if(!w)return;
+  w.innerHTML=xPdRows.map((r,i)=>`<div class="x-pd-row"><input class="fi" id="xpd-in-${i}" list="xpd-svcs" placeholder="${i?'Tên dịch vụ':'Tên dịch vụ (trống = tên gói)'}" value="${xA(r.name)}">
+    <input class="fi" type="number" min="1" id="${i?'xpd-is-'+i:'xpd-ses'}" value="${r.sessions}" title="Số buổi"><span class="x-note">buổi</span>
+    <label class="x-pd-gift"><input type="checkbox" id="xpd-ig-${i}" ${r.gift?'checked':''}> 🎁 Tặng</label>
+    ${xPdRows.length>1?`<button class="btn btn-pink btn-xs" onclick="xPdSync();xPdRows.splice(${i},1);xPdDraw()">✕</button>`:''}</div>`).join('');
+}
+function xPdSync(){xPdRows=xPdRows.map((r,i)=>({name:(document.getElementById('xpd-in-'+i)||{}).value||'',sessions:Number((document.getElementById(i?'xpd-is-'+i:'xpd-ses')||{}).value)||0,gift:!!(document.getElementById('xpd-ig-'+i)||{}).checked}));}
 function xPkgDefSave(id){
-  const name=document.getElementById('xpd-name').value.trim(),ses=Number(document.getElementById('xpd-ses').value)||0,price=Number(document.getElementById('xpd-price').value)||0;
+  xPdSync();
+  const name=document.getElementById('xpd-name').value.trim(),price=Number(document.getElementById('xpd-price').value)||0;
+  const items=xPdRows.filter(r=>r.sessions>0).map(r=>({name:r.name.trim()||name,sessions:r.sessions,gift:r.gift}));
+  const ses=items.reduce((a,r)=>a+r.sessions,0);
   if(!name||ses<1){toast('Nhập tên gói và số buổi',false);return;}
-  xUpsert('pkg_defs',{id:id||xId(),name,sessions:ses,price,tourAmt:Number(document.getElementById('xpd-tour').value)||0,validDays:Number(document.getElementById('xpd-valid').value)||0,note:document.getElementById('xpd-note').value.trim(),active:true});
+  xUpsert('pkg_defs',{id:id||xId(),name,items,sessions:ses,price,tourAmt:Number(document.getElementById('xpd-tour').value)||0,validDays:Number(document.getElementById('xpd-valid').value)||0,gapDays:Number(document.getElementById('xpd-gap').value)||7,note:document.getElementById('xpd-note').value.trim(),active:true});
   closeModal();toast('✅ Đã lưu gói');xRerender();
 }
+
+// ── Bán gói (có thể tặng thêm buổi ngay lúc bán)
+let xPsGift=[];
 function xPkgSellForm(custId){
   const defs=xPkgDefs().filter(d=>d.active!==false);
   if(!defs.length){toast(xCan('manage')?'Tạo gói liệu trình trước (trang ✨ Liệu Trình)':'Chưa có gói liệu trình nào',false);return;}
+  xPsGift=[];
   showModal(`<h3>🛒 Bán liệu trình</h3>
   <div class="form-grid full"><div><label>Khách hàng *</label>${xCustPicker('xps',custId)}</div></div>
-  <div class="form-grid"><div><label>Gói *</label><select class="fi" id="xps-def" onchange="const d=xPkgDefs().find(x=>x.id===this.value);if(d)document.getElementById('xps-price').value=d.price">${defs.map(d=>`<option value="${d.id}">${xE(d.name)} – ${d.sessions} buổi</option>`).join('')}</select></div>
+  <div class="form-grid"><div><label>Gói *</label><select class="fi" id="xps-def" onchange="const d=xPkgDefs().find(x=>x.id===this.value);if(d)document.getElementById('xps-price').value=d.price;xPsInfo()">${defs.map(d=>`<option value="${d.id}">${xE(d.name)} – ${d.sessions} buổi</option>`).join('')}</select></div>
   <div><label>Giá bán (đ)</label><input class="fi" type="number" id="xps-price" value="${defs[0].price}"></div></div>
+  <div class="x-note" id="xps-info" style="margin:-4px 0 8px"></div>
+  <div class="x-pd-giftbox"><b>🎁 Tặng thêm buổi cho khách này</b> <span class="x-note">(không tính tiền, vd: phun mày tặng 2 buổi chăm sóc da)</span>
+    <div id="xps-gifts"></div><button class="btn btn-gray btn-xs" onclick="xPsSync();xPsGift.push({name:'',sessions:1});xPsDraw()">+ Thêm buổi tặng</button></div>
   <div class="form-grid"><div><label>Khách đưa (đ) — trống = trả đủ</label><input class="fi" type="number" id="xps-paid" placeholder="Trả đủ"></div><div><label>Hình thức</label><select class="fi" id="xps-pm">${xPmOptions('tienmat')}</select></div></div>
   <div class="form-grid"><div><label>Người tư vấn</label><select class="fi" id="xps-adv">${xStaffOptions('','— Không —')}</select></div><div><label>Ngày mua</label><input class="fi" type="date" id="xps-date" value="${xToday()}"></div></div>
+  <datalist id="xps-svcs">${getServices().filter(s=>s.cat==='dv').map(s=>`<option value="${xA(s.name)}">`).join('')}</datalist>
   <div class="x-note">Ghi nhận doanh thu 1 lần lúc bán (tạo 1 lượt “Liệu trình …”). Mỗi buổi làm sau đó bấm “➖ Trừ buổi” — KTV được tính tiền tour.</div>
   <div class="btn-group"><button class="btn btn-gray" onclick="closeModal()">Huỷ</button><button class="btn btn-teal" onclick="xPkgSell()">💾 Bán</button></div>`);
+  xPsInfo();
 }
+function xPsInfo(){const d=xPkgDefs().find(x=>x.id===document.getElementById('xps-def').value);const el=document.getElementById('xps-info');if(d&&el)el.innerHTML='Gồm: '+xPkgDefItems(d).map(i=>`${i.gift?'🎁 ':''}${xE(i.name)} × ${i.sessions}`).join(' · ')+(d.validDays?` · hạn ${d.validDays} ngày`:'');}
+function xPsDraw(){const w=document.getElementById('xps-gifts');if(!w)return;w.innerHTML=xPsGift.map((r,i)=>`<div class="x-pd-row"><input class="fi" id="xpg-n-${i}" list="xps-svcs" placeholder="Tên dịch vụ tặng" value="${xA(r.name)}"><input class="fi" type="number" min="1" id="xpg-s-${i}" value="${r.sessions}"><span class="x-note">buổi</span><button class="btn btn-pink btn-xs" onclick="xPsSync();xPsGift.splice(${i},1);xPsDraw()">✕</button></div>`).join('');}
+function xPsSync(){xPsGift=xPsGift.map((r,i)=>({name:(document.getElementById('xpg-n-'+i)||{}).value||'',sessions:Number((document.getElementById('xpg-s-'+i)||{}).value)||0}));}
 function xPkgSell(){
   const custId=document.getElementById('xps-id').value;if(!custId){toast('Chọn khách trong danh sách gợi ý',false);return;}
   const d=xPkgDefs().find(x=>x.id===document.getElementById('xps-def').value);if(!d)return;
+  xPsSync();const gifts=xPsGift.filter(g=>g.sessions>0);
+  if(gifts.some(g=>!g.name.trim())){toast('Nhập tên dịch vụ tặng',false);return;}
+  const items=xPkgDefItems(d).map(i=>({name:i.name,total:Number(i.sessions)||0,gift:!!i.gift})).concat(gifts.map(g=>({name:g.name.trim(),total:g.sessions,gift:true,extra:true})));
+  const total=items.reduce((a,i)=>a+i.total,0),giftN=gifts.reduce((a,g)=>a+g.sessions,0);
   const price=Number(document.getElementById('xps-price').value)||0,date=document.getElementById('xps-date').value||xToday();
   const adv=document.getElementById('xps-adv').value;const paidS=document.getElementById('xps-paid').value.trim();
   const vs=DB.get('visits');const vid=xId();
-  const v={id:vid,custId,date,items:[{id:xId(),name:`Liệu trình: ${d.name} (${d.sessions} buổi)`,cat:'dv',price,staff:'',staff2:'',staff3:'',staff4:'',advisor:adv,note:'',svcId:'',discount:0,discountType:'pct',commPct:0,advicePct:0,commAmt:0,adviceAmt:0}],
+  const v={id:vid,custId,date,items:[{id:xId(),name:`Liệu trình: ${d.name} (${d.sessions} buổi${giftN?` + tặng ${giftN} buổi`:''})`,cat:'dv',price,staff:'',staff2:'',staff3:'',staff4:'',advisor:adv,note:'',svcId:'',discount:0,discountType:'pct',commPct:0,advicePct:0,commAmt:0,adviceAmt:0}],
     photos:[],cosm:[],visitNote:'Bán gói liệu trình',xPkg:'sale',createdAt:xToday(),payMethod:document.getElementById('xps-pm').value,by:xCurUser.name};
   if(paidS!=='')v.paid=Math.max(0,Number(paidS)||0);
   vs.push(v);DB.set('visits',vs);
   const exp=d.validDays?_pAddDays(date,Number(d.validDays)):'';
-  xUpsert('cust_pkgs',{id:xId(),custId,defId:d.id,name:d.name,total:d.sessions,price,tourAmt:d.tourAmt||0,buyDate:date,expire:exp,history:[],visitId:vid,by:xCurUser.name});
+  xUpsert('cust_pkgs',{id:xId(),custId,defId:d.id,name:d.name,items,total,price,tourAmt:d.tourAmt||0,gapDays:Number(d.gapDays)||7,buyDate:date,expire:exp,history:[],visitId:vid,by:xCurUser.name});
   closeModal();toast('✅ Đã bán '+d.name);openCust(custId);if(xCurPage==='xsvc')xRerender();
 }
-function xPkgUseForm(pid){
-  const p=xLoad('cust_pkgs').find(x=>x.id===pid);if(!p)return;const n=(p.history||[]).length+1;
-  showModal(`<h3>➖ Trừ buổi ${n}/${p.total} – ${xE(p.name)}</h3>
-  <div class="form-grid"><div><label>Ngày làm</label><input class="fi" type="date" id="xpu-date" value="${xToday()}"></div><div><label>KTV thực hiện *</label><select class="fi" id="xpu-staff">${xStaffOptions(xIsKtv()?xMyStaff():'')}</select></div></div>
-  <div class="form-grid"><div><label>Tiền tour KTV (đ)</label><input class="fi" type="number" id="xpu-tour" value="${p.tourAmt||0}"></div><div><label>Ghi chú buổi làm</label><input class="fi" id="xpu-note"></div></div>
-  <div class="btn-group"><button class="btn btn-gray" onclick="closeModal()">Huỷ</button><button class="btn btn-teal" onclick="xPkgUse('${pid}')">💾 Xác nhận</button></div>`);
+
+// ── Trừ buổi: chọn dịch vụ trong gói, ảnh trước/sau, tình trạng, hẹn luôn buổi sau
+function xPkgUseForm(pid,apptId){
+  const p=xLoad('cust_pkgs').find(x=>x.id===pid);if(!p)return;
+  const its=xPkgItems(p),left=its.map((it,i)=>({i,it,r:(Number(it.total)||0)-xPkgUsedOf(p,i)})).filter(x=>x.r>0);
+  if(!left.length){toast('Liệu trình đã làm đủ buổi',false);return;}
+  const ap=apptId?xAppts().find(a=>a.id===apptId):xPkgAppt(p);
+  const def=(ap&&left.find(x=>(ap.svc||'').startsWith(x.it.name)))||left[0];
+  const n=xPkgUsed(p)+1,tot=xPkgTotal(p),d0=xToday();
+  pendingPhotos=[{before:null,after:null,note:''}];
+  showModal(`<h3>➖ Trừ buổi ${n}/${tot} – ${xE(p.name)}</h3>
+  ${xPkgExpired(p)?`<div class="x-med-warn" style="margin-bottom:8px">⚠️ Liệu trình đã hết hạn ngày ${xFmtD(p.expire)} — kiểm tra lại trước khi làm.</div>`:''}
+  ${left.length>1||its.length>1?`<div class="form-grid full"><div><label>Dịch vụ làm buổi này</label><select class="fi" id="xpu-item">${left.map(x=>`<option value="${x.i}" ${x===def?'selected':''}>${x.it.gift?'🎁 ':''}${xE(x.it.name)} (còn ${x.r}/${x.it.total} buổi)</option>`).join('')}</select></div></div>`:`<input type="hidden" id="xpu-item" value="${def.i}">`}
+  <div class="form-grid"><div><label>Ngày làm</label><input class="fi" type="date" id="xpu-date" value="${d0}" onchange="const g=document.getElementById('xpu-nd');if(g)g.value=_pAddDays(this.value||xToday(),${xPkgGap(p)})"></div><div><label>👩 Nhân viên làm buổi này *</label><select class="fi" id="xpu-staff">${xStaffOptions(xIsKtv()?xMyStaff():(ap&&ap.staff)||'')}</select></div></div>
+  <div class="form-grid">${xIsKtv()?`<input type="hidden" id="xpu-tour" value="${p.tourAmt||0}">`:`<div><label>Tiền tour KTV (đ)</label><input class="fi" type="number" id="xpu-tour" value="${p.tourAmt||0}"></div>`}<div><label>Ghi chú buổi làm</label><input class="fi" id="xpu-note"></div></div>
+  <div class="form-grid full"><div><label>🧴 Tình trạng da / kết quả buổi này</label><textarea class="fi" id="xpu-skin" rows="2" placeholder="VD: mụn viêm giảm còn 3 nốt, da bớt đỏ; khách hài lòng"></textarea></div></div>
+  <div style="font-size:12.5px;font-weight:700;color:#006064;margin:4px 0">📸 Ảnh trước / sau buổi này <span class="x-note">(không bắt buộc)</span></div>
+  <div id="photos-wrap"></div><button class="btn btn-gray btn-xs" style="margin:4px 0 10px" onclick="addPhotoPair()">+ Thêm bộ ảnh</button>
+  ${ap&&ap.date>d0&&!apptId&&xCan('front')?`<label class="x-pd-giftbox" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="xpu-closeap"> Khách đến SỚM cho lịch hẹn ${xE(ap.time||'')} ${xFmtD(ap.date)} → đánh dấu lịch đó Hoàn thành</label>`:''}
+  ${n<tot&&xCan('front')?`<div class="x-pd-giftbox"><label style="display:flex;gap:6px;align-items:center;font-weight:700;color:#006064"><input type="checkbox" id="xpu-nx" ${ap&&ap.date>d0?'':'checked'}> 📅 Hẹn luôn buổi tiếp theo</label>
+    ${ap&&ap.date>d0?`<div class="x-note">Khách đã có hẹn ${xE(ap.time||'')} ${xFmtD(ap.date)} — tick nếu muốn đặt thêm hẹn mới.</div>`:''}
+    <div class="form-grid"><div><label>Ngày hẹn</label><input class="fi" type="date" id="xpu-nd" value="${_pAddDays(d0,xPkgGap(p))}"></div><div><label>Giờ</label><input class="fi" type="time" id="xpu-nt" value="${xA((ap&&ap.time)||xSys().openTime)}" step="900"></div></div>
+    <div class="x-note">Lịch hẹn tạo ở trạng thái “⏳ Chờ xác nhận” — lễ tân gọi/nhắn khách chốt lại giờ.</div></div>`:(n>=tot?'<div class="x-note">🎉 Đây là buổi cuối của liệu trình.</div>':'<div class="x-note">📅 Lễ tân sẽ hẹn buổi tiếp cho khách.</div>')}
+  <div class="btn-group"><button class="btn btn-gray" onclick="closeModal()">Huỷ</button><button class="btn btn-teal" onclick="xPkgUse('${pid}','${ap?ap.id:''}')">💾 Xác nhận</button></div>`);
+  renderPhotosWrap();
 }
-function xPkgUse(pid){
+function xPkgUse(pid,apptId){
   const p=xLoad('cust_pkgs').find(x=>x.id===pid);if(!p)return;
   const staff=document.getElementById('xpu-staff').value;if(!staff){toast('Chọn KTV thực hiện',false);return;}
+  const its=xPkgItems(p),item=Number((document.getElementById('xpu-item')||{}).value)||0;const it=its[item];
+  if(!it||xPkgUsedOf(p,item)>=it.total){toast('Dịch vụ này đã làm đủ buổi',false);return;}
   const date=document.getElementById('xpu-date').value||xToday(),tour=Number(document.getElementById('xpu-tour').value)||0,note=document.getElementById('xpu-note').value.trim();
-  const n=(p.history||[]).length+1;
-  // Lượt 0đ ghi KTV + tiền tour → tự vào Phiếu tour & Bảng lương
+  const skin=(document.getElementById('xpu-skin')||{value:''}).value.trim();
+  const nxEl=document.getElementById('xpu-nx'),wantNext=!!(nxEl&&nxEl.checked);
+  const nd=wantNext?document.getElementById('xpu-nd').value:'',nt=wantNext?document.getElementById('xpu-nt').value:'';
+  if(wantNext&&(!nd||!nt)){toast('Chọn ngày và giờ hẹn buổi sau (hoặc bỏ tick)',false);return;}
+  const n=xPkgUsed(p)+1,tot=xPkgTotal(p),k=xPkgUsedOf(p,item)+1;
+  const photos=(pendingPhotos||[]).filter(ph=>ph.before||ph.after).map(ph=>({...ph}));
+  // Lượt 0đ ghi KTV + tiền tour → tự vào Phiếu tour & Bảng lương (giữ như cũ)
   const vs=DB.get('visits');const vid=xId();
-  vs.push({id:vid,custId:p.custId,date,items:[{id:xId(),name:`Buổi ${n}/${p.total} – ${p.name}`,cat:'dv',price:0,staff,staff2:'',staff3:'',staff4:'',advisor:'',note,svcId:'',discount:0,discountType:'pct',commPct:0,advicePct:0,commAmt:tour,adviceAmt:0}],
-    photos:[],cosm:[],visitNote:'Trừ buổi liệu trình',xPkg:'use',createdAt:xToday(),by:xCurUser.name});
+  vs.push({id:vid,custId:p.custId,date,items:[{id:xId(),name:`Buổi ${n}/${tot} – ${its.length>1?(it.gift?'🎁 ':'')+it.name+' ('+k+'/'+it.total+') – '+p.name:p.name}`,cat:'dv',price:0,staff,staff2:'',staff3:'',staff4:'',advisor:'',note,svcId:'',discount:0,discountType:'pct',commPct:0,advicePct:0,commAmt:tour,adviceAmt:0}],
+    photos,cosm:[],visitNote:'Trừ buổi liệu trình'+(skin?' · Tình trạng: '+skin:''),xPkg:'use',createdAt:xToday(),by:xCurUser.name});
   DB.set('visits',vs);
-  xUpsert('cust_pkgs',{...p,history:[...(p.history||[]),{n,date,staff,note,visitId:vid,by:xCurUser.name}]});
-  closeModal();toast(`✅ Đã trừ buổi ${n}/${p.total}`);if(document.getElementById('detail-panel').classList.contains('open'))openCust(p.custId);xRerender();
+  xUpsert('cust_pkgs',{...p,history:[...(p.history||[]),{n,item,date,staff,note,skin,visitId:vid,photos:photos.length,by:xCurUser.name}]});
+  // Lịch hẹn của buổi này → Hoàn thành
+  // + hẹn tương lai nếu khách đến sớm (tick) hoặc đã làm đủ buổi (không còn gì để hẹn)
+  const early=!!(document.getElementById('xpu-closeap')||{}).checked,finished=n>=tot;
+  const doneAp=xAppts().filter(a=>a.pkgId===p.id&&!['huy','vang','xong'].includes(a.status)&&(a.id===apptId||a.date<=date||early||finished));
+  const firstFuture=doneAp.filter(a=>a.date>date).sort((a,b)=>(a.date+(a.time||'')).localeCompare(b.date+(b.time||'')))[0];
+  doneAp.filter(a=>a.date<=date||a.id===apptId||finished||a===firstFuture).forEach(a=>xUpsert('appts',{id:a.id,status:'xong',visitId:vid}));
+  let msg=`✅ Đã trừ buổi ${n}/${tot}`;
+  if(wantNext&&n<tot){
+    const p2=xLoad('cust_pkgs').find(x=>x.id===pid);
+    const nxt=its.map((x,i)=>({x,i,r:x.total-xPkgUsedOf(p2,i)})).find(o=>o.i===item&&o.r>0)||its.map((x,i)=>({x,i,r:x.total-xPkgUsedOf(p2,i)})).find(o=>o.r>0);
+    const svc=nxt?(its.length>1?`${nxt.x.name} – buổi ${xPkgUsedOf(p2,nxt.i)+1}/${nxt.x.total} (${p.name})`:`${p.name} – buổi ${n+1}/${tot}`):p.name;
+    xUpsert('appts',{id:xId(),custId:p.custId,name:'',phone:'',date:nd,time:nt,dur:60,svc,staff,status:'cho',note:'Liệu trình',pkgId:p.id,by:xCurUser.name,createdAt:xToday()});
+    msg+=` · đã hẹn ${nt} ${xFmtD(nd)}`;
+  }
+  pendingPhotos=[];
+  closeModal();toast(msg);if(document.getElementById('detail-panel').classList.contains('open'))openCust(p.custId);xRerender();
 }
-function xPkgHist(pid){
+
+// ── Hẹn buổi tiếp (không trừ buổi)
+function xPkgApptForm(pid){
+  const p=xLoad('cust_pkgs').find(x=>x.id===pid);if(!p)return;const ap=xPkgAppt(p);
+  const lastH=(p.history||[]).slice(-1)[0];
+  showModal(`<h3>📅 Hẹn buổi tiếp – ${xE(p.name)}</h3>
+  ${ap?`<div class="x-note" style="margin-bottom:8px">Đang có hẹn: <b>${xE(ap.time||'')} ${xFmtD(ap.date)}</b> ${ap.staff?'· '+xE(ap.staff):''} — lưu sẽ ĐỔI sang ngày/giờ mới.</div>`:''}
+  <div class="form-grid"><div><label>Ngày *</label><input class="fi" type="date" id="xpa-d" value="${ap?ap.date:(xPkgDue(p)<xToday()?xToday():xPkgDue(p))}"></div><div><label>Giờ *</label><input class="fi" type="time" id="xpa-t" step="900" value="${xA(ap?ap.time:xSys().openTime)}"></div></div>
+  <div class="form-grid"><div><label>KTV</label><select class="fi" id="xpa-s">${xStaffOptions(ap?ap.staff:(lastH&&lastH.staff)||'','— Chưa xếp —')}</select></div><div><label>Trạng thái</label><select class="fi" id="xpa-st">${X_APPT_ST.filter(x=>['cho','xn'].includes(x[0])).map(([k,l])=>`<option value="${k}" ${(ap?ap.status:'xn')===k?'selected':''}>${l}</option>`).join('')}</select></div></div>
+  <div class="btn-group">${ap?`<button class="btn btn-pink" style="margin-right:auto" onclick="xUpsert('appts',{id:'${ap.id}',status:'huy'});closeModal();toast('Đã huỷ hẹn');xRerender()">Huỷ hẹn</button>`:''}<button class="btn btn-gray" onclick="closeModal()">Đóng</button><button class="btn btn-teal" onclick="xPkgApptSave('${pid}','${ap?ap.id:''}')">💾 Lưu hẹn</button></div>`);
+}
+function xPkgApptSave(pid,apId){
   const p=xLoad('cust_pkgs').find(x=>x.id===pid);if(!p)return;
-  showModal(`<h3>📜 ${xE(p.name)}</h3><div class="x-note" style="margin-bottom:8px">Mua ${xFmtD(p.buyDate)} · ${fmt(p.price)} · đã làm ${(p.history||[]).length}/${p.total}</div>
-  <table class="x-table"><thead><tr><th>Buổi</th><th>Ngày</th><th>KTV</th><th>Ghi chú</th></tr></thead><tbody>${(p.history||[]).map(h=>`<tr><td>${h.n}</td><td>${xFmtD(h.date)}</td><td>${xE(h.staff)}</td><td class="x-note">${xE(h.note||'')}</td></tr>`).join('')||'<tr><td colspan="4" class="x-empty">Chưa làm buổi nào</td></tr>'}</tbody></table>
-  <div class="btn-group"><button class="btn btn-gray" onclick="closeModal()">Đóng</button></div>`);
+  const date=document.getElementById('xpa-d').value,time=document.getElementById('xpa-t').value;if(!date||!time){toast('Chọn ngày và giờ',false);return;}
+  const its=xPkgItems(p),n=xPkgUsed(p)+1,tot=xPkgTotal(p);
+  const nxt=its.map((x,i)=>({x,i,r:x.total-xPkgUsedOf(p,i)})).find(o=>o.r>0);
+  const svc=its.length>1&&nxt?`${nxt.x.name} – buổi ${xPkgUsedOf(p,nxt.i)+1}/${nxt.x.total} (${p.name})`:`${p.name} – buổi ${n}/${tot}`;
+  const rec={id:apId||xId(),custId:p.custId,name:'',phone:'',date,time,dur:60,svc,staff:document.getElementById('xpa-s').value,status:document.getElementById('xpa-st').value,note:'Liệu trình',pkgId:p.id};
+  if(!apId){rec.by=xCurUser.name;rec.createdAt=xToday();}
+  xUpsert('appts',rec);closeModal();toast(`✅ Đã hẹn ${time} ${xFmtD(date)}`);xRerender();
 }
+function xPkgRemind(pid){
+  const p=xLoad('cust_pkgs').find(x=>x.id===pid);if(!p)return;const c=xCust(p.custId);const ph=(c&&c.phone)||'';const s=xSys();const ap=xPkgAppt(p);
+  const nm=c?c.name:'';const n=xPkgUsed(p)+1,tot=xPkgTotal(p);
+  const msg=ap&&ap.date>=xToday()?`Dạ ${s.spaName} xin chào ${nm} ạ 🌿 Spa nhắc lịch làm buổi ${n}/${tot} liệu trình "${p.name}" của mình lúc ${ap.time} ngày ${xFmtD(ap.date)}. Nếu có thay đổi mình nhắn lại giúp spa nha. Cảm ơn ${nm} ạ!`
+    :`Dạ ${s.spaName} xin chào ${nm} ạ 🌿 Liệu trình "${p.name}" của mình đã tới buổi ${n}/${tot} rồi. Để kết quả đều và đẹp, mình sắp xếp ghé spa trong tuần này nha — ${nm} rảnh ngày giờ nào nhắn spa giữ lịch cho mình ạ.${p.expire?` (Liệu trình dùng tới ${xFmtD(p.expire)})`:''}`;
+  showModal(`<h3>💬 Nhắc khách làm buổi tiếp</h3><textarea class="fi" id="xprm" rows="6">${xE(msg)}</textarea>
+  <div class="btn-group"><button class="btn btn-gray" onclick="closeModal()">Đóng</button>
+  <button class="btn btn-teal" onclick="navigator.clipboard&&navigator.clipboard.writeText(document.getElementById('xprm').value).then(()=>toast('✅ Đã chép tin nhắn'))">📋 Chép</button>
+  ${ph?`<a class="btn btn-gray" href="tel:${xA(ph)}">📞 Gọi</a><a class="btn btn-green" href="https://zalo.me/${xA(_zaloPhone(ph))}" target="_blank" onclick="navigator.clipboard&&navigator.clipboard.writeText(document.getElementById('xprm').value)">Mở Zalo</a>`:''}</div>`);
+}
+// ── Chi tiết: từng buổi + tình trạng + ảnh trước/sau
+function xPkgHist(pid){
+  const p=xLoad('cust_pkgs').find(x=>x.id===pid);if(!p)return;const c=xCust(p.custId);
+  const its=xPkgItems(p),vs=DB.get('visits'),ap=xPkgAppt(p);
+  const ph=v=>(v&&v.photos||[]).filter(x=>x.before||x.after).map(x=>`<span class="x-pk-ph">${x.before?`<img src="${x.before}" onclick="openLightbox('${x.before}')" title="Trước">`:''}${x.after?`<img src="${x.after}" onclick="openLightbox('${x.after}')" title="Sau">`:''}</span>`).join('');
+  showModal(`<h3>📜 ${xE(p.name)}</h3><div class="x-note" style="margin-bottom:8px">👤 ${xE(c?c.name:'')} · Mua ${xFmtD(p.buyDate)} · ${xCan('money')?fmt(p.price)+' · ':''}đã làm ${xPkgUsed(p)}/${xPkgTotal(p)}${p.expire?' · HSD '+xFmtD(p.expire):''}</div>
+  <div class="x-pk-items" style="margin-bottom:8px">${its.map((it,i)=>`<span class="${xPkgUsedOf(p,i)>=it.total?'ok':''}">${it.gift?'🎁 ':''}${xE(it.name)} <b>${xPkgUsedOf(p,i)}/${it.total}</b></span>`).join('')}</div>
+  ${xPkgNextLine(p)}
+  <div class="x-table-wrap"><table class="x-table"><thead><tr><th>Buổi</th><th>Ngày</th>${its.length>1?'<th>Dịch vụ</th>':''}<th>KTV</th><th>Tình trạng / ghi chú</th><th>Ảnh trước · sau</th></tr></thead><tbody>${(p.history||[]).map(h=>{const v=vs.find(x=>x.id===h.visitId);return `<tr><td>${h.n}</td><td>${xFmtD(h.date)}</td>${its.length>1?`<td>${xE((its[Number(h.item)||0]||{}).name||'')}</td>`:''}<td>${xE(h.staff)}</td><td class="x-note">${h.skin?'🧴 '+xE(h.skin)+'<br>':''}${xE(h.note||'')}</td><td>${ph(v)||'<span class="x-note">—</span>'}</td></tr>`;}).join('')||`<tr><td colspan="${its.length>1?6:5}" class="x-empty">Chưa làm buổi nào</td></tr>`}</tbody></table></div>
+  <div class="x-note" style="margin-top:6px">Ảnh rõ nét chỉ có trên máy đã chụp; máy khác thấy ảnh thu nhỏ.</div>
+  <div class="btn-group">${!xPkgDone(p)&&xCanPkgUse()?`${xCan('front')?`<button class="btn btn-gray" onclick="xPkgApptForm('${p.id}')">📅 Hẹn</button>`:''}<button class="btn btn-teal" onclick="xPkgUseForm('${p.id}')">➖ Trừ buổi</button>`:''}<button class="btn btn-gray" onclick="closeModal()">Đóng</button></div>`);
+}
+// Lịch hẹn liệu trình: nút "Làm & thanh toán" → mở Trừ buổi (không tạo hoá đơn mới)
+(function(){
+  const _card=xApptCard;xApptCard=function(a){let h=_card(a);if(a.pkgId&&!xCan('front')&&!['xong','huy'].includes(a.status))h=h.replace('<div class="ac">',`<div class="ac"><button class="btn btn-green btn-xs" onclick="xApptCheckout('${a.id}')">➖ Trừ buổi liệu trình</button>`);if(a.pkgId)h=h.replace('🧾 Làm & thanh toán','➖ Trừ buổi liệu trình').replace('<div class="mt">','<div class="mt">📦 <b>Liệu trình</b> · ');return h;};
+  const _co=xApptCheckout;xApptCheckout=function(id){const a=xAppts().find(x=>x.id===id);if(a&&a.pkgId&&xLoad('cust_pkgs').some(p=>p.id===a.pkgId)){if(a.status!=='den')xUpsert('appts',{id,status:'den'});xPkgUseForm(a.pkgId,id);return;}return _co(id);};
+})();
 
 // ════════ 🧾 PHIẾU TOUR (KTV thực hiện → tiền tour) ════════
 let xTourStaff='';
