@@ -440,6 +440,7 @@ body.xr-letan #page-customers .controls+.controls,body.xr-ktv #page-customers .c
 .x-pd-giftbox{background:#fff8fb;border:1px dashed #f8bbd0;border-radius:9px;padding:8px 10px;margin:6px 0 10px;font-size:12.5px;}
 .x-pd-giftbox .x-pd-row{margin-top:6px;}
 .x-pk-ph{display:inline-flex;gap:3px;margin-right:4px;}.x-pk-ph img{width:46px;height:46px;object-fit:cover;border-radius:6px;border:1px solid #e0f2f1;cursor:pointer;}
+.x-warr-b{background:#e8f5e9;color:#2e7d32;border:1px solid #c8e6c9;}
 </style>
 </head>
 <body>
@@ -5776,6 +5777,104 @@ function xViPriceIn(i){const it=visitItems[i];if(!it)return;const q=Number(it.qt
 (function(){const f=xStockSyncVisit;xStockSyncVisit=function(v,oldItems){
   (v.items||[]).forEach(it=>{if(it.cat!=='mp'||!(Number(it.qty)>0))return;const rest=String(it.note||'').replace(/^SL [^\s]+\s*/,'');it.note=(Number(it.qty)!==1?'SL '+xQtyFmt(Number(it.qty))+' ':'')+rest;it.note=it.note.trim();});
   return f.apply(this,arguments);};})();
+
+// ════════ 🛡️ BẢO HÀNH (31/10/2026): ô bảo hành cho dịch vụ (phun xăm…) + gói liệu trình; hiện trong hồ sơ khách ════════
+// warranty: '' = không · '2m','6m','12m','36m' = số tháng · 'life' = trọn đời · chữ tự điền (vd "18 tháng", "2 năm", "Dặm 1 lần miễn phí")
+const X_WARR=[['','Không'],['2m','2 tháng'],['6m','6 tháng'],['12m','1 năm'],['36m','3 năm'],['life','Trọn đời']];
+function xWarrMonths(w){w=String(w||'').trim();let m=w.match(/^(\d+)m$/);if(m)return Number(m[1]);
+  m=_noAccent(w).match(/(\d+)\s*(thang|th|nam)\b/);if(m)return Number(m[1])*(m[2]==='nam'?12:1);return 0;}
+function xWarrLife(w){return w==='life'||/tron doi/.test(_noAccent(w));}
+function xWarrLabel(w){if(!w)return '';const p=X_WARR.find(x=>x[0]===w);return p?p[1]:String(w);}
+function xWarrEnd(date,w){if(!w||!date)return '';if(xWarrLife(w))return 'life';const n=xWarrMonths(w);if(!n)return '';
+  const [y,mo,d]=date.split('-').map(Number);const e=new Date(y,mo-1+n,1);e.setDate(Math.min(d,new Date(e.getFullYear(),e.getMonth()+1,0).getDate()));return `${e.getFullYear()}-${String(e.getMonth()+1).padStart(2,'0')}-${String(e.getDate()).padStart(2,'0')}`;}
+// Ô chọn bảo hành: bấm nút có sẵn hoặc gõ tự điền
+function xWarrPicker(id,cur){cur=cur||'';const preset=X_WARR.some(x=>x[0]===cur);
+  return `<div class="x-warr" id="${id}-box"><input type="hidden" id="${id}" value="${xA(cur)}">
+    <div class="x-chips" style="margin:0 0 6px">${X_WARR.map(([k,l])=>`<span class="x-chip ${preset&&cur===k?'on':''}" onclick="xWarrSet('${id}','${k}')">${k==='life'?'♾️ ':k?'🛡️ ':''}${l}</span>`).join('')}</div>
+    <input class="fi" id="${id}-txt" placeholder="✍️ Hoặc tự điền: vd 18 tháng, 2 năm…" value="${preset?'':xA(cur)}" oninput="xWarrType('${id}',this.value)"></div>`;}
+function xWarrSet(id,k){document.getElementById(id).value=k;const t=document.getElementById(id+'-txt');if(t)t.value='';
+  document.querySelectorAll('#'+id+'-box .x-chip').forEach((c,i)=>c.classList.toggle('on',X_WARR[i][0]===k));}
+function xWarrType(id,v){document.getElementById(id).value=v.trim();document.querySelectorAll('#'+id+'-box .x-chip').forEach(c=>c.classList.remove('on'));if(!v.trim())xWarrSet(id,'');}
+function xWarrVal(id){const el=document.getElementById(id);return el?el.value.trim():null;}
+function xWarrBadge(w){return w?`<span class="x-badge x-warr-b">${xWarrLife(w)?'♾️':'🛡️'} BH ${xE(xWarrLabel(w))}</span>`:'';}
+
+// ── Danh mục dịch vụ: thêm ô Bảo hành vào form Thêm / Sửa
+function xWarrInject(cur){const g=document.getElementById('sv-group');if(!g||document.getElementById('sv-warr'))return;
+  g.closest('.form-grid').insertAdjacentHTML('afterend',`<div style="background:#f3fbf7;border:1px solid #c8e6c9;border-radius:8px;padding:10px 12px;margin-bottom:9px">
+    <div style="font-size:12px;font-weight:700;color:#2e7d32;margin-bottom:6px">🛡️ Bảo hành cho dịch vụ này</div>${xWarrPicker('sv-warr',cur)}
+    <div class="x-note">Lúc nhập khách làm dịch vụ này, app tự ghi bảo hành tới ngày nào vào hồ sơ khách.</div></div>`);}
+(function(){
+  const fa=showAddService;showAddService=function(cat){const r=fa(cat);if(cat!=='mp')xWarrInject('');return r;};
+  const fe=showEditService;showEditService=function(id){const r=fe(id);const s=getServices().find(x=>x.id===id);if(s&&s.cat!=='mp')xWarrInject(s.warranty||'');return r;};
+  const fs=saveService;saveService=function(){const w=xWarrVal('sv-warr');const n=getServices().length;fs();const svcs=getServices();
+    if(w!==null&&svcs.length>n){svcs[svcs.length-1].warranty=w;DB.set('services',svcs);renderServiceCatalog();}};
+  const fu=updateService;updateService=function(id){const w=xWarrVal('sv-warr');fu(id);if(w===null)return;const svcs=getServices();const i=svcs.findIndex(x=>x.id===id);
+    if(i>=0&&(svcs[i].warranty||'')!==w){svcs[i]={...svcs[i],warranty:w};DB.set('services',svcs);renderServiceCatalog();}};
+  const fr=renderServiceCatalog;renderServiceCatalog=function(){fr();const m={};getServices().forEach(s=>{if(s.warranty)m[s.id]=s.warranty;});
+    document.querySelectorAll('.svc-row button[onclick^="showEditService"]').forEach(b=>{const id=(b.getAttribute('onclick').match(/'([^']+)'/)||[])[1];
+      if(m[id]){const sn=b.closest('.svc-row').querySelector('.sn');if(sn&&!sn.querySelector('.x-warr-b'))sn.insertAdjacentHTML('beforeend',' '+xWarrBadge(m[id]));}});};
+})();
+// ── Lưu phiếu khách: dòng dịch vụ có bảo hành → ghi lại bảo hành vào dòng (giữ nguyên khi sửa phiếu)
+(function(){const f=saveVisit;saveVisit=function(custId,editId){
+  const oldW={};if(editId)((DB.get('visits').find(x=>x.id===editId)||{}).items||[]).forEach(i=>{if('warranty' in i)oldW[i.id]=i.warranty;});
+  const before=new Set(DB.get('visits').map(v=>v.id));
+  f(custId,editId);
+  if(document.getElementById('modal').classList.contains('show'))return;
+  const vs=DB.get('visits');const v=editId?vs.find(x=>x.id===editId):vs.find(x=>!before.has(x.id)&&x.custId===custId);if(!v)return;
+  const svcs=getServices();let ch=false;
+  (v.items||[]).forEach(it=>{
+    if(it.id in oldW){if(it.warranty!==oldW[it.id]){it.warranty=oldW[it.id];ch=true;}return;}
+    if('warranty' in it)return;
+    // chỉ tin dịch vụ khi TÊN dòng đúng tên trong danh mục (NV gõ đè tên khác → không ghi bảo hành)
+    const nm=String(it.name||'').trim();const s=svcs.find(x=>x.cat!=='mp'&&String(x.name||'').trim()===nm&&(!it.svcId||x.id===it.svcId))||svcs.find(x=>x.cat!=='mp'&&String(x.name||'').trim()===nm);
+    if(s&&s.warranty){it.warranty=s.warranty;ch=true;}
+  });
+  if(ch){DB.set('visits',vs);if(document.getElementById('detail-panel').classList.contains('open'))openCust(custId);}
+};})();
+// ── Gói liệu trình: ô Bảo hành (có ♾️ Trọn đời) trong form tạo gói, chép sang khách lúc bán
+(function(){
+  const fd=xPkgDefForm;xPkgDefForm=function(id){fd(id);const d=id?xPkgDefs().find(x=>x.id===id):null;const n=document.getElementById('xpd-note');if(!n)return;
+    n.closest('.form-grid').insertAdjacentHTML('beforebegin',`<div style="background:#f3fbf7;border:1px solid #c8e6c9;border-radius:8px;padding:10px 12px;margin-bottom:9px"><div style="font-size:12px;font-weight:700;color:#2e7d32;margin-bottom:6px">🛡️ Bảo hành gói</div>${xWarrPicker('xpd-warr',d?d.warranty||'':'')}</div>`);};
+  const fds=xPkgDefSave;xPkgDefSave=function(id){const w=xWarrVal('xpd-warr');const ids=new Set(xPkgDefs().map(d=>d.id));fds(id);if(w===null)return;
+    const d=id?xPkgDefs().find(x=>x.id===id):xPkgDefs().find(x=>!ids.has(x.id));if(d&&(d.warranty||'')!==w){xUpsert('pkg_defs',{id:d.id,warranty:w});xRerender();}};
+  const fs=xPkgSell;xPkgSell=function(){const did=(document.getElementById('xps-def')||{}).value;const ids=new Set(xLoad('cust_pkgs').map(p=>p.id));fs();
+    const p=xLoad('cust_pkgs').find(x=>!ids.has(x.id));const d=xPkgDefs().find(x=>x.id===did);
+    if(p&&d&&d.warranty){xUpsert('cust_pkgs',{id:p.id,warranty:d.warranty});if(document.getElementById('detail-panel').classList.contains('open'))openCust(p.custId);if(xCurPage==='xsvc')xRerender();}};
+  const fr=xPkgRow;xPkgRow=function(p){let h=fr(p);if(p.warranty)h=h.replace('</b><div class="x-note">Mua',`</b> ${xWarrBadge(p.warranty)}<div class="x-note">Mua`);return h;};
+  const fi=xPsInfo;xPsInfo=function(){fi();const d=xPkgDefs().find(x=>x.id===(document.getElementById('xps-def')||{}).value);const el=document.getElementById('xps-info');if(d&&d.warranty&&el)el.innerHTML+=' · '+xWarrBadge(d.warranty);};
+})();
+// ── Hồ sơ khách: khung "🛡️ Bảo hành"
+function xWarrList(custId){
+  const out=[];const t=xToday();
+  DB.get('visits').filter(v=>v.custId===custId).forEach(v=>(v.items||[]).forEach(it=>{if(it.warranty)out.push({kind:'v',vid:v.id,iid:it.id,name:it.name,date:v.date,w:it.warranty});}));
+  xLoad('cust_pkgs').filter(p=>p.custId===custId&&p.warranty).forEach(p=>out.push({kind:'p',pid:p.id,name:'Liệu trình: '+p.name,date:p.buyDate,w:p.warranty}));
+  out.forEach(o=>{o.end=xWarrEnd(o.date,o.w);o.ok=o.end==='life'||!o.end||o.end>=t;});
+  return out.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+}
+function xWarrLine(o){const t=xToday();
+  const st=o.end==='life'?'<b style="color:#2e7d32">♾️ Trọn đời</b>':o.end?(o.end>=t?`<b style="color:#2e7d32">còn tới ${xFmtD(o.end)}</b> <span class="x-note">(${xPkgDaysDiff(o.end,t)} ngày)</span>`:`<b style="color:#c62828">hết hạn ${xFmtD(o.end)}</b>`):`<b>${xE(xWarrLabel(o.w))}</b>`;
+  const key=o.kind==='v'?`'v','${o.vid}','${o.iid}'`:`'p','${o.pid}',''`;
+  return `<div class="x-note" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:3px 0;border-bottom:1px dashed #e0f2f1">${o.ok?'🛡️':'⛔'} <b style="color:#37474f">${xE(o.name)}</b> · làm ${xFmtD(o.date)} · ${st}${xCan('front')?` <button class="btn btn-gray btn-xs" style="margin-left:auto" onclick="xWarrEdit(${key})">✏️</button>`:''}</div>`;}
+function xWarrEdit(kind,id,iid){
+  let cur='',nm='';if(kind==='v'){const v=DB.get('visits').find(x=>x.id===id);const it=v&&(v.items||[]).find(x=>x.id===iid);if(!it)return;cur=it.warranty||'';nm=it.name;}
+  else{const p=xLoad('cust_pkgs').find(x=>x.id===id);if(!p)return;cur=p.warranty||'';nm=p.name;}
+  showModal(`<h3>🛡️ Bảo hành – ${xE(nm)}</h3>${xWarrPicker('xwe',cur)}<div class="btn-group"><button class="btn btn-gray" onclick="closeModal()">Huỷ</button><button class="btn btn-teal" onclick="xWarrEditSave('${kind}','${id}','${iid}')">💾 Lưu</button></div>`);}
+function xWarrEditSave(kind,id,iid){const w=xWarrVal('xwe')||'';let cid='';
+  if(kind==='v'){const vs=DB.get('visits');const v=vs.find(x=>x.id===id);const it=v&&(v.items||[]).find(x=>x.id===iid);if(!it)return;it.warranty=w;cid=v.custId;DB.set('visits',vs);}
+  else{const p=xLoad('cust_pkgs').find(x=>x.id===id);if(!p)return;xUpsert('cust_pkgs',{id,warranty:w});cid=p.custId;}
+  closeModal();toast('✅ Đã lưu bảo hành');openCust(cid);if(xCurPage==='xsvc')xRerender();}
+// Thêm bảo hành cho 1 dịch vụ khách đã làm trước đây (chưa ghi bảo hành)
+function xWarrAddForm(custId){
+  const vs=DB.get('visits').filter(v=>v.custId===custId).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  const opts=vs.flatMap(v=>(v.items||[]).filter(it=>it.cat!=='mp'&&!it.warranty).map(it=>`<option value="${v.id}|${it.id}">${xFmtD(v.date)} – ${xE(it.name)}</option>`));
+  if(!opts.length){toast('Khách chưa có dịch vụ nào để ghi bảo hành',false);return;}
+  showModal(`<h3>🛡️ Ghi bảo hành cho dịch vụ đã làm</h3><div class="form-grid full"><div><label>Dịch vụ</label><select class="fi" id="xwa-it">${opts.join('')}</select></div></div>${xWarrPicker('xwe','')}
+  <div class="btn-group"><button class="btn btn-gray" onclick="closeModal()">Huỷ</button><button class="btn btn-teal" onclick="const [a,b]=document.getElementById('xwa-it').value.split('|');if(!xWarrVal('xwe')){toast('Chọn thời gian bảo hành',false);return;}xWarrEditSave('v',a,b)">💾 Lưu</button></div>`);}
+(function(){const f=openCust;openCust=function(custId){f(custId);const pi=document.getElementById('panel-inner');if(!pi)return;
+  const blocks=[...pi.querySelectorAll('.x-block')];const after=blocks.find(b=>/📦 Liệu trình/.test(b.querySelector('.x-block-hd')?.textContent||''))||blocks[blocks.length-1];if(!after)return;
+  const L=xWarrList(custId);
+  after.insertAdjacentHTML('afterend',`<div class="x-block" id="x-warr-blk"><div class="x-block-hd">🛡️ Bảo hành ${xCan('front')?`<button class="btn btn-gray btn-xs" onclick="xWarrAddForm('${custId}')">+ Ghi bảo hành</button>`:''}</div>
+    ${L.length?L.map(xWarrLine).join(''):'<div class="x-note">Chưa có dịch vụ nào đang bảo hành.</div>'}</div>`);};})();
 
 </script>
 <script>
